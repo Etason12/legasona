@@ -60,6 +60,12 @@ def create_app(config_class=Config):
     with app.app_context():
         from app.models import User, Branch, Vehicle, SparePart
         db.create_all()
+        # Widen password_hash column for scrypt hashes (Python 3.14 / Werkzeug default)
+        try:
+            db.session.execute(db.text("ALTER TABLE users ALTER COLUMN password_hash TYPE TEXT"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         db.session.commit()
         if not Branch.query.filter_by(name='Shire').first():
             shire = Branch(name='Shire', location='Shire, Tigray')

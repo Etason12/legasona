@@ -29,7 +29,7 @@ class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128))
+    password_hash = db.Column(db.Text)
     role = db.Column(db.String(20), nullable=False)  # admin, manager, sales, storeman, accountant
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=True)
     status = db.Column(db.String(20), default='active')

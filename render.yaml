@@ -1,9 +1,9 @@
 services:
-  # Single service: builds frontend + serves API and frontend
+  # Backend API
   - type: web
     name: legasona-api
     env: python
-    buildCommand: cd frontend && npm install && npm run build && cd ../backend && pip install -r requirements.txt
+    buildCommand: pip install -r backend/requirements.txt
     startCommand: cd backend && gunicorn run:app --worker-class sync --workers 2 --timeout 120 --bind 0.0.0.0:$PORT
     envVars:
       - key: DATABASE_URL
@@ -16,8 +16,20 @@ services:
         generateValue: true
       - key: FLASK_ENV
         value: production
+
+  # Frontend static site
+  - type: web
+    name: legasona-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    envVars:
       - key: VITE_API_URL
-        value: /api
+        fromService:
+          name: legasona-api
+          type: web
+          property: url
+          path: /api
 
 databases:
   - name: legasona-db

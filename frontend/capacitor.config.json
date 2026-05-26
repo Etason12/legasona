@@ -1,0 +1,11 @@
+{
+  "appId": "com.legasona.app",
+  "appName": "Legasona",
+  "webDir": "dist",
+  "server": {
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

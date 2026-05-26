@@ -2,7 +2,7 @@ services:
   - type: web
     name: legasona-api
     env: python
-    buildCommand: cd frontend && npm install && npm run build && cd ../backend && pip install -r requirements.txt
+    buildCommand: pip install -r backend/requirements.txt
     startCommand: cd backend && gunicorn run:app --worker-class sync --workers 2 --timeout 120 --bind 0.0.0.0:$PORT
     envVars:
       - key: DATABASE_URL
@@ -15,10 +15,19 @@ services:
         generateValue: true
       - key: FLASK_ENV
         value: production
+
+  - type: web
+    name: legasona-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
       - key: VITE_API_URL
-        value: /api
-      - key: NODE_VERSION
-        value: "20"
+        value: https://legasonaimporter.onrender.com/api
 
 databases:
   - name: legasona-db

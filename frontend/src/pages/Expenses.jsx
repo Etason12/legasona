@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { FileText, Plus, Search, DollarSign, Calendar, Tag, MoreVertical, Loader2, Trash2, Image as ImageIcon, X, Check } from 'lucide-react'
-import api, { API_BASE_URL } from '../services/api'
+import api from '../services/api'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -176,22 +176,15 @@ const Expenses = ({ user }) => {
            ETB {expense.amount.toLocaleString()}
           </td>
           <td className="px-6 py-4 text-right flex justify-end gap-2">
-           {expense.receipt_attachment && (
-            <button 
-             onClick={() => {
-              const url = `${API_BASE_URL}/expenses/receipts/${expense.receipt_attachment}`;
-              if (expense.receipt_attachment.toLowerCase().endsWith('.pdf')) {
-               window.open(url, '_blank');
-              } else {
-               setPreviewImage(url);
-              }
-             }}
-             className="p-2 hover:bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl transition-colors"
-             title="View Receipt"
-            >
-             <ImageIcon size={18} />
-            </button>
-           )}
+            {expense.receipt_attachment && (
+             <button 
+              onClick={() => setPreviewImage(expense.receipt_attachment)}
+              className="p-2 hover:bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl transition-colors"
+              title="View Receipt"
+             >
+              <ImageIcon size={18} />
+             </button>
+            )}
            {(user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'manager') && (
             <button 
              onClick={() => handleDelete(expense.id)}

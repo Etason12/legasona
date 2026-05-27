@@ -3,7 +3,7 @@ import {
   Search, Plus, Package, Car, Loader2, Download,
   Edit3, Trash2, X, Check, ImagePlus, AlertTriangle
 } from 'lucide-react'
-import api, { API_BASE_URL } from '../services/api'
+import api from '../services/api'
 import { toast } from 'react-toastify'
 import { exportInventoryToExcel } from '../services/ExportService'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -16,16 +16,15 @@ const STATUSES      = ['available', 'reserved', 'sold', 'in-transit']
 const canEdit   = (role) => ['admin', 'manager', 'storekeeper'].includes(role?.toLowerCase())
 const canDelete = (role) => ['admin', 'manager'].includes(role?.toLowerCase())
 
-const ImageCell = ({ filename, onClick }) => {
+const ImageCell = ({ imageData, onClick }) => {
   const [error, setError] = useState(false)
-  if (!filename || error)
+  if (!imageData || error)
     return <div className="w-12 h-12 rounded-lg bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center text-neutral-400"><Package size={20}/></div>
-  const url = `${API_BASE_URL}/inventory/images/${filename}`
   return (
     <img
-      src={url} alt="item"
+      src={imageData} alt="item"
       className="w-12 h-12 rounded-lg object-cover border border-neutral-200 dark:border-neutral-700 cursor-zoom-in transition-colors"
-      onClick={() => onClick(url)}
+      onClick={() => onClick(imageData)}
       onError={() => setError(true)}
     />
   )
@@ -341,7 +340,7 @@ const Inventory = ({ user }) => {
                   <tr><td colSpan="6"><EmptyState message={t('noItemsFoundDesc')} /></td></tr>
                 ) : items.map(item => (
                   <tr key={item.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/60 transition-colors group border-b border-neutral-100 dark:border-neutral-800 last:border-0">
-                    <td className="px-6 py-5 hidden sm:table-cell"><ImageCell filename={item.image} onClick={setPreviewImage}/></td>
+                    <td className="px-6 py-5 hidden sm:table-cell"><ImageCell imageData={item.image} onClick={setPreviewImage}/></td>
                     <td className="px-6 py-5">
                       <p className="text-slate-900 dark:text-white font-bold text-sm">{activeTab === 'vehicles' ? item.model : item.name}</p>
                       <p className="text-xs font-mono text-slate-500 mt-0.5">{activeTab === 'vehicles' ? `VIN: ${item.vin}` : `Part #: ${item.part_number}`}</p>

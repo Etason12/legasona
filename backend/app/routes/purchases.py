@@ -1,26 +1,12 @@
-from flask import Blueprint, request, jsonify, send_from_directory, make_response
+from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from app.models import Purchase, PurchaseItem, SparePart, Vehicle, db
 from app.utils.auth import role_required
-from app.utils.image_utils import save_compressed_image
+from app.utils.image_utils import compress_to_base64
 from datetime import datetime
-from werkzeug.utils import secure_filename
-import os
 import json
 
 purchases_bp = Blueprint('purchases', __name__)
-
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', '..'))
-RECEIPT_DIR = os.path.join(ROOT_DIR, 'uploads', 'receipts')
-os.makedirs(RECEIPT_DIR, exist_ok=True)
-
-# ── Serve receipts (public — loaded by <img>/<a> tags) ────────────
-@purchases_bp.route('/receipts/<path:filename>')
-def serve_receipt(filename):
-    resp = make_response(send_from_directory(RECEIPT_DIR, filename))
-    resp.headers['Cache-Control'] = 'public, max-age=86400'
-    return resp
 
 @purchases_bp.route('', methods=['GET'])
 @jwt_required()
@@ -58,18 +44,13 @@ def record_purchase():
     items_data = data.get('items', [])
     total = sum(float(i.get('quantity', 0)) * float(i.get('unit_cost', 0)) for i in items_data)
 
-    receipt_filename = None
-    if file and file.filename:
-        filename = secure_filename(f"pur_{int(datetime.utcnow().timestamp())}.jpg")
-        save_path = os.path.join(RECEIPT_DIR, filename)
-        save_compressed_image(file, save_path)
-        receipt_filename = filename
+    receipt_data = compress_to_base64(file)
 
     new_purchase = Purchase(
         supplier_name=data.get('supplier_name'), item_type=data.get('item_type'),
         total_amount=total, payment_method=data.get('payment_method'),
         branch_id=data.get('branch_id'), user_id=data.get('user_id'),
-        receipt_attachment=receipt_filename
+        receipt_attachment=receipt_data
     )
     db.session.add(new_purchase)
     db.session.flush()

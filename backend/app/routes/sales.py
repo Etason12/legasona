@@ -1,30 +1,14 @@
-import os
 import json
-from flask import Blueprint, request, jsonify, send_from_directory, make_response
+from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.auth import admin_required, role_required
-from app.utils.image_utils import save_compressed_image
-from werkzeug.utils import secure_filename
+from app.utils.image_utils import compress_to_base64
 from datetime import datetime
 from sqlalchemy import func, or_
 from app.models import Sale, Payment, Vehicle, SparePart, User, Customer, db
 from app.utils.logging import log_activity
 
 sales_bp = Blueprint('sales', __name__)
-
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-
-ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', '..'))
-
-
-RECEIPT_DIR = os.path.join(ROOT_DIR, 'uploads', 'receipts')
-
-# ── Serve uploaded receipt images (public — loaded directly by <img>/<a> tags) ──
-@sales_bp.route('/receipts/<path:filename>')
-def serve_receipt(filename):
-    resp = make_response(send_from_directory(RECEIPT_DIR, filename))
-    resp.headers['Cache-Control'] = 'public, max-age=86400'
-    return resp
 
 def _ensure_customer(data):
     """Create a Customer record if one doesn't exist for this phone number.
@@ -45,16 +29,6 @@ def _ensure_customer(data):
     return customer_id
 
 # ── Record Vehicle Sale ──────────────────────────────────────────────
-def _save_payment_receipt(sale_id, file, index):
-    if not file or not file.filename:
-        return None
-    os.makedirs(RECEIPT_DIR, exist_ok=True)
-    filename = secure_filename(f"rcpt_{sale_id}_{index}_{int(datetime.utcnow().timestamp())}.jpg")
-    save_path = os.path.join(RECEIPT_DIR, filename)
-    save_compressed_image(file, save_path)
-    return filename
-
-
 @sales_bp.route('/vehicle', methods=['POST'])
 @jwt_required()
 @role_required('admin', 'manager', 'cashier')
@@ -119,13 +93,13 @@ def record_vehicle_sale():
                 return jsonify({'message': f'Transaction reference {ref} already exists'}), 400
 
         receipt_file = request.files.get(f'receipt_{idx}') if request.content_type and 'multipart' in request.content_type else None
-        receipt_filename = _save_payment_receipt(new_sale.id, receipt_file, idx)
+        receipt_data = compress_to_base64(receipt_file)
 
         db.session.add(Payment(
             sale_id=new_sale.id, payment_method=method,
             bank_name=p.get('bank', '').upper(), account_holder=p.get('accountHolder', '').upper(),
             amount=float(p.get('amount', 0)),
-            transaction_reference=ref.upper() if ref else None, receipt_image=receipt_filename,
+            transaction_reference=ref.upper() if ref else None, receipt_image=receipt_data,
             payment_date=sale_date
         ))
 
@@ -304,12 +278,6 @@ def delete_payment(sale_id, payment_id):
     if not payment or payment.sale_id != sale_id:
         return jsonify({'message': 'Payment not found'}), 404
 
-    # Remove receipt file if exists
-    if payment.receipt_image:
-        receipt_path = os.path.join(RECEIPT_DIR, payment.receipt_image)
-        if os.path.exists(receipt_path):
-            os.remove(receipt_path)
-
     db.session.delete(payment)
     db.session.flush()
 
@@ -348,13 +316,7 @@ def add_payment(id):
     account_holder = request.form.get('account_holder', '')
     reference = request.form.get('reference', '')
 
-    receipt_filename = None
-    file = request.files.get('receipt')
-    if file and file.filename:
-        os.makedirs(RECEIPT_DIR, exist_ok=True)
-        filename = secure_filename(f"rcpt_{sale.id}_{int(datetime.utcnow().timestamp())}_{file.filename}")
-        file.save(os.path.join(RECEIPT_DIR, filename))
-        receipt_filename = filename
+    receipt_data = compress_to_base64(request.files.get('receipt'))
 
     if method == 'bank':
         if not bank:
@@ -370,7 +332,7 @@ def add_payment(id):
         sale_id=sale.id, payment_method=method, bank_name=bank.upper() if bank else '',
         account_holder=account_holder.upper() if account_holder else '',
         amount=amount, transaction_reference=reference.upper() if reference else '',
-        receipt_image=receipt_filename
+        receipt_image=receipt_data
     )
     db.session.add(new_payment)
     db.session.flush()  # flush so the new payment is included in the aggregate

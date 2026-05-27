@@ -56,7 +56,7 @@ class Vehicle(db.Model):
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))
     status = db.Column(db.String(20), default='available')  # available, sold, reserved, in-transit
     received_date = db.Column(db.DateTime, default=datetime.utcnow)
-    image = db.Column(db.String(255))  # Path to item photo
+    image = db.Column(db.Text)
 
 class SparePart(db.Model):
     __tablename__ = 'spare_parts'
@@ -68,7 +68,7 @@ class SparePart(db.Model):
     cost_price = db.Column(db.Float)
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))
     quantity = db.Column(db.Integer, default=0)
-    image = db.Column(db.String(255))  # Path to item photo
+    image = db.Column(db.Text)
 
 class Sale(db.Model):
     __tablename__ = 'sales'
@@ -85,7 +85,7 @@ class Sale(db.Model):
     cost_at_sale = db.Column(db.Float, default=0.0)
     chassis_number = db.Column(db.String(50))
     motor_number = db.Column(db.String(50))
-    receipt_image = db.Column(db.String(255))  # Path to receipt image for bank transfer
+    receipt_image = db.Column(db.Text)
     transaction_reference = db.Column(db.String(100))  # Bank transaction reference for the sale
     status = db.Column(db.String(20), default='completed')  # pending, completed, cancelled
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))
@@ -102,7 +102,7 @@ class Payment(db.Model):
     account_holder = db.Column(db.String(50))  # Tewelde, Berihu, Mulugeta, or custom
     amount = db.Column(db.Float, nullable=False)
     transaction_reference = db.Column(db.String(100))
-    receipt_image = db.Column(db.String(255)) # Path to uploaded image
+    receipt_image = db.Column(db.Text)
     payment_date = db.Column(db.DateTime, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -147,7 +147,7 @@ class Purchase(db.Model):
     payment_method = db.Column(db.String(20))
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    receipt_attachment = db.Column(db.String(255))
+    receipt_attachment = db.Column(db.Text)
 
 class PurchaseItem(db.Model):
     __tablename__ = 'purchase_items'
@@ -165,7 +165,7 @@ class Expense(db.Model):
     amount = db.Column(db.Float, nullable=False)
     expense_date = db.Column(db.DateTime, default=datetime.utcnow)
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))
-    receipt_attachment = db.Column(db.String(255))
+    receipt_attachment = db.Column(db.Text)
     approved_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 

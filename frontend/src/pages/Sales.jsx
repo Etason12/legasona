@@ -21,22 +21,21 @@ import {
   Pencil
 } from 'lucide-react'
 import { toast } from 'react-toastify'
-import api, { API_BASE_URL } from '../services/api'
+import api from '../services/api'
 import { generateReceipt } from '../services/ReceiptService'
 import { exportSalesToExcel } from '../services/ExportService'
 import { useLanguage } from '../i18n/LanguageContext'
 import { Package } from 'lucide-react'
 import { isAdmin } from '../utils/roles'
 
-const ImageCell = ({ filename, onClick }) => {
+const ImageCell = ({ imageData, onClick }) => {
   const [error, setError] = useState(false)
-  if (!filename || error) return <div className="w-10 h-10 rounded-lg bg-neutral-800 flex items-center justify-center text-neutral-600"><Package size={18}/></div>
-  const url = `${API_BASE_URL}/inventory/images/${filename}`
+  if (!imageData || error) return <div className="w-10 h-10 rounded-lg bg-neutral-800 flex items-center justify-center text-neutral-600"><Package size={18}/></div>
   return (
     <img
-      src={url} alt="item"
+      src={imageData} alt="item"
       className="w-10 h-10 rounded-lg object-cover border border-neutral-300 dark:border-neutral-700 cursor-zoom-in transition-colors"
-      onClick={() => onClick(url)}
+      onClick={() => onClick(imageData)}
       onError={() => setError(true)}
     />
   )
@@ -423,7 +422,7 @@ const Sales = ({ user }) => {
                           {sale.status === 'completed' ? <CheckCircle2 size={20} /> : <Clock size={20} className="animate-pulse" />}
                         </div>
                       </td>
-                      <td className="px-6 py-4 hidden sm:table-cell"><ImageCell filename={sale.item_image} onClick={setPreviewImage} /></td>
+                       <td className="px-6 py-4 hidden sm:table-cell"><ImageCell imageData={sale.item_image} onClick={setPreviewImage} /></td>
                       <td className="px-6 py-4">
                         <p className="font-mono text-brand-600 font-bold tracking-tighter">{sale.sale_number}</p>
                         <p className="text-xs text-slate-500 mt-1">{new Date(sale.sale_date).toLocaleDateString()}</p>
@@ -537,11 +536,7 @@ const Sales = ({ user }) => {
                         </div>
                         {p.receipt_image && (
                           <button
-                            onClick={() => {
-                              const url = `${API_BASE_URL}/sales/receipts/${p.receipt_image}`
-                              if (p.receipt_image.toLowerCase().endsWith('.pdf')) window.open(url, '_blank')
-                              else setPreviewImage(url)
-                            }}
+                            onClick={() => setPreviewImage(p.receipt_image)}
                             className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-lg transition-colors"
                           ><Camera size={16} /></button>
                         )}

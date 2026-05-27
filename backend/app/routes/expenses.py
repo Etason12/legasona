@@ -1,25 +1,11 @@
-from flask import Blueprint, request, jsonify, send_from_directory, make_response
+from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Expense, Branch, db
 from app.utils.auth import role_required
-from app.utils.image_utils import save_compressed_image
+from app.utils.image_utils import compress_to_base64
 from datetime import datetime
-from werkzeug.utils import secure_filename
-import os
 
 expenses_bp = Blueprint('expenses', __name__)
-
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', '..'))
-RECEIPT_DIR = os.path.join(ROOT_DIR, 'uploads', 'receipts')
-os.makedirs(RECEIPT_DIR, exist_ok=True)
-
-# ── Serve receipts (public — loaded by <img>/<a> tags) ────────────
-@expenses_bp.route('/receipts/<path:filename>')
-def serve_receipt(filename):
-    resp = make_response(send_from_directory(RECEIPT_DIR, filename))
-    resp.headers['Cache-Control'] = 'public, max-age=86400'
-    return resp
 
 @expenses_bp.route('', methods=['POST'])
 @jwt_required()
@@ -41,16 +27,11 @@ def create_expense():
         user_id     = data.get('user_id')
         file        = None
 
-    receipt_filename = None
-    if file and file.filename:
-        filename = secure_filename(f"exp_{int(datetime.utcnow().timestamp())}.jpg")
-        save_path = os.path.join(RECEIPT_DIR, filename)
-        save_compressed_image(file, save_path)
-        receipt_filename = filename
+    receipt_data = compress_to_base64(file)
 
     new_expense = Expense(
         category=category, description=description, amount=amount,
-        branch_id=branch_id, user_id=user_id, receipt_attachment=receipt_filename
+        branch_id=branch_id, user_id=user_id, receipt_attachment=receipt_data
     )
     db.session.add(new_expense)
     db.session.commit()

@@ -3,7 +3,7 @@ import {
  ShoppingBag, Plus, Loader2, Trash2, X, Check, Search,
  ChevronDown, ChevronUp, Package, Truck, Image as ImageIcon
 } from 'lucide-react'
-import api, { API_BASE_URL } from '../services/api'
+import api from '../services/api'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -187,21 +187,16 @@ const Purchases = ({ user }) => {
          <p className="text-xs text-slate-500 uppercase">{pu.branch_id === 1 ? 'Shire' : 'Mekelle'}</p>
         </div>
         {pu.receipt_attachment && (
-         <button 
-          onClick={e => {
-           e.stopPropagation();
-           const url = `${API_BASE_URL}/purchases/receipts/${pu.receipt_attachment}`;
-           if (pu.receipt_attachment.toLowerCase().endsWith('.pdf')) {
-            window.open(url, '_blank');
-           } else {
-            setPreviewImage(url);
-           }
-          }}
-          className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:bg-blue-900/50 rounded-xl transition-colors"
-          title="View Receipt"
-         >
-          <ImageIcon size={16}/>
-         </button>
+          <button 
+           onClick={e => {
+            e.stopPropagation();
+            setPreviewImage(pu.receipt_attachment);
+           }}
+           className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:bg-blue-900/50 rounded-xl transition-colors"
+           title="View Receipt"
+          >
+           <ImageIcon size={16}/>
+          </button>
         )}
         {canDelete(role) && (
          <button

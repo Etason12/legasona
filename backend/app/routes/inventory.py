@@ -1,33 +1,10 @@
-import os
-from flask import Blueprint, jsonify, request, send_from_directory, make_response
+from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from app.models import Vehicle, SparePart, db
 from app.utils.auth import role_required
-from app.utils.image_utils import save_compressed_image
-from werkzeug.utils import secure_filename
+from app.utils.image_utils import compress_to_base64
 
 inventory_bp = Blueprint('inventory', __name__)
-
-# Use absolute path for upload directory
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', '..'))
-UPLOAD_DIR = os.path.join(ROOT_DIR, 'uploads', 'inventory')
-
-def save_image(file, prefix):
-    if not file or file.filename == '':
-        return None
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    filename = secure_filename(f"{prefix}_{int(__import__('time').time())}.jpg")
-    save_path = os.path.join(UPLOAD_DIR, filename)
-    save_compressed_image(file, save_path)
-    return filename
-
-# ── Image serving (public — no JWT, images referenced directly by <img> tags) ──
-@inventory_bp.route('/images/<path:filename>')
-def serve_image(filename):
-    resp = make_response(send_from_directory(UPLOAD_DIR, filename))
-    resp.headers['Cache-Control'] = 'public, max-age=86400'
-    return resp
 
 # ── Vehicles ──────────────────────────────────────────────
 @inventory_bp.route('/vehicles', methods=['GET'])
@@ -58,14 +35,14 @@ def add_vehicle():
         return jsonify({'message': 'VIN is required'}), 400
     if Vehicle.query.filter_by(vin=vin).first():
         return jsonify({'message': 'VIN already exists'}), 409
-    image_filename = save_image(request.files.get('image'), 'veh')
+    image_data = compress_to_base64(request.files.get('image'))
     v = Vehicle(
         vin=vin, type=request.form.get('type'), power_type=request.form.get('power_type'),
         model=request.form.get('model'), color=request.form.get('color'),
         chassis_number=vin, engine_number=request.form.get('engine_number'),
         cost_price=float(request.form.get('cost_price', 0) or 0),
         selling_price=float(request.form.get('selling_price', 0) or 0),
-        branch_id=request.form.get('branch_id'), status='available', image=image_filename
+        branch_id=request.form.get('branch_id'), status='available', image=image_data
     )
     db.session.add(v)
     db.session.commit()
@@ -80,7 +57,7 @@ def update_vehicle(id):
         data = request.form
         image_file = request.files.get('image')
         if image_file and image_file.filename:
-            v.image = save_image(image_file, 'veh')
+            v.image = compress_to_base64(image_file)
     else:
         data = request.get_json() or {}
     v.model = data.get('model', v.model)
@@ -93,7 +70,6 @@ def update_vehicle(id):
     v.branch_id = data.get('branch_id', v.branch_id)
     if data.get('vin'):
         new_vin = data.get('vin').strip().upper()
-        # check uniqueness only if VIN is actually changing
         if new_vin != v.vin:
             if Vehicle.query.filter(Vehicle.vin == new_vin, Vehicle.id != v.id).first():
                 return jsonify({'message': 'VIN already exists'}), 409
@@ -132,14 +108,14 @@ def get_spare_parts():
 @jwt_required()
 @role_required('admin', 'manager', 'storekeeper')
 def add_spare_part():
-    image_filename = save_image(request.files.get('image'), 'part')
+    image_data = compress_to_base64(request.files.get('image'))
     p = SparePart(
         part_number=request.form.get('part_number'), name=request.form.get('name'),
         category=request.form.get('category'),
         unit_price=float(request.form.get('unit_price', 0) or 0),
         cost_price=float(request.form.get('cost_price', 0) or 0),
         quantity=int(request.form.get('quantity', 0) or 0),
-        branch_id=request.form.get('branch_id'), image=image_filename
+        branch_id=request.form.get('branch_id'), image=image_data
     )
     db.session.add(p)
     db.session.commit()
@@ -154,7 +130,7 @@ def update_spare_part(id):
         data = request.form
         image_file = request.files.get('image')
         if image_file and image_file.filename:
-            p.image = save_image(image_file, 'part')
+            p.image = compress_to_base64(image_file)
     else:
         data = request.get_json() or {}
     p.name = data.get('name', p.name)

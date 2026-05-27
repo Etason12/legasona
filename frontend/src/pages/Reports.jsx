@@ -54,6 +54,7 @@ const Reports = ({ user }) => {
       const params = new URLSearchParams({ branch_id: branchId })
       if (s) params.append('start_date', s)
       if (e) params.append('end_date', e)
+      params.append('_t', Date.now())
       const qs = params.toString()
       const [statsRes, profitRes, paymentsRes, branchRes, invDistRes] = await Promise.all([
         api.get(`/reports/dashboard?${qs}`),

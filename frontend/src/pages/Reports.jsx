@@ -44,7 +44,7 @@ const Reports = ({ user }) => {
 
   useEffect(() => {
     fetchReportData()
-  }, [])
+  }, [startDate, endDate])
 
   const fetchReportData = async (sd, ed) => {
     try {
@@ -114,10 +114,6 @@ const Reports = ({ user }) => {
             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
               className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-32" />
           </div>
-          <button onClick={() => fetchReportData(startDate, endDate)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors">
-            {t('filter')}
-          </button>
           <button
             onClick={() => exportReportsToExcel(payments, data, profit, t)}
             className="btn-primary flex items-center gap-2"

@@ -59,7 +59,7 @@ const Reports = ({ user }) => {
         api.get(`/reports/dashboard?${qs}`),
         api.get(`/reports/profit-analysis?${qs}`),
         api.get(`/reports/payments?${qs}`),
-        api.get('/reports/branch-comparison'),
+        api.get(`/reports/branch-comparison?${qs}`),
         api.get('/reports/inventory-distribution'),
       ])
       setData(statsRes.data)

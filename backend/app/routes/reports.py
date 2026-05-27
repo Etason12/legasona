@@ -196,11 +196,20 @@ def get_payment_report():
 @reports_bp.route('/branch-comparison', methods=['GET'])
 @jwt_required()
 def get_branch_comparison():
+    branch_id = request.args.get('branch_id')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
     branches = Branch.query.all()
     result = []
     for b in branches:
-        rev = db.session.query(func.sum(Sale.total_amount)).filter(Sale.branch_id == b.id).scalar() or 0
-        count = Sale.query.filter(Sale.branch_id == b.id).count()
+        rev_q = db.session.query(func.sum(Sale.total_amount)).filter(Sale.branch_id == b.id)
+        count_q = Sale.query.filter(Sale.branch_id == b.id)
+        if branch_id and str(b.id) != branch_id:
+            continue
+        rev_q = _date_filter(rev_q, Sale.sale_date, start_date, end_date)
+        count_q = _date_filter(count_q, Sale.sale_date, start_date, end_date)
+        rev = rev_q.scalar() or 0
+        count = count_q.count()
         vehicle_count = Vehicle.query.filter(Vehicle.branch_id == b.id).count()
         part_count = SparePart.query.filter(SparePart.branch_id == b.id).count()
         result.append({

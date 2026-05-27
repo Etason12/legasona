@@ -519,32 +519,6 @@ const Sales = ({ user }) => {
             </table>
                     </div>
                   )}
-                  <div className="pt-4 border-t border-neutral-200 dark:border-neutral-700 space-y-4">
-                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('receipt')}</h4>
-                    {editingPayment.receipt_image && (
-                      <div className="flex items-center gap-3">
-                        <img src={editingPayment.receipt_image} alt="Receipt" className="w-20 h-20 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700" />
-                        <span className="text-xs text-slate-500">{t('existingReceipt')}</span>
-                      </div>
-                    )}
-                    <label className="flex items-center justify-center gap-3 w-full py-3 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-blue-500 hover:text-blue-600 transition-colors cursor-pointer">
-                      <Upload size={18} />
-                      <span className="text-sm font-medium">{t('uploadReceipt') || 'Upload Receipt'}</span>
-                      <input type="file" name="receipt" accept="image/*" className="hidden" onChange={e => {
-                        if (e.target.files?.[0]) {
-                          const reader = new FileReader()
-                          reader.onload = ev => setEditingPayment(prev => ({ ...prev, receipt_preview: ev.target.result }))
-                          reader.readAsDataURL(e.target.files[0])
-                        }
-                      }} />
-                    </label>
-                    {editingPayment.receipt_preview && (
-                      <div className="flex items-center gap-3">
-                        <img src={editingPayment.receipt_preview} alt="Preview" className="w-20 h-20 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700" />
-                        <button type="button" onClick={() => setEditingPayment(prev => ({ ...prev, receipt_preview: null }))} className="text-xs text-red-500 hover:text-red-700 font-medium">{t('remove')}</button>
-                      </div>
-                    )}
-                  </div>
                 </div>
 
       {/* Payment History Modal — uses standard modal-backdrop */}

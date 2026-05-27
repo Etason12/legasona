@@ -138,16 +138,76 @@ export const exportSalesToExcel = (sales) => {
   XLSX.writeFile(wb, `Legasona_Sales_Report_${dateStr}.xlsx`);
 };
 
-export const exportInventoryToExcel = (items, type) => {
-  const formattedData = items.map((i) => ({
-    'Model/Name': i.model || i.name,
-    'VIN/Part #': i.vin || i.part_number,
-    'Motor #': i.engine_number || '',
-    'Propulsion': i.power_type || '',
-    'Status/Stock': i.status || i.quantity,
-    'Price': i.selling_price || i.unit_price,
-    'Branch': i.branch_id,
-  }));
+const INVENTORY_COL_WIDTHS = {
+  vehicles: [
+    { wch: 28 }, { wch: 22 }, { wch: 18 }, { wch: 14 },
+    { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 14 },
+    { wch: 16 }, { wch: 16 }, { wch: 14 },
+  ],
+  parts: [
+    { wch: 28 }, { wch: 22 }, { wch: 18 }, { wch: 14 },
+    { wch: 16 }, { wch: 16 }, { wch: 14 },
+  ],
+};
 
-  exportToExcel(formattedData, `${type}_Inventory_${new Date().toISOString().split('T')[0]}`);
+export const exportInventoryToExcel = (items, type) => {
+  const dateStr = new Date().toISOString().split('T')[0];
+  const wb = XLSX.utils.book_new();
+
+  if (type === 'vehicles') {
+    const headers = [
+      'Model', 'VIN', 'Chassis #', 'Motor #',
+      'Type', 'Propulsion', 'Color', 'Status',
+      'Selling Price (ETB)', 'Cost Price (ETB)', 'Branch',
+    ];
+    const rows = items.map((v) => [
+      v.model || '',
+      v.vin || '',
+      v.chassis_number || '',
+      v.engine_number || '',
+      v.type || '',
+      v.power_type || '',
+      v.color || '',
+      v.status || '',
+      fmtMoney(v.selling_price),
+      fmtMoney(v.cost_price),
+      `Branch ${v.branch_id}` || '',
+    ]);
+    const titleRows = [
+      ['LEGASONA MOTORS'],
+      ['Vehicles Inventory Report'],
+      [`Generated: ${new Date().toLocaleString()}`, `Total Vehicles: ${items.length}`],
+      [],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...rows]);
+    ws['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
+    ws['!cols'] = INVENTORY_COL_WIDTHS.vehicles;
+    XLSX.utils.book_append_sheet(wb, ws, 'Vehicles');
+  } else {
+    const headers = [
+      'Part Name', 'Part #', 'Category', 'Quantity',
+      'Unit Price (ETB)', 'Cost Price (ETB)', 'Branch',
+    ];
+    const rows = items.map((p) => [
+      p.name || '',
+      p.part_number || '',
+      p.category || '',
+      p.quantity ?? 0,
+      fmtMoney(p.unit_price),
+      fmtMoney(p.cost_price),
+      p.branch_name || p.branch_id || '',
+    ]);
+    const titleRows = [
+      ['LEGASONA MOTORS'],
+      ['Spare Parts Inventory Report'],
+      [`Generated: ${new Date().toLocaleString()}`, `Total Parts: ${items.length}`],
+      [],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...rows]);
+    ws['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
+    ws['!cols'] = INVENTORY_COL_WIDTHS.parts;
+    XLSX.utils.book_append_sheet(wb, ws, 'Spare Parts');
+  }
+
+  XLSX.writeFile(wb, `Legasona_Inventory_${dateStr}.xlsx`);
 };

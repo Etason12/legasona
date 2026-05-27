@@ -5,6 +5,7 @@ import {
  MapPin, 
  Globe, 
  Database, 
+ Download,
  Key,
  ChevronRight,
  Save,
@@ -54,6 +55,7 @@ const Settings = ({ user }) => {
   ...(isAdmin ? [{ id: 'users', name: t('userManagement'), icon: Users, desc: t('userManagementDesc') }] : []),
   { id: 'branches', name: t('branchManagement'), icon: MapPin, desc: t('branchDesc') },
   { id: 'language', name: t('language'), icon: Globe, desc: t('languageDesc') },
+  ...(isAdmin ? [{ id: 'backup', name: 'Backup', icon: Download, desc: 'Export database backup' }] : []),
   ...(isAdmin ? [{ id: 'database', name: 'Database', icon: Database, desc: 'Reset database to factory defaults' }] : []),
  ]
 
@@ -473,6 +475,50 @@ const Settings = ({ user }) => {
           ))}
          </div>
         )}
+       </div>
+      )}
+
+      {/* ── Backup Tab ── */}
+      {activeTab === 'backup' && (
+       <div className="space-y-6">
+        <div className="p-6 rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/10">
+         <div className="flex items-start gap-4">
+          <Download className="text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" size={24} />
+          <div>
+           <h3 className="text-lg font-bold text-blue-600 dark:text-blue-400">Export Database Backup</h3>
+           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+            Download a JSON file containing all your data — branches, customers, users, vehicles, spare parts,
+            sales, payments, orders, purchases, expenses, and activity logs. This does not affect your live data.
+           </p>
+          </div>
+         </div>
+         <div className="mt-6 flex items-center gap-4">
+          <button
+           onClick={async () => {
+            try {
+             const res = await api.get('/backup/export', { responseType: 'blob' })
+             const blob = new Blob([res.data], { type: 'application/json' })
+             const url = URL.createObjectURL(blob)
+             const a = document.createElement('a')
+             a.href = url
+             const ts = new Date().toISOString().replace(/[:.]/g, '-')
+             a.download = `legasona-backup-${ts}.json`
+             document.body.appendChild(a)
+             a.click()
+             document.body.removeChild(a)
+             URL.revokeObjectURL(url)
+             toast.success('Backup downloaded successfully')
+            } catch (err) {
+             toast.error(err.response?.data?.message || 'Backup failed')
+            }
+           }}
+           className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-colors flex items-center gap-2"
+          >
+           <Download size={18} />
+           Download Backup
+          </button>
+         </div>
+        </div>
        </div>
       )}
 

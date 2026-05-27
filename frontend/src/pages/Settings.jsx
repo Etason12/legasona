@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { 
  User, 
  Shield, 
@@ -6,6 +6,7 @@ import {
  Globe, 
  Database, 
  Download,
+ Upload,
  Key,
  ChevronRight,
  Save,
@@ -45,7 +46,10 @@ const Settings = ({ user }) => {
  const [loadingBranches, setLoadingBranches] = useState(false)
  const [showAddBranch, setShowAddBranch] = useState(false)
  const [editingBranch, setEditingBranch] = useState(null)
- const [newBranch, setNewBranch] = useState({ name: '', location: '', address: '', phone: '' })
+  const [newBranch, setNewBranch] = useState({ name: '', location: '', address: '', phone: '' })
+  const [backupFile, setBackupFile] = useState(null)
+  const [importing, setImporting] = useState(false)
+  const backupFileRef = useRef(null)
 
  const isAdmin = user?.role?.toLowerCase() === 'admin'
 
@@ -516,6 +520,52 @@ const Settings = ({ user }) => {
           >
            <Download size={18} />
            Download Backup
+          </button>
+         </div>
+        </div>
+
+        <div className="p-6 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10">
+         <div className="flex items-start gap-4">
+          <Upload className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" size={24} />
+          <div>
+           <h3 className="text-lg font-bold text-amber-600 dark:text-amber-400">Import Backup</h3>
+           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+            Restore data from a previously exported backup file. This will replace all current data
+            with the backup contents. This action cannot be undone.
+           </p>
+          </div>
+         </div>
+         <div className="mt-6 space-y-4">
+          <input
+           ref={backupFileRef}
+           type="file"
+           accept=".json,application/json"
+           onChange={e => setBackupFile(e.target.files[0])}
+           className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-amber-100 dark:file:bg-amber-900/30 file:text-amber-600 dark:file:text-amber-400 hover:file:bg-amber-200 dark:hover:file:bg-amber-900/50 cursor-pointer"
+          />
+          <button
+           disabled={!backupFile || importing}
+           onClick={async () => {
+            if (!window.confirm('This will REPLACE ALL current data with the backup. Continue?')) return
+            if (!window.confirm('FINAL WARNING: All existing records will be deleted before restoring. Proceed?')) return
+            setImporting(true)
+            try {
+             const fd = new FormData()
+             fd.append('file', backupFile)
+             await api.post('/backup/import', fd)
+             toast.success('Backup restored successfully!')
+             setBackupFile(null)
+             if (backupFileRef.current) backupFileRef.current.value = ''
+            } catch (err) {
+             toast.error(err.response?.data?.message || 'Import failed')
+            } finally {
+             setImporting(false)
+            }
+           }}
+           className="px-6 py-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition-colors flex items-center gap-2"
+          >
+           {importing ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+           {importing ? 'Restoring...' : 'Restore Backup'}
           </button>
          </div>
         </div>

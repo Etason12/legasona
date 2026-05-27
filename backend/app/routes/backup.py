@@ -1,7 +1,8 @@
 import json
-from datetime import datetime
-from flask import Blueprint, jsonify, Response
+from datetime import datetime, date
+from flask import Blueprint, jsonify, Response, request
 from flask_jwt_extended import jwt_required
+from sqlalchemy import text
 from app.models import Branch, Customer, User, Vehicle, SparePart, Sale, Payment, Order, Transfer, Purchase, PurchaseItem, Expense, ActivityLog, db
 from app.utils.auth import admin_required
 
@@ -23,6 +24,45 @@ SERIALIZERS = {
     ActivityLog: lambda r: {'id': r.id, 'user_id': r.user_id, 'action': r.action, 'description': r.description, 'timestamp': r.timestamp.isoformat() if r.timestamp else None},
 }
 
+TABLE_MODELS = {
+    'branches': Branch, 'users': User, 'customers': Customer,
+    'vehicles': Vehicle, 'spare_parts': SparePart,
+    'sales': Sale, 'payments': Payment, 'orders': Order,
+    'transfers': Transfer, 'purchases': Purchase, 'purchase_items': PurchaseItem,
+    'expenses': Expense, 'activity_logs': ActivityLog,
+}
+
+DELETE_ORDER = [
+    Payment, PurchaseItem, ActivityLog, Sale, Order, Purchase,
+    Expense, Transfer, Customer, Vehicle, SparePart, User, Branch,
+]
+
+INSERT_ORDER = list(reversed(DELETE_ORDER))
+
+DATE_FIELDS = {
+    Customer: ['created_at'],
+    Vehicle: ['received_date'],
+    Sale: ['sale_date'],
+    Payment: ['payment_date', 'created_at'],
+    Order: ['order_date'],
+    Transfer: ['request_date', 'completed_date'],
+    Purchase: ['purchase_date'],
+    Expense: ['expense_date'],
+    ActivityLog: ['timestamp'],
+}
+
+
+def parse_value(model, key, value):
+    if value is None:
+        return None
+    if model in DATE_FIELDS and key in DATE_FIELDS[model]:
+        try:
+            return datetime.fromisoformat(value)
+        except (ValueError, TypeError):
+            return value
+    return value
+
+
 @backup_bp.route('/backup/export', methods=['GET'])
 @jwt_required()
 @admin_required
@@ -30,7 +70,7 @@ def export_backup():
     backup = {
         'version': '1.0',
         'exported_at': datetime.utcnow().isoformat(),
-        'tables': {}
+        'tables': {},
     }
     for model, serializer in SERIALIZERS.items():
         table_name = model.__tablename__
@@ -42,5 +82,49 @@ def export_backup():
     return Response(
         json_str,
         mimetype='application/json',
-        headers={'Content-Disposition': f'attachment; filename={filename}'}
+        headers={'Content-Disposition': f'attachment; filename={filename}'},
     )
+
+
+@backup_bp.route('/backup/import', methods=['POST'])
+@jwt_required()
+@admin_required
+def import_backup():
+    file = request.files.get('file')
+    if not file:
+        return jsonify({'message': 'No backup file provided'}), 400
+
+    try:
+        backup = json.loads(file.read().decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        return jsonify({'message': f'Invalid backup file: {str(e)}'}), 400
+
+    tables = backup.get('tables', {})
+    if not tables:
+        return jsonify({'message': 'Backup file contains no data'}), 400
+
+    try:
+        for model in DELETE_ORDER:
+            model.query.delete()
+
+        for model in INSERT_ORDER:
+            records_data = tables.get(model.__tablename__, [])
+            if not records_data:
+                continue
+            for data in records_data:
+                parsed = {k: parse_value(model, k, v) for k, v in data.items()}
+                db.session.add(model(**parsed))
+            db.session.flush()
+
+        for model in INSERT_ORDER:
+            table_name = model.__tablename__
+            db.session.execute(text(
+                f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), "
+                f"COALESCE((SELECT MAX(id) FROM {table_name}), 0) + 1, false)"
+            ))
+
+        db.session.commit()
+        return jsonify({'message': 'Backup restored successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Import failed: {str(e)}'}), 500

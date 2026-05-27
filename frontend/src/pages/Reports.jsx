@@ -25,7 +25,7 @@ import {
 } from 'recharts'
 import { exportReportsToExcel } from '../services/ExportService'
 import { useLanguage } from '../i18n/LanguageContext'
-import { formatDate, toDisplayDate, toIsoDate } from '../utils/format'
+import { formatDate } from '../utils/format'
 
 const COLORS = ['#0ea5e9', '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#f97316', '#84cc16'];
 
@@ -38,11 +38,8 @@ const Reports = ({ user }) => {
   const [inventoryDist, setInventoryDist] = useState(null)
   const today = new Date()
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
-  const todayStr = today.toISOString().split('T')[0]
   const [startDate, setStartDate] = useState(monthStart)
-  const [endDate, setEndDate] = useState(todayStr)
-  const [startDisplay, setStartDisplay] = useState(toDisplayDate(monthStart))
-  const [endDisplay, setEndDisplay] = useState(toDisplayDate(todayStr))
+  const [endDate, setEndDate] = useState(today.toISOString().split('T')[0])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -112,27 +109,11 @@ const Reports = ({ user }) => {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5">
             <Calendar size={18} className="text-slate-500" />
-            <input type="text" value={startDisplay} onChange={e => {
-              const v = e.target.value.replace(/[^0-9\/]/g, '')
-              setStartDisplay(v)
-              if (v.length === 10) {
-                const iso = toIsoDate(v)
-                if (iso) setStartDate(iso)
-              }
-            }}
-              className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-24"
-              placeholder="dd/mm/yyyy" maxLength={10} />
+            <input type="date" value={startDate} onKeyDown={e => e.preventDefault()} onChange={e => setStartDate(e.target.value)}
+              className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-32" />
             <span className="text-slate-400">—</span>
-            <input type="text" value={endDisplay} onChange={e => {
-              const v = e.target.value.replace(/[^0-9\/]/g, '')
-              setEndDisplay(v)
-              if (v.length === 10) {
-                const iso = toIsoDate(v)
-                if (iso) setEndDate(iso)
-              }
-            }}
-              className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-24"
-              placeholder="dd/mm/yyyy" maxLength={10} />
+            <input type="date" value={endDate} onKeyDown={e => e.preventDefault()} onChange={e => setEndDate(e.target.value)}
+              className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-32" />
           </div>
           <button
             onClick={() => exportReportsToExcel(payments, data, profit, t)}

@@ -3,7 +3,7 @@ services:
     name: legasona-api
     env: python
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: cd backend && gunicorn run:app --worker-class sync --workers 2 --timeout 120 --bind 0.0.0.0:$PORT
+    startCommand: cd backend && chmod +x start.sh && ./start.sh
     envVars:
       - key: DATABASE_URL
         fromDatabase:

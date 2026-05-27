@@ -35,8 +35,10 @@ const Reports = ({ user }) => {
   const [payments, setPayments] = useState([])
   const [branchComparison, setBranchComparison] = useState([])
   const [inventoryDist, setInventoryDist] = useState(null)
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const today = new Date()
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
+  const [startDate, setStartDate] = useState(monthStart)
+  const [endDate, setEndDate] = useState(today.toISOString().split('T')[0])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

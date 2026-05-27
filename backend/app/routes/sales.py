@@ -208,7 +208,21 @@ def update_payment(sale_id, payment_id):
     if not payment or payment.sale_id != sale_id:
         return jsonify({'message': 'Payment not found'}), 404
 
-    data = request.get_json()
+    if request.content_type and 'multipart' in request.content_type:
+        receipt_file = request.files.get('receipt')
+        if receipt_file and receipt_file.filename:
+            payment.receipt_image = compress_to_base64(receipt_file)
+        data = {}
+        for key in ('method', 'amount', 'bank', 'account_holder', 'reference'):
+            v = request.form.get(key)
+            if v is not None:
+                data[key] = v
+        # Map form field names to expected keys
+        if 'account_holder' in data:
+            data['accountHolder'] = data.pop('account_holder')
+    else:
+        data = request.get_json()
+
     if not data:
         return jsonify({'message': 'No data provided'}), 400
 

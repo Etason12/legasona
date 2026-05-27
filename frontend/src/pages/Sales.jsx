@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Plus,
   ShoppingCart,
@@ -18,7 +18,8 @@ import {
   Landmark,
   Truck,
   Wrench,
-  Pencil
+  Pencil,
+  Upload
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import api from '../services/api'
@@ -72,6 +73,7 @@ const Sales = ({ user }) => {
   // Add-payment form state (replaces DOM getElementById hacks)
   const [addPayMethod, setAddPayMethod]           = useState('cash')
   const { t } = useLanguage()
+  const receiptRef = useRef(null)
   const sortedVehicles = useMemo(() => [...availableVehicles].sort((a, b) => a.model.localeCompare(b.model)), [availableVehicles])
   const sortedParts = useMemo(() => [...availableParts].sort((a, b) => a.name.localeCompare(b.name)), [availableParts])
 
@@ -292,25 +294,42 @@ const Sales = ({ user }) => {
     e.preventDefault()
     setSubmitting(true)
     const fd = new FormData(e.target)
-    const data = {
-      method: fd.get('method'),
-      amount: parseFloat(fd.get('amount')),
-      ...(fd.get('method') === 'bank' ? {
-        bank: fd.get('bank'),
-        accountHolder: fd.get('account_holder'),
-        reference: fd.get('reference'),
-      } : {}),
-    }
-    try {
-      const res = await api.put(`/sales/${selectedSale.id}/payments/${editingPayment.id}`, data)
-      toast.success('Payment updated')
-      setEditingPayment(null)
-      fetchSalePayments(selectedSale)
-      fetchData()
-    } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to update payment')
-    } finally {
-      setSubmitting(false)
+    const receiptFile = fd.get('receipt')
+    if (receiptFile && receiptFile.size > 0) {
+      try {
+        const res = await api.put(`/sales/${selectedSale.id}/payments/${editingPayment.id}`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+        toast.success('Payment updated')
+        setEditingPayment(null)
+        fetchSalePayments(selectedSale)
+        fetchData()
+      } catch (err) {
+        toast.error(err?.response?.data?.message || 'Failed to update payment')
+      } finally {
+        setSubmitting(false)
+      }
+    } else {
+      const data = {
+        method: fd.get('method'),
+        amount: parseFloat(fd.get('amount')),
+        ...(fd.get('method') === 'bank' ? {
+          bank: fd.get('bank'),
+          accountHolder: fd.get('account_holder'),
+          reference: fd.get('reference'),
+        } : {}),
+      }
+      try {
+        const res = await api.put(`/sales/${selectedSale.id}/payments/${editingPayment.id}`, data)
+        toast.success('Payment updated')
+        setEditingPayment(null)
+        fetchSalePayments(selectedSale)
+        fetchData()
+      } catch (err) {
+        toast.error(err?.response?.data?.message || 'Failed to update payment')
+      } finally {
+        setSubmitting(false)
+      }
     }
   }
 
@@ -497,9 +516,35 @@ const Sales = ({ user }) => {
                 )}
               </tbody>
             </table>
-          </div>
-        )}
-      </div>
+                    </div>
+                  )}
+                  <div className="pt-4 border-t border-neutral-200 dark:border-neutral-700 space-y-4">
+                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('receipt')}</h4>
+                    {editingPayment.receipt_image && (
+                      <div className="flex items-center gap-3">
+                        <img src={editingPayment.receipt_image} alt="Receipt" className="w-20 h-20 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700" />
+                        <span className="text-xs text-slate-500">{t('existingReceipt')}</span>
+                      </div>
+                    )}
+                    <label className="flex items-center justify-center gap-3 w-full py-3 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-blue-500 hover:text-blue-600 transition-colors cursor-pointer">
+                      <Upload size={18} />
+                      <span className="text-sm font-medium">{t('uploadReceipt') || 'Upload Receipt'}</span>
+                      <input type="file" name="receipt" accept="image/*" className="hidden" onChange={e => {
+                        if (e.target.files?.[0]) {
+                          const reader = new FileReader()
+                          reader.onload = ev => setEditingPayment(prev => ({ ...prev, receipt_preview: ev.target.result }))
+                          reader.readAsDataURL(e.target.files[0])
+                        }
+                      }} />
+                    </label>
+                    {editingPayment.receipt_preview && (
+                      <div className="flex items-center gap-3">
+                        <img src={editingPayment.receipt_preview} alt="Preview" className="w-20 h-20 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700" />
+                        <button type="button" onClick={() => setEditingPayment(prev => ({ ...prev, receipt_preview: null }))} className="text-xs text-red-500 hover:text-red-700 font-medium">{t('remove')}</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
       {/* Payment History Modal — uses standard modal-backdrop */}
       {showPaymentHistory && selectedSale && (
@@ -709,6 +754,32 @@ const Sales = ({ user }) => {
                           <input type="text" name="reference" className="input-field uppercase" defaultValue={editingPayment.reference || ''} placeholder="TX-123456789" required />
                         </div>
                       </div>
+                    </div>
+                  )}
+                </div>
+                <div className="p-6 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-5">
+                  <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('receipt')}</h3>
+                  {editingPayment.receipt_image && (
+                    <div className="flex items-center gap-4">
+                      <img src={editingPayment.receipt_image} alt="Receipt" className="w-24 h-24 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shrink-0" />
+                      <span className="text-xs text-slate-500">{t('existingReceipt')}</span>
+                    </div>
+                  )}
+                  <label className="flex items-center justify-center gap-3 w-full py-4 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-blue-500 hover:text-blue-600 transition-colors cursor-pointer">
+                    <Upload size={20} />
+                    <span className="text-sm font-medium">{t('uploadReceipt') || 'Upload Receipt'}</span>
+                    <input type="file" name="receipt" accept="image/*" className="hidden" ref={receiptRef} onChange={e => {
+                      if (e.target.files?.[0]) {
+                        const reader = new FileReader()
+                        reader.onload = ev => setEditingPayment(prev => ({ ...prev, receipt_preview: ev.target.result }))
+                        reader.readAsDataURL(e.target.files[0])
+                      }
+                    }} />
+                  </label>
+                  {editingPayment.receipt_preview && (
+                    <div className="flex items-center gap-4">
+                      <img src={editingPayment.receipt_preview} alt="Preview" className="w-24 h-24 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shrink-0" />
+                      <button type="button" onClick={() => { setEditingPayment(prev => ({ ...prev, receipt_preview: null })); if (receiptRef.current) receiptRef.current.value = '' }} className="text-xs text-red-500 hover:text-red-700 font-medium">{t('remove')}</button>
                     </div>
                   )}
                 </div>

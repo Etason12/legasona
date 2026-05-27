@@ -211,3 +211,73 @@ export const exportInventoryToExcel = (items, type) => {
 
   XLSX.writeFile(wb, `Legasona_Inventory_${dateStr}.xlsx`);
 };
+
+const REPORT_COL_WIDTHS = {
+  summary: [{ wch: 30 }, { wch: 22 }],
+  payments: [
+    { wch: 18 }, { wch: 14 }, { wch: 22 }, { wch: 12 },
+    { wch: 18 }, { wch: 18 }, { wch: 24 }, { wch: 16 },
+  ],
+};
+
+export const exportReportsToExcel = (payments, stats, profit) => {
+  const dateStr = new Date().toISOString().split('T')[0];
+  const wb = XLSX.utils.book_new();
+
+  // ── Summary sheet ──
+  const summaryRows = [
+    ['LEGASONA MOTORS'],
+    ['Financial Report'],
+    [`Generated: ${new Date().toLocaleString()}`],
+    [],
+    ['METRIC', 'VALUE'],
+    ['Net Profit Margin', `${profit?.margin || 0}%`],
+    ['Total Revenue (ETB)', fmtMoney(profit?.revenue)],
+    ['Gross Profit (ETB)', fmtMoney(profit?.gross_profit)],
+    ['Operational Expenses (ETB)', fmtMoney(profit?.expenses)],
+    ['Cost of Goods Sold (ETB)', fmtMoney(profit?.cogs)],
+    ['Net Profit (ETB)', fmtMoney(profit?.net_profit)],
+    [],
+    ['Total Payments Collected', fmtMoney(payments.reduce((a, p) => a + fmtMoney(p.amount), 0))],
+    ['Total Payment Transactions', payments.length],
+  ];
+  if (stats?.stats) {
+    stats.stats.forEach((s) => {
+      summaryRows.push([s.name, s.value]);
+    });
+  }
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+  wsSummary['!cols'] = REPORT_COL_WIDTHS.summary;
+  wsSummary['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+  // ── Payments sheet ──
+  if (payments.length > 0) {
+    const headers = [
+      'Sale #', 'Date', 'Customer', 'Method',
+      'Bank', 'Account Holder', 'Reference', 'Amount (ETB)',
+    ];
+    const rows = payments.map((p) => [
+      p.sale_number || '',
+      fmtDate(p.payment_date),
+      p.customer_name || '',
+      (p.payment_method || '').toUpperCase(),
+      p.bank_name || '',
+      p.account_holder || '',
+      p.transaction_reference || '',
+      fmtMoney(p.amount),
+    ]);
+    const titleRows = [
+      ['LEGASONA MOTORS'],
+      ['Payment Records'],
+      [`Generated: ${new Date().toLocaleString()}`, `Total Payments: ${payments.length}`],
+      [],
+    ];
+    const wsPayments = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...rows]);
+    wsPayments['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
+    wsPayments['!cols'] = REPORT_COL_WIDTHS.payments;
+    XLSX.utils.book_append_sheet(wb, wsPayments, 'Payments');
+  }
+
+  XLSX.writeFile(wb, `Legasona_Report_${dateStr}.xlsx`);
+};

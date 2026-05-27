@@ -25,7 +25,7 @@ import {
  LineChart,
  Line
 } from 'recharts'
-import { exportSalesToExcel } from '../services/ExportService'
+import { exportReportsToExcel } from '../services/ExportService'
 import { useLanguage } from '../i18n/LanguageContext'
 
 const COLORS = ['#0ea5e9', '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e'];
@@ -92,9 +92,9 @@ const Reports = ({ user }) => {
       {t('thisMonth')}
      </button>
      <button 
-      onClick={() => exportSalesToExcel([])}
-      className="btn-primary flex items-center gap-2"
-     >
+       onClick={() => exportReportsToExcel(payments, data, profit)}
+       className="btn-primary flex items-center gap-2"
+      >
       <Download size={18} />
       {t('exportFullAudit')}
      </button>

@@ -163,60 +163,60 @@ const Transfers = ({ user }) => {
    </div>
 
    {/* Request Transfer Modal */}
-   {showNewRequest && (
-    <div className="modal-backdrop">
-     <div className="modal-content max-w-xl">
-      <div className="modal-header">
-       <div>
-         <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('requestTransfer')}</h2>
-         <p className="text-xs text-slate-500 mt-0.5">{t('interBranchLogistics')}</p>
-       </div>
-       <button onClick={() => setShowNewRequest(false)} className="p-2.5 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700">
-        <X size={22} />
-       </button>
-      </div>
-
-      <div className="modal-body custom-scrollbar">
-       <form id="transfer-form" onSubmit={handleRequest} className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-           <label className="label">{t('fromBranchLabel')} *</label>
-           <select name="from_branch_id" className="input-field bg-slate-900" defaultValue={user?.branch_id || ''}>
-            <option value="">{t('selectBranch')}</option>
-           {branches.map(b => <option key={b.id} value={b.id}>{b.name.toUpperCase()}</option>)}
-          </select>
-         </div>
-          <div>
-           <label className="label">{t('toBranchLabel')} *</label>
-           <select name="to_branch_id" className="input-field bg-slate-900">
-            <option value="">{t('selectBranch')}</option>
-           {branches.map(b => <option key={b.id} value={b.id}>{b.name.toUpperCase()}</option>)}
-          </select>
-         </div>
+    {showNewRequest && (
+     <div className="modal-backdrop">
+      <div className="modal-content max-w-xl">
+       <div className="modal-header">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('requestTransfer')}</h2>
+          <p className="text-xs font-medium text-slate-500 mt-0.5">{t('interBranchLogistics')}</p>
         </div>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-           <label className="label">{t('itemType')} *</label>
-           <select 
-            name="item_type" 
-            className="input-field bg-slate-900" 
-            value={requestItemType}
-            onChange={(e) => setRequestItemType(e.target.value)}
-           >
-            <option value="vehicle">{t('vehicle').toUpperCase()}</option>
-            <option value="spare_part">{t('sparePart').toUpperCase()}</option>
+        <button onClick={() => setShowNewRequest(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700">
+         <X size={20} />
+        </button>
+       </div>
+
+       <div className="modal-body custom-scrollbar">
+        <form id="transfer-form" onSubmit={handleRequest} className="space-y-6">
+         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+           <div>
+            <label className="label">{t('fromBranchLabel')} *</label>
+            <select name="from_branch_id" className="input-field" defaultValue={user?.branch_id || ''}>
+             <option value="">{t('selectBranch')}</option>
+            {branches.map(b => <option key={b.id} value={b.id}>{b.name.toUpperCase()}</option>)}
            </select>
-         </div>
-          <div>
-           <label className="label">{t('qty')} *</label>
-           <input type="number" name="quantity" min="1" defaultValue="1" className="input-field" />
+          </div>
+           <div>
+            <label className="label">{t('toBranchLabel')} *</label>
+            <select name="to_branch_id" className="input-field">
+             <option value="">{t('selectBranch')}</option>
+            {branches.map(b => <option key={b.id} value={b.id}>{b.name.toUpperCase()}</option>)}
+           </select>
           </div>
          </div>
+         
+         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+           <div>
+            <label className="label">{t('itemType')} *</label>
+            <select 
+             name="item_type" 
+             className="input-field" 
+             value={requestItemType}
+             onChange={(e) => setRequestItemType(e.target.value)}
+            >
+             <option value="vehicle">{t('vehicle').toUpperCase()}</option>
+             <option value="spare_part">{t('sparePart').toUpperCase()}</option>
+            </select>
+          </div>
+           <div>
+            <label className="label">{t('qty')} *</label>
+            <input type="number" name="quantity" min="1" defaultValue="1" className="input-field" />
+           </div>
+          </div>
 
          <div>
           <label className="label">{t('item')} *</label>
-          <select name="item_id" required className="input-field bg-slate-900">
+          <select name="item_id" required className="input-field">
            <option value="">{t('chooseItem')}</option>
            {requestItemType === 'vehicle' ? (
             vehicles.length > 0 ? (
@@ -237,30 +237,19 @@ const Transfers = ({ user }) => {
            )}
          </select>
         </div>
-       </form>
-      </div>
+        </form>
+       </div>
 
-      <div className="modal-footer">
-       <button 
-        type="button" 
-        onClick={() => setShowNewRequest(false)}
-        className="btn-secondary"
-       >
-        {t('cancel')}
-       </button>
-       <button 
-        form="transfer-form"
-        type="submit" 
-        disabled={submitting}
-        className="btn-primary px-10"
-       >
-        {submitting ? <Loader2 className="animate-spin" size={18} /> : null}
-        {t('sendRequest')}
-       </button>
+       <div className="modal-footer">
+        <button type="button" onClick={() => setShowNewRequest(false)} className="btn-secondary">{t('cancel')}</button>
+        <button form="transfer-form" type="submit" disabled={submitting} className="btn-primary flex items-center gap-2 px-10">
+         {submitting ? <Loader2 className="animate-spin" size={16} /> : null}
+         {t('sendRequest')}
+        </button>
+       </div>
       </div>
      </div>
-    </div>
-   )}
+    )}
   </div>
  )
 }

@@ -204,15 +204,15 @@ const Expenses = ({ user }) => {
    </div>
 
    {showAddModal && (
-    <div className="modal-backdrop">
-     <div className="modal-content max-w-2xl">
-      <div className="modal-header">
-       <div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white er">{t('recordExpense')}</h2>
-        <p className="text-xs font-bold text-slate-500 mt-1">{t('financialOpsMgmt')}</p>
+     <div className="modal-backdrop">
+      <div className="modal-content max-w-2xl">
+       <div className="modal-header">
+        <div>
+         <h2 className="text-xl font-bold text-slate-900 dark:text-white er">{t('recordExpense')}</h2>
+         <p className="text-xs font-medium text-slate-500 mt-0.5">{t('financialOpsMgmt')}</p>
+        </div>
+        <button onClick={() => setShowAddModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20}/></button>
        </div>
-       <button onClick={() => setShowAddModal(false)} className="p-3 bg-slate-100 dark:bg-slate-800 rounded-2xl text-slate-400 hover:text-slate-900 dark:text-white transition-colors shadow-xl border border-slate-200 dark:border-slate-300 dark:border-slate-700"><X size={24}/></button>
-      </div>
 
       <div className="modal-body custom-scrollbar">
        <form id="expense-form" onSubmit={handleSubmit} className="space-y-8">
@@ -271,12 +271,12 @@ const Expenses = ({ user }) => {
       </div>
 
       <div className="modal-footer">
-       <button type="button" onClick={() => setShowAddModal(false)} className="px-8 py-3 text-slate-500 hover:text-slate-900 dark:text-white font-bold text-xs transition-colors">{t('cancel')}</button>
-       <button form="expense-form" type="submit" disabled={submitting} className="btn-primary px-12">
-        {submitting ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
-        {t('saveExpense')}
-       </button>
-      </div>
+        <button type="button" onClick={() => setShowAddModal(false)} className="btn-secondary">{t('cancel')}</button>
+        <button form="expense-form" type="submit" disabled={submitting} className="btn-primary flex items-center gap-2 px-10">
+         {submitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+         {t('saveExpense')}
+        </button>
+       </div>
      </div>
     </div>
    )}

@@ -188,16 +188,16 @@ const Customers = ({ user }) => {
     </div>
 
    {/* Customer Details Modal */}
-   {showDetails && customerDetails && (
-    <div className="modal-backdrop">
-     <div className="modal-content max-w-2xl">
-      <div className="modal-header">
-       <div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white er">{t('viewHistory')}</h2>
-         <p className="text-xs font-bold text-slate-500 mt-1">{t('crmProfile')}</p>
+    {showDetails && customerDetails && (
+     <div className="modal-backdrop">
+      <div className="modal-content max-w-2xl">
+       <div className="modal-header">
+        <div>
+         <h2 className="text-xl font-bold text-slate-900 dark:text-white er">{t('viewHistory')}</h2>
+          <p className="text-xs font-medium text-slate-500 mt-0.5">{t('crmProfile')}</p>
+        </div>
+        <button onClick={() => setShowDetails(null)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20}/></button>
        </div>
-       <button onClick={() => setShowDetails(null)} className="p-3 bg-slate-100 dark:bg-slate-800 rounded-2xl text-slate-400 hover:text-slate-900 dark:text-white transition-colors shadow-xl border border-slate-200 dark:border-slate-300 dark:border-slate-700"><X size={24}/></button>
-      </div>
 
       <div className="modal-body custom-scrollbar">
        <div className="space-y-10">
@@ -268,66 +268,66 @@ const Customers = ({ user }) => {
     </div>
    )}
 
-   {/* Add/Edit Modal */}
-   {showModal && (
-    <div className="modal-backdrop">
-     <div className="modal-content max-w-2xl">
-      <div className="modal-header">
-       <div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white er">{selectedCustomer ? t('edit') : t('addCustomer')}</h2>
-        <p className="text-xs font-bold text-slate-500 mt-1">{t('customersTitle')}</p>
+    {/* Add/Edit Modal */}
+    {showModal && (
+     <div className="modal-backdrop">
+      <div className="modal-content max-w-2xl">
+       <div className="modal-header">
+        <div>
+         <h2 className="text-xl font-bold text-slate-900 dark:text-white er">{selectedCustomer ? t('edit') : t('addCustomer')}</h2>
+         <p className="text-xs font-medium text-slate-500 mt-0.5">{t('customersTitle')}</p>
+        </div>
+        <button onClick={() => setShowModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20}/></button>
        </div>
-       <button onClick={() => setShowModal(false)} className="p-3 bg-slate-100 dark:bg-slate-800 rounded-2xl text-slate-400 hover:text-slate-900 dark:text-white transition-colors shadow-xl border border-slate-200 dark:border-slate-300 dark:border-slate-700"><X size={24}/></button>
-      </div>
 
-      <div className="modal-body custom-scrollbar">
-       <form id="customer-form" onSubmit={handleSubmit} className="space-y-10">
-        <div className="p-8 bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] border border-slate-200 dark:border-slate-300 dark:border-slate-700 space-y-6">
-         <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 ">{t('coreIdentification')}</h3>
-         <div className="grid grid-cols-1 gap-6">
-          <div>
-           <label className="label">{t('fullName')} *</label>
-           <input required className="input-field" value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} placeholder="e.g. Abebe Kebede" />
+       <div className="modal-body custom-scrollbar">
+        <form id="customer-form" onSubmit={handleSubmit} className="space-y-8">
+         <div className="p-6 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-5">
+          <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('coreIdentification')}</h3>
+          <div className="grid grid-cols-1 gap-5">
+           <div>
+            <label className="label">{t('fullName')} *</label>
+            <input required className="input-field" value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} placeholder="e.g. Abebe Kebede" />
+           </div>
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label className="label">{t('phoneNumber')} *</label><input required className="input-field" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="0911..." /></div>
+             <div><label className="label">{t('emailAddress')}</label><input type="email" className="input-field" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="abebe@example.com" /></div>
+           </div>
           </div>
+         </div>
+
+         <div className="p-6 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-5">
+          <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('profilingLimits')}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-           <div><label className="label">{t('phoneNumber')} *</label><input required className="input-field" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="0911..." /></div>
-            <div><label className="label">{t('emailAddress')}</label><input type="email" className="input-field" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="abebe@example.com" /></div>
+           <div>
+            <label className="label">{t('customerType')}</label>
+            <select className="input-field" value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
+             <option value="individual">{t('individual').toUpperCase()}</option>
+             <option value="corporate">{t('corporate').toUpperCase()}</option>
+            </select>
+           </div>
+           <div>
+            <label className="label">{t('creditLimit')} (ETB)</label>
+            <input type="number" className="input-field" value={form.credit_limit} onChange={e => setForm({...form, credit_limit: e.target.value})} />
+           </div>
+           <div className="sm:col-span-2">
+             <label className="label">{t('operationalAddress')}</label>
+            <textarea className="input-field h-24 resize-none" value={form.address} onChange={e => setForm({...form, address: e.target.value})} placeholder="e.g. Addis Ababa, Bole" />
+           </div>
           </div>
          </div>
-        </div>
+        </form>
+       </div>
 
-        <div className="p-8 bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] border border-slate-200 dark:border-slate-300 dark:border-slate-700 space-y-6">
-         <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 ">{t('profilingLimits')}</h3>
-         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div>
-           <label className="label">{t('customerType')}</label>
-           <select className="input-field bg-slate-900" value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
-            <option value="individual">{t('individual').toUpperCase()}</option>
-            <option value="corporate">{t('corporate').toUpperCase()}</option>
-           </select>
-          </div>
-          <div>
-           <label className="label">{t('creditLimit')} (ETB)</label>
-           <input type="number" className="input-field" value={form.credit_limit} onChange={e => setForm({...form, credit_limit: e.target.value})} />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="label">{t('operationalAddress')}</label>
-           <textarea className="input-field h-24 resize-none" value={form.address} onChange={e => setForm({...form, address: e.target.value})} placeholder="e.g. Addis Ababa, Bole" />
-          </div>
-         </div>
-        </div>
-       </form>
-      </div>
-
-      <div className="modal-footer">
-       <button type="button" onClick={() => setShowModal(false)} className="px-8 py-3 text-slate-500 hover:text-slate-900 dark:text-white font-bold text-xs transition-colors">{t('cancel')}</button>
-       <button form="customer-form" type="submit" disabled={saving} className="btn-primary px-12">
-        {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
-        {t('save')}
-       </button>
+       <div className="modal-footer">
+        <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">{t('cancel')}</button>
+        <button form="customer-form" type="submit" disabled={saving} className="btn-primary flex items-center gap-2 px-10">
+         {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+         {t('save')}
+        </button>
+       </div>
       </div>
      </div>
-    </div>
    )}
   </div>
  )

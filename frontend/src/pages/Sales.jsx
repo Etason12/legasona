@@ -508,9 +508,9 @@ const Sales = ({ user }) => {
             <div className="modal-header">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('paymentAuditLog')}</h2>
-                <p className="text-sm text-slate-500 mt-0.5">{t('receiptNum')}: <span className="text-brand-600 font-mono">#{selectedSale.sale_number}</span></p>
+                <p className="text-xs font-medium text-slate-500 mt-0.5">{t('receiptNum')}: <span className="text-blue-600 font-mono">#{selectedSale.sale_number}</span></p>
               </div>
-              <button onClick={() => setShowPaymentHistory(false)} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full text-slate-400 transition-colors"><X size={20} /></button>
+              <button onClick={() => setShowPaymentHistory(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20} /></button>
             </div>
 
             <div className="modal-body">
@@ -520,16 +520,16 @@ const Sales = ({ user }) => {
                 ) : (
                   salePayments.map(p => (
                     <div key={p.id} className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                           {p.method === 'cash' ? <CreditCard size={18} /> : <Landmark size={18} />}
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <p className="text-slate-900 dark:text-white font-bold">ETB {p.amount.toLocaleString()}</p>
-                          <p className="text-xs text-slate-500">{p.method}{p.bank ? ` • ${p.bank.toUpperCase()}` : ''}{p.account_holder ? ` → ${p.account_holder.toUpperCase()}` : ''}</p>
+                          <p className="text-xs text-slate-500 truncate">{p.method}{p.bank ? ` • ${p.bank}` : ''}{p.account_holder ? ` → ${p.account_holder}` : ''}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 text-right">
+                      <div className="flex items-center gap-3 text-right shrink-0">
                         <div>
                           <p className="text-xs text-slate-400">{new Date(p.date).toLocaleString()}</p>
                           <p className="text-xs font-mono text-slate-500 mt-0.5">{(p.reference || 'NO REF').toUpperCase()}</p>
@@ -563,12 +563,14 @@ const Sales = ({ user }) => {
 
             <div className="modal-footer justify-between">
               <div>
-                <p className="text-xs font-bold text-slate-500">{t('totalCollected')}</p>
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                <p className="text-xs font-medium text-slate-500">{t('totalCollected')}</p>
+                <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
                   ETB {salePayments.reduce((acc, p) => acc + p.amount, 0).toLocaleString()}
                 </p>
               </div>
-              <button onClick={() => setShowPaymentHistory(false)} className="btn-secondary">{t('close')}</button>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setShowPaymentHistory(false)} className="btn-secondary">{t('close')}</button>
+              </div>
             </div>
           </div>
         </div>
@@ -581,9 +583,9 @@ const Sales = ({ user }) => {
             <div className="modal-header">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('collectPayment')}</h2>
-                <p className="text-sm text-slate-500 mt-0.5">{t('receiptNum')}: <span className="text-brand-600 font-mono">#{selectedSale.sale_number}</span></p>
+                <p className="text-xs font-medium text-slate-500 mt-0.5">{t('receiptNum')}: <span className="text-blue-600 font-mono">#{selectedSale.sale_number}</span></p>
               </div>
-              <button onClick={() => setShowAddPayment(false)} className="p-2.5 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700"><X size={22} /></button>
+              <button onClick={() => setShowAddPayment(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20} /></button>
             </div>
 
             <div className="modal-body">
@@ -594,7 +596,7 @@ const Sales = ({ user }) => {
 
               <form id="add-pay-form" onSubmit={handleAddPayment} className="space-y-6">
                 <div className="p-6 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-5">
-                  <h3 className="text-xs font-bold text-brand-600 uppercase tracking-wider">{t('paymentDetails')}</h3>
+                  <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('paymentDetails')}</h3>
 
                   <div>
                     <label className="label">{t('amountToPay')}</label>
@@ -638,7 +640,7 @@ const Sales = ({ user }) => {
                         <label className="label">{t('bankReceiptImage')}</label>
                         <div className="relative">
                           <input type="file" name="receipt" accept="image/*" className="hidden" id="receipt-upload-add" />
-                          <label htmlFor="receipt-upload-add" className="flex items-center justify-center gap-3 w-full py-4 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-brand-500 hover:text-brand-600 transition-colors cursor-pointer">
+                          <label htmlFor="receipt-upload-add" className="flex items-center justify-center gap-3 w-full py-4 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-blue-500 hover:text-blue-600 transition-colors cursor-pointer">
                             <Camera size={20} /><span className="text-sm font-medium">{t('selectImageFile')}</span>
                           </label>
                         </div>
@@ -667,14 +669,14 @@ const Sales = ({ user }) => {
             <div className="modal-header">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('editPayment') || 'Edit Payment'}</h2>
-                <p className="text-sm text-slate-500 mt-0.5">{t('receiptNum')}: <span className="text-brand-600 font-mono">#{selectedSale.sale_number}</span></p>
+                <p className="text-xs font-medium text-slate-500 mt-0.5">{t('receiptNum')}: <span className="text-blue-600 font-mono">#{selectedSale.sale_number}</span></p>
               </div>
-              <button onClick={() => { setEditingPayment(null); setShowPaymentHistory(true) }} className="p-2.5 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700"><X size={22} /></button>
+              <button onClick={() => { setEditingPayment(null); setShowPaymentHistory(true) }} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20} /></button>
             </div>
             <div className="modal-body">
               <form id="edit-pay-form" onSubmit={handleUpdatePayment} className="space-y-6">
                 <div className="p-6 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-5">
-                  <h3 className="text-xs font-bold text-brand-600 uppercase tracking-wider">{t('paymentDetails')}</h3>
+                  <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('paymentDetails')}</h3>
                   <div>
                     <label className="label">{t('amountToPay')}</label>
                     <input type="number" name="amount" className="input-field" defaultValue={editingPayment.amount} placeholder="0.00" required />
@@ -730,9 +732,9 @@ const Sales = ({ user }) => {
             <div className="modal-header">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('recordNewTransaction')}</h2>
-                <p className="text-xs font-bold text-slate-500 mt-0.5">{t('enterpriseSalesManagement')}</p>
+                <p className="text-xs font-medium text-slate-500 mt-0.5">{t('enterpriseSalesManagement')}</p>
               </div>
-              <button onClick={() => setShowNewSale(false)} className="p-2.5 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700"><X size={22}/></button>
+              <button onClick={() => setShowNewSale(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20}/></button>
             </div>
 
             <div className="modal-body custom-scrollbar">
@@ -751,7 +753,7 @@ const Sales = ({ user }) => {
                   {/* Left Column */}
                   <div className="lg:col-span-5 space-y-8">
                     <div className="p-8 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-6">
-                      <h3 className="text-xs font-bold text-brand-600">{t('clientInformation')}</h3>
+                      <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('clientInformation')}</h3>
                       <div className="space-y-4">
                         <div>
                           <label className="label">{t('selectExistingCustomer')}</label>
@@ -779,7 +781,7 @@ const Sales = ({ user }) => {
 
                     {saleType === 'vehicle' ? (
                       <div className="p-8 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-6">
-                        <h3 className="text-xs font-bold text-brand-600">{t('vehicleAndDate')}</h3>
+                        <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('vehicleAndDate')}</h3>
                         <div className="space-y-4">
                           <div>
                             <label className="label">{t('vehicle')} *</label>
@@ -815,7 +817,7 @@ const Sales = ({ user }) => {
                       </div>
                     ) : (
                       <div className="p-8 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-6">
-                        <h3 className="text-xs font-bold text-brand-600">{t('sparePart')}</h3>
+                        <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('sparePart')}</h3>
                         <div className="space-y-4">
                           <div>
                             <label className="label">{t('selectItem')} *</label>
@@ -866,7 +868,7 @@ const Sales = ({ user }) => {
                   <div className="lg:col-span-7 space-y-8">
                     <div className="p-8 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-6">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-xs font-bold text-brand-600">{t('paymentBreakdown')}</h3>
+                        <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('paymentBreakdown')}</h3>
                         <button type="button" onClick={addPaymentRow} className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1"><Plus size={13} />{t('method')}</button>
                       </div>
                       <div className="space-y-4">

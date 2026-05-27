@@ -267,17 +267,17 @@ const Orders = ({ user }) => {
 
    {/* Add Order Modal */}
    {showAddModal && (
-    <div className="modal-backdrop">
-     <div className="modal-content max-w-xl">
-      <div className="modal-header">
-       <div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('newReservation')}</h2>
-         <p className="text-xs text-slate-500 mt-0.5">{t('reservationQueue')}</p>
+     <div className="modal-backdrop">
+      <div className="modal-content max-w-xl">
+       <div className="modal-header">
+        <div>
+         <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('newReservation')}</h2>
+          <p className="text-xs font-medium text-slate-500 mt-0.5">{t('reservationQueue')}</p>
+        </div>
+        <button onClick={() => setShowAddModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700">
+         <X size={20} />
+        </button>
        </div>
-       <button onClick={() => setShowAddModal(false)} className="p-2.5 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700">
-        <X size={22} />
-       </button>
-      </div>
 
       <div className="modal-body custom-scrollbar">
        <form id="order-form" onSubmit={handleSubmit} className="space-y-6">
@@ -355,17 +355,17 @@ const Orders = ({ user }) => {
 
    {/* Add Deposit Modal */}
    {showDepositModal && depositOrder && (
-    <div className="modal-backdrop">
-     <div className="modal-content max-w-lg">
-      <div className="modal-header">
-       <div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('addDeposit') || 'Add Deposit'}</h2>
-        <p className="text-sm text-slate-500 mt-0.5">#{depositOrder.sequence_number}</p>
+     <div className="modal-backdrop">
+      <div className="modal-content max-w-lg">
+       <div className="modal-header">
+        <div>
+         <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('addDeposit') || 'Add Deposit'}</h2>
+         <p className="text-xs font-medium text-slate-500 mt-0.5">#{depositOrder.sequence_number}</p>
+        </div>
+        <button onClick={() => setShowDepositModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700">
+         <X size={20} />
+        </button>
        </div>
-       <button onClick={() => setShowDepositModal(false)} className="p-2.5 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700">
-        <X size={22} />
-       </button>
-      </div>
       <div className="modal-body">
        <form id="deposit-form" onSubmit={handleAddDeposit} className="space-y-6">
         {/* Customer Details Card */}
@@ -453,16 +453,16 @@ const Orders = ({ user }) => {
 
    {/* Customer Detail Modal */}
    {showCustomerModal && (
-    <div className="modal-backdrop" onClick={() => setShowCustomerModal(false)}>
-     <div className="modal-content max-w-md" onClick={e => e.stopPropagation()}>
-      <div className="modal-header">
-       <div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('customerDetails') || 'Customer Details'}</h2>
+     <div className="modal-backdrop" onClick={() => setShowCustomerModal(false)}>
+      <div className="modal-content max-w-md" onClick={e => e.stopPropagation()}>
+       <div className="modal-header">
+        <div>
+         <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('customerDetails') || 'Customer Details'}</h2>
+        </div>
+        <button onClick={() => setShowCustomerModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700">
+         <X size={20} />
+        </button>
        </div>
-       <button onClick={() => setShowCustomerModal(false)} className="p-2.5 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700">
-        <X size={22} />
-       </button>
-      </div>
       <div className="modal-body">
        {customerDetail ? (
         <div className="space-y-5">
@@ -553,8 +553,9 @@ const Orders = ({ user }) => {
        )}
       </div>
       <div className="modal-footer">
-       <button onClick={() => setShowCustomerModal(false)} className="btn-secondary">{t('close') || 'Close'}</button>
-      </div>
+        <div></div>
+        <button onClick={() => setShowCustomerModal(false)} className="btn-secondary">{t('close') || 'Close'}</button>
+       </div>
      </div>
     </div>
    )}

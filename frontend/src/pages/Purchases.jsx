@@ -236,15 +236,15 @@ const Purchases = ({ user }) => {
    </div>
 
    {showModal && (
-    <div className="modal-backdrop">
-     <div className="modal-content max-w-5xl">
-      <div className="modal-header">
-       <div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white er">{t('recordNewPurchase')}</h2>
-        <p className="text-xs font-bold text-slate-500 mt-1">{t('enterpriseProcurementSystem')}</p>
+     <div className="modal-backdrop">
+      <div className="modal-content max-w-5xl">
+       <div className="modal-header">
+        <div>
+         <h2 className="text-xl font-bold text-slate-900 dark:text-white er">{t('recordNewPurchase')}</h2>
+         <p className="text-xs font-medium text-slate-500 mt-0.5">{t('enterpriseProcurementSystem')}</p>
+        </div>
+        <button onClick={() => setShowModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20}/></button>
        </div>
-       <button onClick={() => setShowModal(false)} className="p-3 bg-slate-100 dark:bg-slate-800 rounded-2xl text-slate-400 hover:text-slate-900 dark:text-white transition-colors shadow-xl border border-slate-200 dark:border-slate-300 dark:border-slate-700"><X size={24}/></button>
-      </div>
 
       <div className="modal-body custom-scrollbar">
        <form id="purchase-form" onSubmit={handleSubmit} className="space-y-10">
@@ -367,12 +367,12 @@ const Purchases = ({ user }) => {
       </div>
 
       <div className="modal-footer">
-       <button type="button" onClick={() => setShowModal(false)} className="px-8 py-3 text-slate-500 hover:text-slate-900 dark:text-white font-bold text-xs transition-colors">{t('cancel')}</button>
-       <button form="purchase-form" type="submit" disabled={saving} className="btn-primary px-12">
-        {saving ? <Loader2 size={18} className="animate-spin"/> : <Check size={18}/>}
-        {t('recordPurchase')}
-       </button>
-      </div>
+        <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">{t('cancel')}</button>
+        <button form="purchase-form" type="submit" disabled={saving} className="btn-primary flex items-center gap-2 px-10">
+         {saving ? <Loader2 size={16} className="animate-spin"/> : <Check size={16}/>}
+         {t('recordPurchase')}
+        </button>
+       </div>
      </div>
     </div>
    )}

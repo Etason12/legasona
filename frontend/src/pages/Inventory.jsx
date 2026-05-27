@@ -83,9 +83,9 @@ const ItemModal = ({ mode, item, type, onClose, onSaved, branches }) => {
         <div className="modal-header">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">{isEdit ? t('edit') : t('add')} {type === 'vehicles' ? t('vehicle') : t('sparePart')}</h2>
-            <p className="text-xs text-slate-500 mt-0.5">{t('productConfig')}</p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">{t('productConfig')}</p>
           </div>
-          <button onClick={onClose} className="p-2.5 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700"><X size={22}/></button>
+          <button onClick={onClose} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20}/></button>
         </div>
 
         <div className="modal-body custom-scrollbar">

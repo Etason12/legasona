@@ -182,6 +182,8 @@ def get_payment_report():
     return jsonify([{
         'customer_name':        sale.customer_name,
         'payment_date':         payment.payment_date.isoformat(),
+        'sale_date':            sale.sale_date.isoformat() if sale.sale_date else None,
+        'created_at':           payment.created_at.isoformat() if payment.created_at else None,
         'amount':               float(payment.amount),
         'bank_name':            payment.bank_name.upper() if payment.bank_name else None,
         'account_holder':       payment.account_holder.upper() if payment.account_holder else None,

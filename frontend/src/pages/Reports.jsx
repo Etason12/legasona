@@ -328,7 +328,8 @@ const Reports = ({ user }) => {
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-700">
                 <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Customer Name</th>
-                <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Payment Date</th>
+                <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Sale Date</th>
+                <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Created On</th>
                 <th className="text-right py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Amount (ETB)</th>
                 <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Bank Name</th>
                 <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Account Holder</th>
@@ -338,13 +339,14 @@ const Reports = ({ user }) => {
             <tbody>
               {payments.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-8 text-slate-400">No payments recorded yet.</td>
+                  <td colSpan={7} className="text-center py-8 text-slate-400">No payments recorded yet.</td>
                 </tr>
               ) : (
                 payments.map((p, i) => (
                   <tr key={i} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-3 px-2 text-slate-900 dark:text-white font-medium">{p.customer_name}</td>
-                    <td className="py-3 px-2 text-slate-500">{new Date(p.payment_date).toLocaleDateString()}</td>
+                    <td className="py-3 px-2 text-slate-500">{p.sale_date ? new Date(p.sale_date).toLocaleDateString() : '—'}</td>
+                    <td className="py-3 px-2 text-slate-500">{p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</td>
                     <td className="py-3 px-2 text-right text-slate-900 dark:text-white font-semibold">{p.amount.toLocaleString()}</td>
                     <td className="py-3 px-2 text-slate-500 uppercase">{(p.bank_name || '—').toUpperCase()}</td>
                     <td className="py-3 px-2 text-slate-500 uppercase">{(p.account_holder || '—').toUpperCase()}</td>

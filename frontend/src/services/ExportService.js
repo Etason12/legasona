@@ -234,7 +234,7 @@ export const exportInventoryToExcel = (items, type, t = (k) => k) => {
 const REPORT_COL_WIDTHS = {
   summary: [{ wch: 30 }, { wch: 22 }],
   payments: [
-    { wch: 18 }, { wch: 14 }, { wch: 22 }, { wch: 12 },
+    { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 22 }, { wch: 12 },
     { wch: 18 }, { wch: 18 }, { wch: 24 }, { wch: 16 },
   ],
 };
@@ -275,12 +275,13 @@ export const exportReportsToExcel = (payments, stats, profit, t = (k) => k) => {
   // ── Payments sheet ──
   if (payments.length > 0) {
     const headers = [
-      S('receiptNum', 'Sale #'), S('date', 'Date'), S('customer', 'Customer'), S('method', 'Method'),
+      S('receiptNum', 'Sale #'), S('date', 'Sale Date'), S('createdOn', 'Created On'), S('customer', 'Customer'), S('method', 'Method'),
       S('bankName', 'Bank'), S('accountHolder', 'Account Holder'), S('reference', 'Reference'), S('amount', 'Amount') + ' (ETB)',
     ];
     const rows = payments.map((p) => [
       p.sale_number || '',
-      fmtDate(p.payment_date),
+      fmtDate(p.sale_date),
+      p.created_at ? fmtDate(p.created_at) : '',
       p.customer_name || '',
       (p.payment_method || '').toUpperCase(),
       p.bank_name || '',
@@ -297,7 +298,7 @@ export const exportReportsToExcel = (payments, stats, profit, t = (k) => k) => {
     const wsPayments = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...rows]);
     wsPayments['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
     wsPayments['!cols'] = REPORT_COL_WIDTHS.payments;
-    applyNumFormat(wsPayments, [7]);
+    applyNumFormat(wsPayments, [8]);
     XLSX.utils.book_append_sheet(wb, wsPayments, 'Payments');
   }
 

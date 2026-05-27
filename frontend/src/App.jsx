@@ -17,6 +17,7 @@ const Settings = lazy(() => import('./pages/Settings'))
 const Purchases = lazy(() => import('./pages/Purchases'))
 const Customers = lazy(() => import('./pages/Customers'))
 import Layout from './components/Layout';
+import ErrorBoundary from './components/ErrorBoundary'
 import api from './services/api'
 
 // ── Defined outside App so React doesn't treat it as a new type each render ──
@@ -73,6 +74,7 @@ function App() {
     <LanguageProvider>
       <Router>
         <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+          <ErrorBoundary>
           <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-blue-600" size={40} /></div>}>
           <Routes>
             <Route path="/login" element={!user ? <Login onLogin={login} /> : <Navigate to="/" />} />
@@ -131,6 +133,7 @@ function App() {
             </Route>
           </Routes>
           </Suspense>
+          </ErrorBoundary>
           <ToastContainer position="bottom-right" theme="dark" />
         </div>
       </Router>

@@ -66,6 +66,12 @@ def create_app(config_class=Config):
             db.session.commit()
         except Exception:
             db.session.rollback()
+        # Apply pending schema migrations (e.g. new columns on existing tables)
+        try:
+            from flask_migrate import upgrade
+            upgrade()
+        except Exception:
+            db.session.rollback()
         db.session.commit()
         if not Branch.query.filter_by(name='Shire').first():
             shire = Branch(name='Shire', location='Shire, Tigray')

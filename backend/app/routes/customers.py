@@ -31,7 +31,7 @@ def add_customer():
     if Customer.query.filter_by(phone=data.get('phone')).first():
         return jsonify({'message': 'Customer with this phone already exists'}), 409
     c = Customer(
-        full_name=data.get('full_name'), phone=data.get('phone'),
+        full_name=(data.get('full_name') or '').strip().title(), phone=data.get('phone'),
         email=data.get('email'), address=data.get('address'),
         customer_type=data.get('type', 'individual'),
         credit_limit=float(data.get('credit_limit', 0)),
@@ -85,7 +85,7 @@ def get_customer_details(id):
 def update_customer(id):
     c    = Customer.query.get_or_404(id)
     data = request.get_json()
-    c.full_name     = data.get('full_name', c.full_name)
+    c.full_name     = (data.get('full_name') or '').strip().title()
     c.email         = data.get('email', c.email)
     c.address       = data.get('address', c.address)
     c.customer_type = data.get('type', c.customer_type)

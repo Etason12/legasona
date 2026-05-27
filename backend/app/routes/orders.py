@@ -7,7 +7,7 @@ orders_bp = Blueprint('orders', __name__)
 
 def _ensure_customer(data):
     customer_id = data.get('customer_id')
-    name = (data.get('customer_name') or '').strip()
+    name = (data.get('customer_name') or '').strip().title()
     phone = (data.get('customer_phone') or '').strip()
     if not customer_id and name and phone:
         existing = Customer.query.filter_by(phone=phone).first()
@@ -31,7 +31,7 @@ def create_order():
     customer_id = _ensure_customer(data) or data.get('customer_id') or None
 
     new_order = Order(
-        customer_name=data.get('customer_name'),
+        customer_name=(data.get('customer_name') or '').strip().title(),
         customer_phone=data.get('customer_phone'),
         customer_id=customer_id,
         vehicle_specs=data.get('vehicle_specs'),

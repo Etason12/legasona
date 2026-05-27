@@ -47,7 +47,7 @@ def record_purchase():
     receipt_data = compress_to_base64(file)
 
     new_purchase = Purchase(
-        supplier_name=data.get('supplier_name'), item_type=data.get('item_type'),
+        supplier_name=(data.get('supplier_name') or '').strip().title(), item_type=data.get('item_type'),
         total_amount=total, payment_method=data.get('payment_method'),
         branch_id=data.get('branch_id'), user_id=data.get('user_id'),
         receipt_attachment=receipt_data

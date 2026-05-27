@@ -7,7 +7,7 @@ import api from '../services/api'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useLanguage } from '../i18n/LanguageContext'
-import { formatDate } from '../utils/format'
+import { formatDate, capitalizeName } from '../utils/format'
 
 const ITEM_TYPES = ['vehicle', 'spare_part', 'accessory', 'other']
 const PAYMENT_METHODS = ['cash', 'bank_transfer', 'credit']
@@ -176,7 +176,7 @@ const Purchases = ({ user }) => {
          <Truck size={22}/>
         </div>
         <div>
-         <p className="text-slate-900 dark:text-white font-bold">{pu.supplier_name}</p>
+         <p className="text-slate-900 dark:text-white font-bold">{capitalizeName(pu.supplier_name)}</p>
          <p className="text-xs text-slate-500 mt-0.5">
           {t(pu.item_type)} · {t(pu.payment_method === 'bank_transfer' ? 'bankTransferShort' : pu.payment_method)} · {formatDate(pu.purchase_date)}
          </p>

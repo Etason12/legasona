@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { capitalizeName } from '../utils/format';
 
 const COL_WIDTHS = {
   sales: [
@@ -102,7 +103,7 @@ export const exportSalesToExcel = (sales, t = (k) => k) => {
   const salesRows = sales.map((s) => [
     s.sale_number,
     fmtDate(s.sale_date),
-    s.customer_name,
+    capitalizeName(s.customer_name),
     s.customer_phone || '',
     s.item_name || s.category || s.sale_type,
     s.chassis_number || '',
@@ -132,7 +133,7 @@ export const exportSalesToExcel = (sales, t = (k) => k) => {
         payRows.push([
           s.sale_number,
           fmtDate(s.sale_date),
-          s.customer_name,
+          capitalizeName(s.customer_name),
           (p.method || '').toUpperCase(),
           p.bank || '',
           fmtMoney(p.amount),
@@ -144,7 +145,7 @@ export const exportSalesToExcel = (sales, t = (k) => k) => {
       payRows.push([
         s.sale_number,
         fmtDate(s.sale_date),
-        s.customer_name,
+        capitalizeName(s.customer_name),
         '',
         '',
         fmtMoney(s.amount_paid),
@@ -289,7 +290,7 @@ export const exportReportsToExcel = (payments, stats, profit, t = (k) => k) => {
       p.sale_number || '',
       fmtDate(p.sale_date),
       p.created_at ? fmtDate(p.created_at) : fmtDate(new Date().toISOString()),
-      p.customer_name || '',
+      capitalizeName(p.customer_name) || '',
       (p.payment_method || '').toUpperCase(),
       p.bank_name || '',
       p.account_holder || '',

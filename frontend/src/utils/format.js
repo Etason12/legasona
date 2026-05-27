@@ -34,3 +34,8 @@ export const toIsoDate = (display) => {
   const [dd, mm, yyyy] = parts
   return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`
 }
+
+export const capitalizeName = (str) => {
+  if (!str) return ''
+  return str.replace(/\b\w/g, c => c.toUpperCase())
+}

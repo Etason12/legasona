@@ -8,7 +8,7 @@ import api from '../services/api'
 import { toast } from 'react-toastify'
 import { useLanguage } from '../i18n/LanguageContext'
 import { isAdmin } from '../utils/roles'
-import { formatDate } from '../utils/format'
+import { formatDate, capitalizeName } from '../utils/format'
 
 const Customers = ({ user }) => {
  const { t } = useLanguage()
@@ -143,7 +143,7 @@ const Customers = ({ user }) => {
               {c.type === 'corporate' ? <Building2 size={16} /> : <UserIcon size={16} />}
              </div>
              <div>
-              <p className="text-slate-900 dark:text-white font-bold text-sm">{c.full_name}</p>
+              <p className="text-slate-900 dark:text-white font-bold text-sm">{capitalizeName(c.full_name)}</p>
               {c.address && <p className="text-xs text-slate-500 mt-0.5">{c.address}</p>}
              </div>
             </div>
@@ -208,7 +208,7 @@ const Customers = ({ user }) => {
            <UserIcon size={40} />
           </div>
           <div>
-           <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">{customerDetails.full_name}</h3>
+           <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">{capitalizeName(customerDetails.full_name)}</h3>
            <div className="flex items-center gap-2 mt-1">
             <span className="px-2.5 py-1 rounded-lg text-xs font-bold uppercase bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">{customerDetails.type}</span>
             <span className="text-xs font-bold text-slate-600 ">ID: {customerDetails.id}</span>

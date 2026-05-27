@@ -14,7 +14,7 @@ def _ensure_customer(data):
     """Create a Customer record if one doesn't exist for this phone number.
        Returns the customer_id to link to the sale."""
     customer_id = data.get('customer_id')
-    name = (data.get('customer_name') or '').strip()
+    name = (data.get('customer_name') or '').strip().title()
     phone = (data.get('customer_phone') or '').strip()
     branch_id = data.get('branch_id')
     if not customer_id and name and phone:
@@ -62,7 +62,7 @@ def record_vehicle_sale():
 
     new_sale = Sale(
         sale_number=sale_number, sale_type='vehicle', item_id=vehicle_id,
-        customer_name=data.get('customer_name'), customer_phone=data.get('customer_phone'),
+        customer_name=(data.get('customer_name') or '').strip().title(), customer_phone=data.get('customer_phone'),
         customer_id=customer_id,
         total_amount=total_amount,
         chassis_number=vehicle.vin, motor_number=data.get('motor_number'),
@@ -140,7 +140,7 @@ def record_spare_part_sale():
 
     new_sale = Sale(
         sale_number=sale_number, sale_type='spare_part', item_id=part_id,
-        customer_name=data.get('customer_name'), customer_phone=data.get('customer_phone'),
+        customer_name=(data.get('customer_name') or '').strip().title(), customer_phone=data.get('customer_phone'),
         customer_id=customer_id,
         total_amount=total_amount, status=status,
         category=part.category,

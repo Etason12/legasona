@@ -27,7 +27,7 @@ import { generateReceipt } from '../services/ReceiptService'
 import { exportSalesToExcel } from '../services/ExportService'
 import { useLanguage } from '../i18n/LanguageContext'
 import { Package } from 'lucide-react'
-import { formatDate, formatDateTime } from '../utils/format'
+import { formatDate, formatDateTime, capitalizeName } from '../utils/format'
 import { isAdmin } from '../utils/roles'
 
 const ImageCell = ({ imageData, onClick }) => {
@@ -448,7 +448,7 @@ const Sales = ({ user }) => {
                         <p className="text-xs text-slate-500 mt-1">{formatDate(sale.sale_date)}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-slate-700 dark:text-slate-200 font-bold">{sale.customer_name}</p>
+                        <p className="text-slate-700 dark:text-slate-200 font-bold">{capitalizeName(sale.customer_name)}</p>
                         <p className="text-xs text-slate-500 mt-1">{sale.sale_type.replace('_', ' ')}</p>
                       </td>
                       <td className="px-6 py-4 hidden md:table-cell">
@@ -818,7 +818,7 @@ const Sales = ({ user }) => {
                             }
                           }}>
                             <option value="">{t('newCustomer')}</option>
-                            {customers.map(c => <option key={c.id} value={c.id}>{c.full_name} ({c.phone})</option>)}
+                            {customers.map(c => <option key={c.id} value={c.id}>{capitalizeName(c.full_name)} ({c.phone})</option>)}
                           </select>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

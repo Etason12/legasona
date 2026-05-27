@@ -3,6 +3,7 @@ import { ClipboardList, Plus, Search, User, Loader2, MoreVertical, Clock, CheckC
 import api from '../services/api'
 import { toast } from 'react-toastify'
 import { useLanguage } from '../i18n/LanguageContext'
+import { capitalizeName } from '../utils/format'
 
 const Orders = ({ user }) => {
  const { t } = useLanguage()
@@ -218,7 +219,7 @@ const Orders = ({ user }) => {
            <td className="px-6 py-4">
             <button onClick={() => viewCustomerDetail(order)} className="text-left group">
               <p className="text-slate-700 dark:text-slate-200 font-bold group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-1.5">
-                {order.customer_name}
+                {capitalizeName(order.customer_name)}
                 <Eye size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-500" />
               </p>
               <p className="text-xs text-slate-500 mt-1">{order.customer_phone}</p>
@@ -299,7 +300,7 @@ const Orders = ({ user }) => {
           }}
          >
           <option value="">{t('newCustomer')}</option>
-          {customers.map(c => <option key={c.id} value={c.id}>{c.full_name} ({c.phone})</option>)}
+          {customers.map(c => <option key={c.id} value={c.id}>{capitalizeName(c.full_name)} ({c.phone})</option>)}
          </select>
         </div>
 
@@ -372,7 +373,7 @@ const Orders = ({ user }) => {
         <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200 dark:border-blue-800">
          <div className="flex items-start justify-between">
           <div>
-           <p className="text-lg font-bold text-slate-900 dark:text-white">{depositOrder.customer_name}</p>
+           <p className="text-lg font-bold text-slate-900 dark:text-white">{capitalizeName(depositOrder.customer_name)}</p>
            <p className="text-sm text-slate-500 mt-0.5 flex items-center gap-1.5">
             <Phone size={13} /> {depositOrder.customer_phone}
            </p>
@@ -471,7 +472,7 @@ const Orders = ({ user }) => {
            <User size={28} />
           </div>
           <div>
-           <p className="text-lg font-bold text-slate-900 dark:text-white">{customerDetail.full_name}</p>
+           <p className="text-lg font-bold text-slate-900 dark:text-white">{capitalizeName(customerDetail.full_name)}</p>
            <span className={`inline-block mt-1 text-xs font-bold px-2 py-0.5 rounded-full ${
              customerDetail.type === 'corporate' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
            }`}>

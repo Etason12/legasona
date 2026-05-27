@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
+import { capitalizeName } from '../utils/format';
 
 const buildItemDescription = (saleData) => {
   const lines = [];
@@ -72,7 +73,7 @@ export const generateReceipt = async (saleData) => {
   doc.text("CUSTOMER DETAILS", margin, y);
   y += 5;
   doc.setFont("helvetica", "normal");
-  doc.text(`Name: ${saleData.customerName}`, margin, y);
+  doc.text(`Name: ${capitalizeName(saleData.customerName)}`, margin, y);
   y += 4;
   doc.text(`Phone: ${saleData.customerPhone || "N/A"}`, margin, y);
   y += 6;
@@ -121,7 +122,7 @@ export const generateReceipt = async (saleData) => {
     const qrText = [
       `Receipt: ${saleData.receiptNumber}`,
       `Cashier: ${saleData.cashierName || "N/A"}`,
-      `Customer: ${saleData.customerName}`,
+      `Customer: ${capitalizeName(saleData.customerName)}`,
       buildItemDescription(saleData),
       `Amount: ETB ${saleData.totalAmount}`,
     ].join("\n");

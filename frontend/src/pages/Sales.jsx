@@ -557,8 +557,11 @@ const Sales = ({ user }) => {
                         {p.receipt_image && (
                           <button
                             onClick={() => setPreviewImage(p.receipt_image)}
-                            className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-lg transition-colors"
-                          ><Camera size={16} /></button>
+                            className="p-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-lg transition-colors shrink-0"
+                            title="View Receipt"
+                          >
+                            <img src={p.receipt_image} alt="Receipt" className="w-9 h-9 object-cover rounded" />
+                          </button>
                         )}
                         {isAdmin(user) && (
                           <button

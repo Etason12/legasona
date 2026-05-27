@@ -35,19 +35,27 @@ const Reports = ({ user }) => {
   const [payments, setPayments] = useState([])
   const [branchComparison, setBranchComparison] = useState([])
   const [inventoryDist, setInventoryDist] = useState(null)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchReportData()
   }, [])
 
-  const fetchReportData = async () => {
+  const fetchReportData = async (sd, ed) => {
     try {
       const branchId = user?.role?.toLowerCase() === 'admin' ? '' : (user?.branch_id || '')
+      const s = sd !== undefined ? sd : startDate
+      const e = ed !== undefined ? ed : endDate
+      const params = new URLSearchParams({ branch_id: branchId })
+      if (s) params.append('start_date', s)
+      if (e) params.append('end_date', e)
+      const qs = params.toString()
       const [statsRes, profitRes, paymentsRes, branchRes, invDistRes] = await Promise.all([
-        api.get(`/reports/dashboard?branch_id=${branchId}`),
-        api.get(`/reports/profit-analysis?branch_id=${branchId}`),
-        api.get(`/reports/payments?branch_id=${branchId}`),
+        api.get(`/reports/dashboard?${qs}`),
+        api.get(`/reports/profit-analysis?${qs}`),
+        api.get(`/reports/payments?${qs}`),
         api.get('/reports/branch-comparison'),
         api.get('/reports/inventory-distribution'),
       ])
@@ -95,9 +103,17 @@ const Reports = ({ user }) => {
           <p className="text-slate-400 mt-1 font-medium">{t('reportsDesc')}</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="px-4 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-300 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-800 transition-colors flex items-center gap-2">
-            <Calendar size={18} />
-            {t('thisMonth')}
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5">
+            <Calendar size={18} className="text-slate-500" />
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+              className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-32" />
+            <span className="text-slate-400">—</span>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+              className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-32" />
+          </div>
+          <button onClick={() => fetchReportData(startDate, endDate)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors">
+            {t('filter')}
           </button>
           <button
             onClick={() => exportReportsToExcel(payments, data, profit, t)}

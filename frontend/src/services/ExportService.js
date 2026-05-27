@@ -24,6 +24,18 @@ const applySheetLayout = (ws, colWidths, freezeRow = 1) => {
 
 const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString() : '');
 const fmtMoney = (n) => (n != null && !Number.isNaN(Number(n)) ? Number(n) : 0);
+const applyNumFormat = (ws, colIndices, fmt = '#,##0') => {
+  if (!ws || !ws['!ref']) return;
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    for (const c of colIndices) {
+      const addr = XLSX.utils.encode_cell({ r, c });
+      if (ws[addr] && ws[addr].t === 'n') {
+        ws[addr].z = fmt;
+      }
+    }
+  }
+};
 
 const paymentSummary = (payments) => {
   if (!payments?.length) return 'No payments recorded';
@@ -71,6 +83,7 @@ export const exportSalesToExcel = (sales, t = (k) => k) => {
   ];
   const wsSummary = sheetFromRows(summaryRows);
   wsSummary['!cols'] = [{ wch: 28 }, { wch: 22 }];
+  applyNumFormat(wsSummary, [1]);
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
 
   // ── Sales detail sheet ──
@@ -97,6 +110,7 @@ export const exportSalesToExcel = (sales, t = (k) => k) => {
   ]);
   const wsSales = sheetFromRows([salesHeader, ...salesRows]);
   applySheetLayout(wsSales, COL_WIDTHS.sales, 1);
+  applyNumFormat(wsSales, [10, 11, 12]);
   XLSX.utils.book_append_sheet(wb, wsSales, 'Sales');
 
   // ── Payment lines sheet (one row per payment) ──
@@ -134,6 +148,7 @@ export const exportSalesToExcel = (sales, t = (k) => k) => {
   });
   const wsPayments = sheetFromRows([payHeader, ...payRows]);
   applySheetLayout(wsPayments, COL_WIDTHS.payments, 1);
+  applyNumFormat(wsPayments, [5]);
   XLSX.utils.book_append_sheet(wb, wsPayments, 'Payments');
 
   XLSX.writeFile(wb, `Legasona_Sales_Report_${dateStr}.xlsx`);
@@ -184,6 +199,7 @@ export const exportInventoryToExcel = (items, type, t = (k) => k) => {
     const ws = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...rows]);
     ws['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
     ws['!cols'] = INVENTORY_COL_WIDTHS.vehicles;
+    applyNumFormat(ws, [8, 9]);
     XLSX.utils.book_append_sheet(wb, ws, S('vehicles', 'Vehicles'));
   } else {
     const headers = [
@@ -208,6 +224,7 @@ export const exportInventoryToExcel = (items, type, t = (k) => k) => {
     const ws = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...rows]);
     ws['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
     ws['!cols'] = INVENTORY_COL_WIDTHS.parts;
+    applyNumFormat(ws, [4, 5]);
     XLSX.utils.book_append_sheet(wb, ws, S('spareParts', 'Spare Parts'));
   }
 
@@ -252,6 +269,7 @@ export const exportReportsToExcel = (payments, stats, profit, t = (k) => k) => {
   const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
   wsSummary['!cols'] = REPORT_COL_WIDTHS.summary;
   wsSummary['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
+  applyNumFormat(wsSummary, [1]);
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
 
   // ── Payments sheet ──
@@ -279,6 +297,7 @@ export const exportReportsToExcel = (payments, stats, profit, t = (k) => k) => {
     const wsPayments = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...rows]);
     wsPayments['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
     wsPayments['!cols'] = REPORT_COL_WIDTHS.payments;
+    applyNumFormat(wsPayments, [7]);
     XLSX.utils.book_append_sheet(wb, wsPayments, 'Payments');
   }
 

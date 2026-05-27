@@ -6,10 +6,19 @@ from datetime import datetime, timedelta
 
 reports_bp = Blueprint('reports', __name__)
 
+def _date_filter(q, model_field, start_date, end_date):
+    if start_date:
+        q = q.filter(model_field >= datetime.fromisoformat(start_date))
+    if end_date:
+        q = q.filter(model_field <= datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59))
+    return q
+
 @reports_bp.route('/dashboard', methods=['GET'])
 @jwt_required()
 def get_dashboard_stats():
     branch_id = request.args.get('branch_id')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
 
     sales_q   = db.session.query(func.sum(Sale.total_amount))
     orders_q  = Order.query.filter(Order.status == 'waiting')
@@ -20,24 +29,37 @@ def get_dashboard_stats():
         orders_q  = orders_q.filter(Order.branch_id == branch_id)
         vehicle_q = vehicle_q.filter(Vehicle.branch_id == branch_id)
 
+    sales_q = _date_filter(sales_q, Sale.sale_date, start_date, end_date)
+
     total_sales_amount  = sales_q.scalar() or 0
     active_orders_count = orders_q.count()
     vehicle_value       = vehicle_q.scalar() or 0
 
-    # Monthly Revenue — last 30 days
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    monthly_rev_q   = db.session.query(func.sum(Sale.total_amount)).filter(Sale.sale_date >= thirty_days_ago)
+    # Revenue for selected period
+    monthly_rev_q   = db.session.query(func.sum(Sale.total_amount))
     if branch_id:
         monthly_rev_q = monthly_rev_q.filter(Sale.branch_id == branch_id)
+    monthly_rev_q = _date_filter(monthly_rev_q, Sale.sale_date, start_date, end_date)
     monthly_revenue = monthly_rev_q.scalar() or 0
 
-    # Previous 30-day window for real trend calculation
-    sixty_days_ago   = datetime.utcnow() - timedelta(days=60)
-    prev_rev_q       = db.session.query(func.sum(Sale.total_amount)).filter(
-        Sale.sale_date >= sixty_days_ago, Sale.sale_date < thirty_days_ago)
-    if branch_id:
-        prev_rev_q = prev_rev_q.filter(Sale.branch_id == branch_id)
-    prev_revenue = prev_rev_q.scalar() or 0
+    # Previous period for trend comparison
+    if start_date:
+        sd = datetime.fromisoformat(start_date)
+        prev_end = sd - timedelta(days=1)
+        prev_start = prev_end - timedelta(days=30)
+        prev_rev_q = db.session.query(func.sum(Sale.total_amount))
+        if branch_id:
+            prev_rev_q = prev_rev_q.filter(Sale.branch_id == branch_id)
+        prev_rev_q = _date_filter(prev_rev_q, Sale.sale_date, prev_start.date().isoformat(), prev_end.date().isoformat())
+        prev_revenue = prev_rev_q.scalar() or 0
+    else:
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        sixty_days_ago  = datetime.utcnow() - timedelta(days=60)
+        prev_rev_q     = db.session.query(func.sum(Sale.total_amount)).filter(
+            Sale.sale_date >= sixty_days_ago, Sale.sale_date < thirty_days_ago)
+        if branch_id:
+            prev_rev_q = prev_rev_q.filter(Sale.branch_id == branch_id)
+        prev_revenue = prev_rev_q.scalar() or 0
 
     def pct_change(current, previous):
         if previous == 0:
@@ -48,26 +70,44 @@ def get_dashboard_stats():
 
     rev_change, rev_trend = pct_change(monthly_revenue, prev_revenue)
 
-    # Chart Data — last 6 months
-    chart_data   = []
-    current_date = datetime.utcnow()
-    for i in range(5, -1, -1):
-        month_date     = current_date - timedelta(days=i * 30)
-        start_of_month = month_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        if start_of_month.month == 12:
-            next_month = start_of_month.replace(year=start_of_month.year + 1, month=1)
+    # Chart Data — last 6 months (or selected range)
+    chart_data = []
+    if start_date and end_date:
+        sd = datetime.fromisoformat(start_date)
+        ed = datetime.fromisoformat(end_date)
+        delta = (ed - sd).days
+        if delta > 365:
+            intervals = [(sd + timedelta(days=i * (delta // 11)), (ed if i == 11 else sd + timedelta(days=(i + 1) * (delta // 11) - 1))) for i in range(12)]
         else:
-            next_month = start_of_month.replace(month=start_of_month.month + 1)
+            intervals = [(sd.replace(day=1) + timedelta(days=i * 30), (sd.replace(day=1) + timedelta(days=(i + 1) * 30 - 1)).replace(hour=23, minute=59, second=59)) for i in range(max(1, delta // 30 + 1))]
+        for start_of_month, end_of_month in intervals:
+            sales_month_q = db.session.query(func.sum(Sale.total_amount)).filter(
+                Sale.sale_date >= start_of_month, Sale.sale_date <= end_of_month)
+            if branch_id:
+                sales_month_q = sales_month_q.filter(Sale.branch_id == branch_id)
+            chart_data.append({
+                'month': start_of_month.strftime('%b %d'),
+                'sales': float(sales_month_q.scalar() or 0)
+            })
+    else:
+        current_date = datetime.utcnow()
+        for i in range(5, -1, -1):
+            month_date     = current_date - timedelta(days=i * 30)
+            start_of_month = month_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            if start_of_month.month == 12:
+                next_month = start_of_month.replace(year=start_of_month.year + 1, month=1)
+            else:
+                next_month = start_of_month.replace(month=start_of_month.month + 1)
 
-        sales_month_q = db.session.query(func.sum(Sale.total_amount)).filter(
-            Sale.sale_date >= start_of_month, Sale.sale_date < next_month)
-        if branch_id:
-            sales_month_q = sales_month_q.filter(Sale.branch_id == branch_id)
+            sales_month_q = db.session.query(func.sum(Sale.total_amount)).filter(
+                Sale.sale_date >= start_of_month, Sale.sale_date < next_month)
+            if branch_id:
+                sales_month_q = sales_month_q.filter(Sale.branch_id == branch_id)
 
-        chart_data.append({
-            'month': start_of_month.strftime('%b'),
-            'sales': float(sales_month_q.scalar() or 0)
-        })
+            chart_data.append({
+                'month': start_of_month.strftime('%b'),
+                'sales': float(sales_month_q.scalar() or 0)
+            })
 
     title_prefix = f"Branch {branch_id}" if branch_id else "Total Company"
     return jsonify({
@@ -89,6 +129,8 @@ def get_dashboard_stats():
 @jwt_required()
 def get_profit_analysis():
     branch_id = request.args.get('branch_id')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
 
     sales_q    = db.session.query(
         func.sum(Sale.total_amount).label('revenue'),
@@ -99,6 +141,9 @@ def get_profit_analysis():
     if branch_id:
         sales_q    = sales_q.filter(Sale.branch_id == branch_id)
         expenses_q = expenses_q.filter(Expense.branch_id == branch_id)
+
+    sales_q    = _date_filter(sales_q, Sale.sale_date, start_date, end_date)
+    expenses_q = _date_filter(expenses_q, Expense.expense_date, start_date, end_date)
 
     sales_stats    = sales_q.first()
     revenue        = sales_stats.revenue or 0
@@ -122,11 +167,15 @@ def get_profit_analysis():
 @jwt_required()
 def get_payment_report():
     branch_id = request.args.get('branch_id')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
 
     query = db.session.query(Payment, Sale).join(Sale, Payment.sale_id == Sale.id)
 
     if branch_id:
         query = query.filter(Sale.branch_id == branch_id)
+
+    query = _date_filter(query, Payment.payment_date, start_date, end_date)
 
     query = query.order_by(Payment.payment_date.desc()).all()
 

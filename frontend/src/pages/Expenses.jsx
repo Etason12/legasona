@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { FileText, Plus, Search, DollarSign, Calendar, Tag, MoreVertical, Loader2, Trash2, Image as ImageIcon, X, Check } from 'lucide-react'
 import api, { API_BASE_URL } from '../services/api'
 import axios from 'axios'
@@ -16,10 +16,13 @@ const Expenses = ({ user }) => {
  const [search, setSearch] = useState('')
  const [budgetData, setBudgetData] = useState({ budget: 0, spent: 0, remaining: 0 })
  const { t } = useLanguage()
+ const filteredExpenses = useMemo(() => expenses.filter(e =>
+  e.description?.toLowerCase().includes(search.toLowerCase()) ||
+  e.category?.toLowerCase().includes(search.toLowerCase())
+ ), [expenses, search])
 
  useEffect(() => {
-  fetchExpenses()
-  fetchBudget()
+  Promise.all([fetchExpenses(), fetchBudget()])
  }, [startDate, endDate])
 
  const fetchBudget = async () => {
@@ -151,18 +154,12 @@ const Expenses = ({ user }) => {
           <p className="text-slate-500 text-sm">{t('loadingExpenses')}</p>
          </td>
         </tr>
-       ) : expenses.filter(e => 
-         e.description?.toLowerCase().includes(search.toLowerCase()) || 
-         e.category?.toLowerCase().includes(search.toLowerCase())
-        ).length === 0 ? (
-        <tr>
-         <td colSpan="5" className="px-6 py-12 text-center text-slate-500">{t('noExpensesFound')}</td>
-        </tr>
-       ) : (
-        expenses.filter(e => 
-         e.description?.toLowerCase().includes(search.toLowerCase()) || 
-         e.category?.toLowerCase().includes(search.toLowerCase())
-        ).map((expense) => (
+        ) : filteredExpenses.length === 0 ? (
+         <tr>
+          <td colSpan="5" className="px-6 py-12 text-center text-slate-500">{t('noExpensesFound')}</td>
+         </tr>
+        ) : (
+         filteredExpenses.map((expense) => (
          <tr key={expense.id} className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors group">
           <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">
            {new Date(expense.expense_date).toLocaleDateString()}

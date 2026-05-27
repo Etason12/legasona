@@ -208,16 +208,16 @@ const Inventory = ({ user }) => {
     try {
       const bId = branchFilter
       const sId = activeTab === 'vehicles' ? statusFilter : ''
-      const [vRes, sRes, bRes, allVRes] = await Promise.all([
+      const [vRes, sRes, bRes, statsRes] = await Promise.all([
         api.get(`/inventory/vehicles?branch_id=${bId}&status=${sId}`),
         api.get(`/inventory/spare-parts?branch_id=${bId}`),
         api.get('/branches'),
-        api.get('/inventory/vehicles?branch_id=&status='),
+        api.get(`/inventory/vehicles?branch_id=${bId}&status=`),
       ])
       setVehicles(vRes.data)
       setSpareParts(sRes.data)
       setBranches(bRes.data)
-      const all = allVRes.data
+      const all = statsRes.data
       setStats({
         available:  all.filter(v => v.status === 'available').length,
         reserved:   all.filter(v => v.status === 'reserved').length,

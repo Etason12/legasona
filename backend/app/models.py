@@ -104,6 +104,7 @@ class Payment(db.Model):
     transaction_reference = db.Column(db.String(100))
     receipt_image = db.Column(db.String(255)) # Path to uploaded image
     payment_date = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Order(db.Model):
     __tablename__ = 'orders'

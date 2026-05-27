@@ -1,13 +1,13 @@
 import os
 import json
-from flask import Blueprint, request, jsonify, send_from_directory
+from flask import Blueprint, request, jsonify, send_from_directory, make_response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.auth import admin_required, role_required
 from app.utils.image_utils import save_compressed_image
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from sqlalchemy import func, or_
-from app.models import Sale, Payment, Vehicle, SparePart, User, db
+from app.models import Sale, Payment, Vehicle, SparePart, User, Customer, db
 from app.utils.logging import log_activity
 
 sales_bp = Blueprint('sales', __name__)
@@ -22,7 +22,27 @@ RECEIPT_DIR = os.path.join(ROOT_DIR, 'uploads', 'receipts')
 # ── Serve uploaded receipt images (public — loaded directly by <img>/<a> tags) ──
 @sales_bp.route('/receipts/<path:filename>')
 def serve_receipt(filename):
-    return send_from_directory(RECEIPT_DIR, filename)
+    resp = make_response(send_from_directory(RECEIPT_DIR, filename))
+    resp.headers['Cache-Control'] = 'public, max-age=86400'
+    return resp
+
+def _ensure_customer(data):
+    """Create a Customer record if one doesn't exist for this phone number.
+       Returns the customer_id to link to the sale."""
+    customer_id = data.get('customer_id')
+    name = (data.get('customer_name') or '').strip()
+    phone = (data.get('customer_phone') or '').strip()
+    branch_id = data.get('branch_id')
+    if not customer_id and name and phone:
+        existing = Customer.query.filter_by(phone=phone).first()
+        if existing:
+            customer_id = existing.id
+        else:
+            customer = Customer(full_name=name, phone=phone, branch_id=branch_id)
+            db.session.add(customer)
+            db.session.flush()
+            customer_id = customer.id
+    return customer_id
 
 # ── Record Vehicle Sale ──────────────────────────────────────────────
 def _save_payment_receipt(sale_id, file, index):
@@ -64,10 +84,12 @@ def record_vehicle_sale():
     sale_date_str = data.get('sale_date')
     sale_date = datetime.fromisoformat(sale_date_str) if sale_date_str else datetime.utcnow()
 
+    customer_id = _ensure_customer(data) or data.get('customer_id') or None
+
     new_sale = Sale(
         sale_number=sale_number, sale_type='vehicle', item_id=vehicle_id,
         customer_name=data.get('customer_name'), customer_phone=data.get('customer_phone'),
-        customer_id=data.get('customer_id') or None,
+        customer_id=customer_id,
         total_amount=total_amount,
         chassis_number=vehicle.vin, motor_number=data.get('motor_number'),
         status=status, branch_id=vehicle.branch_id,
@@ -103,7 +125,8 @@ def record_vehicle_sale():
             sale_id=new_sale.id, payment_method=method,
             bank_name=p.get('bank', '').upper(), account_holder=p.get('accountHolder', '').upper(),
             amount=float(p.get('amount', 0)),
-            transaction_reference=ref.upper() if ref else None, receipt_image=receipt_filename
+            transaction_reference=ref.upper() if ref else None, receipt_image=receipt_filename,
+            payment_date=sale_date
         ))
 
     vehicle.status = 'sold' if status == 'completed' else 'reserved'
@@ -139,9 +162,12 @@ def record_spare_part_sale():
     sale_date_str = data.get('sale_date')
     sale_date = datetime.fromisoformat(sale_date_str) if sale_date_str else datetime.utcnow()
 
+    customer_id = _ensure_customer(data) or data.get('customer_id') or None
+
     new_sale = Sale(
         sale_number=sale_number, sale_type='spare_part', item_id=part_id,
         customer_name=data.get('customer_name'), customer_phone=data.get('customer_phone'),
+        customer_id=customer_id,
         total_amount=total_amount, status=status,
         category=part.category,
         branch_id=part.branch_id, user_id=data.get('user_id'),
@@ -168,7 +194,8 @@ def record_spare_part_sale():
             sale_id=new_sale.id, payment_method=method,
             bank_name=p.get('bank', '').upper(), account_holder=p.get('accountHolder', '').upper(),
             amount=float(p.get('amount', 0)),
-            transaction_reference=ref.upper() if ref else None
+            transaction_reference=ref.upper() if ref else None,
+            payment_date=sale_date
         ))
 
     part.quantity -= qty
@@ -197,7 +224,7 @@ def get_sale_payments(id):
 # ── Update Payment ──────────────────────────────────────────────────
 @sales_bp.route('/<int:sale_id>/payments/<int:payment_id>', methods=['PUT'])
 @jwt_required()
-@role_required('admin', 'manager')
+@admin_required
 def update_payment(sale_id, payment_id):
     sale = Sale.query.get(sale_id)
     if not sale:
@@ -267,7 +294,7 @@ def update_payment(sale_id, payment_id):
 # ── Delete Payment ──────────────────────────────────────────────────
 @sales_bp.route('/<int:sale_id>/payments/<int:payment_id>', methods=['DELETE'])
 @jwt_required()
-@role_required('admin', 'manager')
+@admin_required
 def delete_payment(sale_id, payment_id):
     sale = Sale.query.get(sale_id)
     if not sale:
@@ -403,10 +430,24 @@ def get_sales():
         ))
 
     sales = query.order_by(Sale.sale_date.desc()).all()
+    sale_ids = [s.id for s in sales]
+
+    # Batch-load payment totals
+    totals = dict(db.session.query(Payment.sale_id, func.sum(Payment.amount)).filter(Payment.sale_id.in_(sale_ids)).group_by(Payment.sale_id).all())
+
+    # Batch-load all payments
+    all_payments = Payment.query.filter(Payment.sale_id.in_(sale_ids)).order_by(Payment.payment_date.asc()).all()
+    payments_by_sale = {}
+    for p in all_payments:
+        payments_by_sale.setdefault(p.sale_id, []).append(p)
+
+    # Batch-load users
+    user_ids = {s.user_id for s in sales if s.user_id}
+    users = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
+
     result = []
     for s in sales:
-        total_paid = db.session.query(func.sum(Payment.amount)).filter(
-            Payment.sale_id == s.id).scalar() or 0
+        total_paid = float(totals.get(s.id, 0) or 0)
 
         item_image = None
         item_name = None
@@ -427,9 +468,9 @@ def get_sales():
                 item_image = p.image
                 item_name = p.name
 
-        cashier = User.query.get(s.user_id) if s.user_id else None
+        cashier = users.get(s.user_id)
 
-        sale_payments = Payment.query.filter_by(sale_id=s.id).order_by(Payment.payment_date.asc()).all()
+        sale_payments = payments_by_sale.get(s.id, [])
         payments_list = [{
             'method': p.payment_method,
             'bank': p.bank_name.upper() if p.bank_name else None,

@@ -1,9 +1,24 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from app.models import Order, db
+from app.models import Order, Customer, db
 from app.utils.auth import role_required
 
 orders_bp = Blueprint('orders', __name__)
+
+def _ensure_customer(data):
+    customer_id = data.get('customer_id')
+    name = (data.get('customer_name') or '').strip()
+    phone = (data.get('customer_phone') or '').strip()
+    if not customer_id and name and phone:
+        existing = Customer.query.filter_by(phone=phone).first()
+        if existing:
+            customer_id = existing.id
+        else:
+            customer = Customer(full_name=name, phone=phone, branch_id=data.get('branch_id'))
+            db.session.add(customer)
+            db.session.flush()
+            customer_id = customer.id
+    return customer_id
 
 @orders_bp.route('', methods=['POST'])
 @jwt_required()
@@ -13,10 +28,12 @@ def create_order():
     last_order = Order.query.order_by(Order.sequence_number.desc()).first()
     next_seq   = (last_order.sequence_number + 1) if last_order else 1
 
+    customer_id = _ensure_customer(data) or data.get('customer_id') or None
+
     new_order = Order(
         customer_name=data.get('customer_name'),
         customer_phone=data.get('customer_phone'),
-        customer_id=data.get('customer_id'),
+        customer_id=customer_id,
         vehicle_specs=data.get('vehicle_specs'),
         sequence_number=next_seq,
         deposit_amount=data.get('deposit_amount', 0),
@@ -37,6 +54,19 @@ def get_orders():
         'deposit_amount': o.deposit_amount, 'status': o.status,
         'order_date': o.order_date.isoformat()
     } for o in orders]), 200
+
+@orders_bp.route('/<int:id>/deposit', methods=['POST'])
+@jwt_required()
+@role_required('admin', 'manager', 'cashier')
+def add_deposit(id):
+    order = Order.query.get_or_404(id)
+    data = request.get_json()
+    amount = float(data.get('amount', 0))
+    if amount <= 0:
+        return jsonify({'message': 'Deposit amount must be greater than zero'}), 400
+    order.deposit_amount = (order.deposit_amount or 0) + amount
+    db.session.commit()
+    return jsonify({'message': 'Deposit added', 'deposit_amount': order.deposit_amount}), 200
 
 @orders_bp.route('/<int:id>/fulfill', methods=['POST'])
 @jwt_required()

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Plus,
   ShoppingCart,
@@ -59,6 +59,7 @@ const Sales = ({ user }) => {
   const [editPayMethod, setEditPayMethod]         = useState('cash')
   const [statusFilter, setStatusFilter]           = useState('pending')
   const [searchQuery, setSearchQuery]             = useState('')
+  const [debouncedSearch, setDebouncedSearch]     = useState('')
   const [startDate, setStartDate]                 = useState(new Date().toISOString().split('T')[0])
   const [endDate, setEndDate]                     = useState(new Date().toISOString().split('T')[0])
   const [payments, setPayments]                   = useState([{ id: 1, method: 'cash', amount: '', bank: '', reference: '', accountHolder: '' }])
@@ -72,8 +73,11 @@ const Sales = ({ user }) => {
   // Add-payment form state (replaces DOM getElementById hacks)
   const [addPayMethod, setAddPayMethod]           = useState('cash')
   const { t } = useLanguage()
+  const sortedVehicles = useMemo(() => [...availableVehicles].sort((a, b) => a.model.localeCompare(b.model)), [availableVehicles])
+  const sortedParts = useMemo(() => [...availableParts].sort((a, b) => a.name.localeCompare(b.name)), [availableParts])
 
-  useEffect(() => { fetchData() }, [statusFilter, searchQuery, startDate, endDate])
+  useEffect(() => { const t = setTimeout(() => setDebouncedSearch(searchQuery), 350); return () => clearTimeout(t) }, [searchQuery])
+  useEffect(() => { fetchData() }, [statusFilter, debouncedSearch, startDate, endDate])
 
   useEffect(() => {
     if (showNewSale) {
@@ -541,16 +545,20 @@ const Sales = ({ user }) => {
                             className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-lg transition-colors"
                           ><Camera size={16} /></button>
                         )}
-                        <button
-                          onClick={() => { setEditingPayment(p); setEditPayMethod(p.method); setShowPaymentHistory(false); }}
-                          className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 rounded-lg transition-colors"
-                          title="Edit Payment"
-                        ><Pencil size={16} /></button>
-                        <button
-                          onClick={() => handleDeletePayment(p)}
-                          className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/50 rounded-lg transition-colors"
-                          title="Delete Payment"
-                        ><Trash2 size={16} /></button>
+                        {isAdmin(user) && (
+                          <button
+                            onClick={() => { setEditingPayment(p); setEditPayMethod(p.method); setShowPaymentHistory(false); }}
+                            className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 rounded-lg transition-colors"
+                            title="Edit Payment"
+                          ><Pencil size={16} /></button>
+                        )}
+                        {isAdmin(user) && (
+                          <button
+                            onClick={() => handleDeletePayment(p)}
+                            className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/50 rounded-lg transition-colors"
+                            title="Delete Payment"
+                          ><Trash2 size={16} /></button>
+                        )}
                       </div>
                     </div>
                   ))
@@ -782,7 +790,7 @@ const Sales = ({ user }) => {
                             <label className="label">{t('vehicle')} *</label>
                             <select name="vehicle_id" required className="input-field" value={selectedVehicleId} onChange={e => handleVehicleSelect(e.target.value)}>
                               <option value="">{t('selectItem')}</option>
-                              {[...availableVehicles].sort((a, b) => a.model.localeCompare(b.model)).map(v => (
+                              {sortedVehicles.map(v => (
                                 <option key={v.id} value={v.id}>
                                   {v.model.toUpperCase()} — {v.vin}
                                   {v.engine_number ? ` — Motor: ${v.engine_number}` : ''}
@@ -825,7 +833,7 @@ const Sales = ({ user }) => {
                               }
                             }}>
                               <option value="">{t('selectItem')}</option>
-                              {availableParts.sort((a, b) => a.name.localeCompare(b.name)).map(p => (
+                              {sortedParts.map(p => (
                                 <option key={p.id} value={p.id}>
                                   {p.name} ({p.part_number}) — {t('availableStock')}: {p.quantity} — ETB {Number(p.unit_price).toLocaleString()}
                                 </option>

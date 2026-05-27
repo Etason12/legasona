@@ -1,5 +1,5 @@
 import os
-from flask import Blueprint, jsonify, request, send_from_directory
+from flask import Blueprint, jsonify, request, send_from_directory, make_response
 from flask_jwt_extended import jwt_required
 from app.models import Vehicle, SparePart, db
 from app.utils.auth import role_required
@@ -25,7 +25,9 @@ def save_image(file, prefix):
 # ── Image serving (public — no JWT, images referenced directly by <img> tags) ──
 @inventory_bp.route('/images/<path:filename>')
 def serve_image(filename):
-    return send_from_directory(UPLOAD_DIR, filename)
+    resp = make_response(send_from_directory(UPLOAD_DIR, filename))
+    resp.headers['Cache-Control'] = 'public, max-age=86400'
+    return resp
 
 # ── Vehicles ──────────────────────────────────────────────
 @inventory_bp.route('/vehicles', methods=['GET'])

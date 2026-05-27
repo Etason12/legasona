@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
  ShoppingBag, Plus, Loader2, Trash2, X, Check, Search,
  ChevronDown, ChevronUp, Package, Truck, Image as ImageIcon
@@ -31,10 +31,13 @@ const Purchases = ({ user }) => {
 
  const { t } = useLanguage()
  const role = user?.role
+ const filteredPurchases = useMemo(() => purchases.filter(p =>
+  p.supplier_name?.toLowerCase().includes(search.toLowerCase()) ||
+  p.items?.some(it => it.description?.toLowerCase().includes(search.toLowerCase()))
+ ), [purchases, search])
 
  useEffect(() => {
-  fetchPurchases()
-  fetchInventory()
+  Promise.all([fetchPurchases(), fetchInventory()])
  }, [])
 
  const fetchInventory = async () => {
@@ -159,15 +162,9 @@ const Purchases = ({ user }) => {
    <div className="space-y-3">
     {loading ? (
      <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600 dark:text-blue-400" size={40}/></div>
-    ) : purchases.filter(p => 
-      p.supplier_name?.toLowerCase().includes(search.toLowerCase()) || 
-      p.items?.some(it => it.description?.toLowerCase().includes(search.toLowerCase()))
-     ).length === 0 ? (
-     <div className="glass-card py-20 text-center text-slate-500">{t('noPurchasesFound')}</div>
-    ) : purchases.filter(p => 
-      p.supplier_name?.toLowerCase().includes(search.toLowerCase()) || 
-      p.items?.some(it => it.description?.toLowerCase().includes(search.toLowerCase()))
-     ).map(pu => (
+     ) : filteredPurchases.length === 0 ? (
+      <div className="glass-card py-20 text-center text-slate-500">{t('noPurchasesFound')}</div>
+     ) : filteredPurchases.map(pu => (
      <div key={pu.id} className="glass-card overflow-hidden">
       <div
        className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors"

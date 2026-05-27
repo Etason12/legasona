@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { ClipboardList, Plus, Search, User, Loader2, MoreVertical, Clock, CheckCircle2, X } from 'lucide-react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { ClipboardList, Plus, Search, User, Loader2, MoreVertical, Clock, CheckCircle2, X, CreditCard } from 'lucide-react'
 import api from '../services/api'
 import { toast } from 'react-toastify'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -12,11 +12,17 @@ const Orders = ({ user }) => {
  const [submitting, setSubmitting] = useState(false)
  const [customers, setCustomers] = useState([])
  const [selectedCustomerId, setSelectedCustomerId] = useState('')
- const [search, setSearch] = useState('')
+  const [search, setSearch] = useState('')
+  const [showDepositModal, setShowDepositModal] = useState(false)
+  const [depositOrder, setDepositOrder] = useState(null)
+  const [depositAmount, setDepositAmount] = useState('')
+  const filteredOrders = useMemo(() => orders.filter(o =>
+    o.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
+    o.vehicle_specs?.toLowerCase().includes(search.toLowerCase())
+  ), [orders, search])
 
  useEffect(() => {
-  fetchOrders()
-  fetchCustomers()
+  Promise.all([fetchOrders(), fetchCustomers()])
  }, [])
 
  const fetchOrders = async () => {
@@ -64,16 +70,37 @@ const Orders = ({ user }) => {
   }
  }
 
- const handleFulfill = async (orderId) => {
-  if (!window.confirm('Mark this order as fulfilled?')) return
-  try {
-   await api.post(`/orders/${orderId}/fulfill`)
-   toast.success('Order fulfilled successfully')
-   fetchOrders()
-  } catch (error) {
-   toast.error('Failed to fulfill order')
+  const handleFulfill = async (orderId) => {
+   if (!window.confirm('Mark this order as fulfilled?')) return
+   try {
+    await api.post(`/orders/${orderId}/fulfill`)
+    toast.success('Order fulfilled successfully')
+    fetchOrders()
+   } catch (error) {
+    toast.error('Failed to fulfill order')
+   }
   }
- }
+
+  const handleAddDeposit = async (e) => {
+   e.preventDefault()
+   if (!depositAmount || parseFloat(depositAmount) <= 0) {
+    toast.error('Enter a valid deposit amount')
+    return
+   }
+   setSubmitting(true)
+   try {
+    const res = await api.post(`/orders/${depositOrder.id}/deposit`, { amount: parseFloat(depositAmount) })
+    toast.success(`Deposit added. Total: ETB ${res.data.deposit_amount.toLocaleString()}`)
+    setShowDepositModal(false)
+    setDepositOrder(null)
+    setDepositAmount('')
+    fetchOrders()
+   } catch (error) {
+    toast.error('Failed to add deposit')
+   } finally {
+    setSubmitting(false)
+   }
+  }
 
  return (
   <div className="space-y-8">
@@ -141,18 +168,12 @@ const Orders = ({ user }) => {
            <p className="text-slate-500 text-sm">{t('syncingQueue')}</p>
          </td>
         </tr>
-       ) : orders.filter(o => 
-         o.customer_name?.toLowerCase().includes(search.toLowerCase()) || 
-         o.vehicle_specs?.toLowerCase().includes(search.toLowerCase())
-        ).length === 0 ? (
+        ) : filteredOrders.length === 0 ? (
         <tr>
           <td colSpan="6" className="px-6 py-12 text-center text-slate-500">{t('noOrdersFound')}</td>
         </tr>
        ) : (
-        orders.filter(o => 
-         o.customer_name?.toLowerCase().includes(search.toLowerCase()) || 
-         o.vehicle_specs?.toLowerCase().includes(search.toLowerCase())
-        ).map((order) => (
+        filteredOrders.map((order) => (
          <tr key={order.id} className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors group">
           <td className="px-6 py-4 hidden sm:table-cell">
            <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-300 dark:border-slate-700 flex items-center justify-center font-mono font-bold text-blue-600 dark:text-blue-400">
@@ -176,16 +197,26 @@ const Orders = ({ user }) => {
             {order.status}
            </span>
           </td>
-          <td className="px-6 py-4 text-right">
-           {order.status === 'waiting' && (
-            <button 
-             onClick={() => handleFulfill(order.id)}
-             className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-primary-300 hover:bg-blue-100 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-800 transition-colors"
-            >
-             {t('fulfill')}
-            </button>
-           )}
-          </td>
+           <td className="px-6 py-4 text-right">
+            <div className="flex items-center justify-end gap-2">
+             {order.status === 'waiting' && (
+              <>
+               <button
+                onClick={() => { setDepositOrder(order); setDepositAmount(''); setShowDepositModal(true) }}
+                className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:bg-emerald-900/30 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800 transition-colors flex items-center gap-1"
+               >
+                <CreditCard size={14} />{t('deposit')}
+               </button>
+               <button 
+                onClick={() => handleFulfill(order.id)}
+                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-800 transition-colors"
+               >
+                {t('fulfill')}
+               </button>
+              </>
+             )}
+            </div>
+           </td>
          </tr>
         ))
        )}
@@ -280,9 +311,47 @@ const Orders = ({ user }) => {
       </div>
      </div>
     </div>
+    )}
+
+   {/* Add Deposit Modal */}
+   {showDepositModal && depositOrder && (
+    <div className="modal-backdrop">
+     <div className="modal-content max-w-sm">
+      <div className="modal-header">
+       <div>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('addDeposit') || 'Add Deposit'}</h2>
+        <p className="text-sm text-slate-500 mt-0.5">{depositOrder.customer_name} — #{depositOrder.sequence_number}</p>
+       </div>
+       <button onClick={() => setShowDepositModal(false)} className="p-2.5 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700">
+        <X size={22} />
+       </button>
+      </div>
+      <div className="modal-body">
+       <form id="deposit-form" onSubmit={handleAddDeposit} className="space-y-6">
+        <div className="p-6 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800">
+         <div className="flex items-center justify-between mb-4">
+          <span className="text-sm text-slate-500">{t('currentDeposit') || 'Current Deposit'}:</span>
+          <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">ETB {(depositOrder.deposit_amount || 0).toLocaleString()}</span>
+         </div>
+         <div>
+          <label className="label">{t('additionalAmount') || 'Additional Amount'} (ETB) *</label>
+          <input type="number" className="input-field" value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder="0.00" required min="1" />
+         </div>
+        </div>
+       </form>
+      </div>
+      <div className="modal-footer">
+       <button type="button" onClick={() => setShowDepositModal(false)} className="btn-secondary">{t('cancel')}</button>
+       <button form="deposit-form" type="submit" disabled={submitting} className="btn-primary flex items-center gap-2">
+        {submitting ? <Loader2 className="animate-spin" size={16} /> : <CreditCard size={16} />}
+        {t('addDeposit') || 'Add Deposit'}
+       </button>
+      </div>
+     </div>
+    </div>
    )}
   </div>
- )
+  )
 }
 
 export default Orders

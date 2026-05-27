@@ -1,20 +1,21 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { LanguageProvider } from './i18n/LanguageContext'
+import { Loader2 } from 'lucide-react'
 
-import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import Inventory from './pages/Inventory'
-import Sales from './pages/Sales'
-import Orders from './pages/Orders'
-import Transfers from './pages/Transfers'
-import Expenses from './pages/Expenses'
-import Reports from './pages/Reports'
-import Settings from './pages/Settings'
-import Purchases from './pages/Purchases'
-import Customers from './pages/Customers'
+const Login = lazy(() => import('./pages/Login'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Inventory = lazy(() => import('./pages/Inventory'))
+const Sales = lazy(() => import('./pages/Sales'))
+const Orders = lazy(() => import('./pages/Orders'))
+const Transfers = lazy(() => import('./pages/Transfers'))
+const Expenses = lazy(() => import('./pages/Expenses'))
+const Reports = lazy(() => import('./pages/Reports'))
+const Settings = lazy(() => import('./pages/Settings'))
+const Purchases = lazy(() => import('./pages/Purchases'))
+const Customers = lazy(() => import('./pages/Customers'))
 import Layout from './components/Layout';
 import api from './services/api'
 
@@ -72,6 +73,7 @@ function App() {
     <LanguageProvider>
       <Router>
         <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+          <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-blue-600" size={40} /></div>}>
           <Routes>
             <Route path="/login" element={!user ? <Login onLogin={login} /> : <Navigate to="/" />} />
 
@@ -128,6 +130,7 @@ function App() {
               } />
             </Route>
           </Routes>
+          </Suspense>
           <ToastContainer position="bottom-right" theme="dark" />
         </div>
       </Router>

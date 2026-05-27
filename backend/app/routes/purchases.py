@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, send_from_directory
+from flask import Blueprint, request, jsonify, send_from_directory, make_response
 from flask_jwt_extended import jwt_required
 from app.models import Purchase, PurchaseItem, SparePart, Vehicle, db
 from app.utils.auth import role_required
@@ -18,7 +18,9 @@ os.makedirs(RECEIPT_DIR, exist_ok=True)
 # ── Serve receipts (public — loaded by <img>/<a> tags) ────────────
 @purchases_bp.route('/receipts/<path:filename>')
 def serve_receipt(filename):
-    return send_from_directory(RECEIPT_DIR, filename)
+    resp = make_response(send_from_directory(RECEIPT_DIR, filename))
+    resp.headers['Cache-Control'] = 'public, max-age=86400'
+    return resp
 
 @purchases_bp.route('', methods=['GET'])
 @jwt_required()

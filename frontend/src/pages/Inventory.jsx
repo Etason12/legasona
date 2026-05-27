@@ -64,10 +64,10 @@ const ItemModal = ({ mode, item, type, onClose, onSaved, branches }) => {
     if (fileRef.current?.files[0]) fd.append('image', fileRef.current.files[0])
     try {
       if (isEdit) {
-        await api.put(`/inventory/${type === 'vehicles' ? 'vehicles' : 'spare-parts'}/${item.id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+        await api.put(`/inventory/${type === 'vehicles' ? 'vehicles' : 'spare-parts'}/${item.id}`, fd)
         toast.success('Item updated')
       } else {
-        await api.post(`/inventory/${type === 'vehicles' ? 'vehicles' : 'spare-parts'}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+        await api.post(`/inventory/${type === 'vehicles' ? 'vehicles' : 'spare-parts'}`, fd)
         toast.success('Item added')
       }
       onSaved()
@@ -265,7 +265,7 @@ const Inventory = ({ user }) => {
           <p className="text-slate-400 mt-1 font-medium">{t('inventoryDesc')}</p>
         </div>
         <div className="flex gap-3">
-          <button onClick={() => exportInventoryToExcel(items, activeTab)} className="px-4 py-2.5 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-2">
+          <button onClick={() => exportInventoryToExcel(items, activeTab, t)} className="px-4 py-2.5 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-2">
             <Download size={18}/> {t('export')}
           </button>
           {canEdit(role) && (

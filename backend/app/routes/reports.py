@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
-from app.models import Sale, Payment, Expense, Vehicle, Order, ActivityLog, User, db
+from app.models import Sale, Payment, Expense, Vehicle, SparePart, Branch, Order, ActivityLog, User, db
 from sqlalchemy import func
 from datetime import datetime, timedelta
 
@@ -134,12 +134,47 @@ def get_payment_report():
         'customer_name':        sale.customer_name,
         'payment_date':         payment.payment_date.isoformat(),
         'amount':               float(payment.amount),
-        'bank_name':            payment.bank_name,
-        'account_holder':       payment.account_holder,
-        'transaction_reference': payment.transaction_reference,
+        'bank_name':            payment.bank_name.upper() if payment.bank_name else None,
+        'account_holder':       payment.account_holder.upper() if payment.account_holder else None,
+        'transaction_reference': payment.transaction_reference.upper() if payment.transaction_reference else None,
         'payment_method':       payment.payment_method,
         'sale_number':          sale.sale_number,
     } for payment, sale in query]), 200
+
+
+@reports_bp.route('/branch-comparison', methods=['GET'])
+@jwt_required()
+def get_branch_comparison():
+    branches = Branch.query.all()
+    result = []
+    for b in branches:
+        rev = db.session.query(func.sum(Sale.total_amount)).filter(Sale.branch_id == b.id).scalar() or 0
+        count = Sale.query.filter(Sale.branch_id == b.id).count()
+        vehicle_count = Vehicle.query.filter(Vehicle.branch_id == b.id).count()
+        part_count = SparePart.query.filter(SparePart.branch_id == b.id).count()
+        result.append({
+            'id': b.id,
+            'name': b.name,
+            'revenue': float(rev),
+            'sales_count': count,
+            'vehicle_count': vehicle_count,
+            'spare_part_count': part_count,
+        })
+    return jsonify(result), 200
+
+
+@reports_bp.route('/inventory-distribution', methods=['GET'])
+@jwt_required()
+def get_inventory_distribution():
+    vehicle_types = db.session.query(Vehicle.type, func.count(Vehicle.id)).group_by(Vehicle.type).all()
+    vehicle_power = db.session.query(Vehicle.power_type, func.count(Vehicle.id)).group_by(Vehicle.power_type).all()
+    part_categories = db.session.query(SparePart.category, func.count(SparePart.id)).group_by(SparePart.category).all()
+
+    return jsonify({
+        'vehicle_types': [{'name': t or 'Unknown', 'count': c} for t, c in vehicle_types],
+        'vehicle_power': [{'name': p or 'Unknown', 'count': c} for p, c in vehicle_power],
+        'part_categories': [{'name': cat or 'Uncategorized', 'count': c} for cat, c in part_categories],
+    }), 200
 
 
 @reports_bp.route('/activity', methods=['GET'])

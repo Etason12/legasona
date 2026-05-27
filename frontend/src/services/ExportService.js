@@ -44,7 +44,7 @@ export const exportToExcel = (data, fileName) => {
   XLSX.writeFile(workbook, `${fileName}.xlsx`);
 };
 
-export const exportSalesToExcel = (sales) => {
+export const exportSalesToExcel = (sales, t = (k) => k) => {
   const dateStr = new Date().toISOString().split('T')[0];
   const totalRevenue = sales.reduce((a, s) => a + fmtMoney(s.total_amount), 0);
   const totalPaid = sales.reduce((a, s) => a + fmtMoney(s.amount_paid), 0);
@@ -53,20 +53,21 @@ export const exportSalesToExcel = (sales) => {
   const wb = XLSX.utils.book_new();
 
   // ── Summary sheet ──
+  const S = (k, fallback) => { const v = t(k); return v !== k ? v : fallback; };
   const summaryRows = [
     ['LEGASONA MOTORS'],
-    ['Sales & Payment Report'],
+    [S('sales', 'Sales') + ' & ' + S('reports', 'Payments').toLowerCase() + ' ' + S('reports', 'Report')],
     [],
-    ['Report Date', dateStr],
-    ['Generated At', new Date().toLocaleString()],
+    [S('date', 'Date'), dateStr],
+    ['Generated', new Date().toLocaleString()],
     [],
     ['Metric', 'Value'],
-    ['Total Transactions', sales.length],
-    ['Total Contract Value (ETB)', totalRevenue],
+    ['Total ' + S('sales', 'Transactions'), sales.length],
+    [S('totalRevenue', 'Total Revenue') + ' (ETB)', totalRevenue],
     ['Total Collected (ETB)', totalPaid],
     ['Outstanding Balance (ETB)', totalBalance],
-    ['Completed Sales', sales.filter((s) => s.status === 'completed').length],
-    ['Pending Sales', sales.filter((s) => s.status === 'pending').length],
+    [S('completed', 'Completed'), sales.filter((s) => s.status === 'completed').length],
+    [S('pending', 'Pending'), sales.filter((s) => s.status === 'pending').length],
   ];
   const wsSummary = sheetFromRows(summaryRows);
   wsSummary['!cols'] = [{ wch: 28 }, { wch: 22 }];
@@ -74,9 +75,9 @@ export const exportSalesToExcel = (sales) => {
 
   // ── Sales detail sheet ──
   const salesHeader = [
-    'Receipt #', 'Sale Date', 'Customer', 'Phone', 'Vehicle / Item',
-    'Chassis (VIN)', 'Motor Number', 'Propulsion', 'Sale Type', 'Status',
-    'Contract (ETB)', 'Paid (ETB)', 'Balance (ETB)', 'Payment Details',
+    S('receiptNum', 'Receipt #'), S('date', 'Date'), S('customer', 'Customer'), S('phoneNumber', 'Phone'), S('item', 'Item'),
+    S('chassisNumber', 'Chassis (VIN)'), S('motorNumber', 'Motor #'), S('propulsionType', 'Propulsion'), S('saleType', 'Sale Type'), S('status', 'Status'),
+    S('totalAmount', 'Contract') + ' (ETB)', 'Paid (ETB)', 'Balance (ETB)', S('paymentDetails', 'Payment Details'),
   ];
   const salesRows = sales.map((s) => [
     s.sale_number,
@@ -100,8 +101,8 @@ export const exportSalesToExcel = (sales) => {
 
   // ── Payment lines sheet (one row per payment) ──
   const payHeader = [
-    'Receipt #', 'Sale Date', 'Customer', 'Method', 'Bank',
-    'Amount (ETB)', 'Reference', 'Payment Date',
+    S('receiptNum', 'Receipt #'), S('date', 'Date'), S('customer', 'Customer'), S('method', 'Method'), S('bankName', 'Bank'),
+    S('amount', 'Amount') + ' (ETB)', S('reference', 'Reference'), S('date', 'Payment Date'),
   ];
   const payRows = [];
   sales.forEach((s) => {
@@ -150,15 +151,16 @@ const INVENTORY_COL_WIDTHS = {
   ],
 };
 
-export const exportInventoryToExcel = (items, type) => {
+export const exportInventoryToExcel = (items, type, t = (k) => k) => {
   const dateStr = new Date().toISOString().split('T')[0];
   const wb = XLSX.utils.book_new();
+  const S = (k, fallback) => { const v = t(k); return v !== k ? v : fallback; };
 
   if (type === 'vehicles') {
     const headers = [
-      'Model', 'VIN', 'Chassis #', 'Motor #',
-      'Type', 'Propulsion', 'Color', 'Status',
-      'Selling Price (ETB)', 'Cost Price (ETB)', 'Branch',
+      S('vehicleModelName', 'Model'), 'VIN', S('chassisNumber', 'Chassis #'), S('motorNumber', 'Motor #'),
+      S('bodyClassification', 'Type'), S('propulsionType', 'Propulsion'), S('primaryColor', 'Color'), S('status', 'Status'),
+      S('sellingPrice', 'Selling Price') + ' (ETB)', S('acquisitionCost', 'Cost Price') + ' (ETB)', S('branch', 'Branch'),
     ];
     const rows = items.map((v) => [
       v.model || '',
@@ -175,18 +177,18 @@ export const exportInventoryToExcel = (items, type) => {
     ]);
     const titleRows = [
       ['LEGASONA MOTORS'],
-      ['Vehicles Inventory Report'],
-      [`Generated: ${new Date().toLocaleString()}`, `Total Vehicles: ${items.length}`],
+      [S('vehicles', 'Vehicles') + ' ' + S('inventoryTitle', 'Inventory')],
+      [`Generated: ${new Date().toLocaleString()}`, `${S('vehicles', 'Vehicles')}: ${items.length}`],
       [],
     ];
     const ws = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...rows]);
     ws['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
     ws['!cols'] = INVENTORY_COL_WIDTHS.vehicles;
-    XLSX.utils.book_append_sheet(wb, ws, 'Vehicles');
+    XLSX.utils.book_append_sheet(wb, ws, S('vehicles', 'Vehicles'));
   } else {
     const headers = [
-      'Part Name', 'Part #', 'Category', 'Quantity',
-      'Unit Price (ETB)', 'Cost Price (ETB)', 'Branch',
+      S('componentName', 'Part Name'), S('partNumberSku', 'Part #'), S('category', 'Category'), S('quantity', 'Qty'),
+      S('unitPrice', 'Unit Price') + ' (ETB)', S('landedCost', 'Cost Price') + ' (ETB)', S('branch', 'Branch'),
     ];
     const rows = items.map((p) => [
       p.name || '',
@@ -199,17 +201,17 @@ export const exportInventoryToExcel = (items, type) => {
     ]);
     const titleRows = [
       ['LEGASONA MOTORS'],
-      ['Spare Parts Inventory Report'],
-      [`Generated: ${new Date().toLocaleString()}`, `Total Parts: ${items.length}`],
+      [S('spareParts', 'Spare Parts') + ' ' + S('inventoryTitle', 'Inventory')],
+      [`Generated: ${new Date().toLocaleString()}`, `${S('spareParts', 'Parts')}: ${items.length}`],
       [],
     ];
     const ws = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...rows]);
     ws['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
     ws['!cols'] = INVENTORY_COL_WIDTHS.parts;
-    XLSX.utils.book_append_sheet(wb, ws, 'Spare Parts');
+    XLSX.utils.book_append_sheet(wb, ws, S('spareParts', 'Spare Parts'));
   }
 
-  XLSX.writeFile(wb, `Legasona_Inventory_${dateStr}.xlsx`);
+  XLSX.writeFile(wb, `Legasona_${S('inventoryTitle', 'Inventory')}_${dateStr}.xlsx`);
 };
 
 const REPORT_COL_WIDTHS = {
@@ -220,26 +222,27 @@ const REPORT_COL_WIDTHS = {
   ],
 };
 
-export const exportReportsToExcel = (payments, stats, profit) => {
+export const exportReportsToExcel = (payments, stats, profit, t = (k) => k) => {
   const dateStr = new Date().toISOString().split('T')[0];
   const wb = XLSX.utils.book_new();
+  const S = (k, fallback) => { const v = t(k); return v !== k ? v : fallback; };
 
   // ── Summary sheet ──
   const summaryRows = [
     ['LEGASONA MOTORS'],
-    ['Financial Report'],
+    [S('reportsTitle', 'Financial Report')],
     [`Generated: ${new Date().toLocaleString()}`],
     [],
     ['METRIC', 'VALUE'],
-    ['Net Profit Margin', `${profit?.margin || 0}%`],
-    ['Total Revenue (ETB)', fmtMoney(profit?.revenue)],
-    ['Gross Profit (ETB)', fmtMoney(profit?.gross_profit)],
-    ['Operational Expenses (ETB)', fmtMoney(profit?.expenses)],
+    [S('netProfitMargin', 'Net Profit Margin'), `${profit?.margin || 0}%`],
+    [S('totalRevenue', 'Total Revenue') + ' (ETB)', fmtMoney(profit?.revenue)],
+    [S('grossProfit', 'Gross Profit') + ' (ETB)', fmtMoney(profit?.gross_profit)],
+    [S('operationalExpenses', 'Operational Expenses') + ' (ETB)', fmtMoney(profit?.expenses)],
     ['Cost of Goods Sold (ETB)', fmtMoney(profit?.cogs)],
     ['Net Profit (ETB)', fmtMoney(profit?.net_profit)],
     [],
-    ['Total Payments Collected', fmtMoney(payments.reduce((a, p) => a + fmtMoney(p.amount), 0))],
-    ['Total Payment Transactions', payments.length],
+    [S('totalCollected', 'Total Payments Collected'), fmtMoney(payments.reduce((a, p) => a + fmtMoney(p.amount), 0))],
+    [S('totalPurchases', 'Total Transactions'), payments.length],
   ];
   if (stats?.stats) {
     stats.stats.forEach((s) => {
@@ -254,8 +257,8 @@ export const exportReportsToExcel = (payments, stats, profit) => {
   // ── Payments sheet ──
   if (payments.length > 0) {
     const headers = [
-      'Sale #', 'Date', 'Customer', 'Method',
-      'Bank', 'Account Holder', 'Reference', 'Amount (ETB)',
+      S('receiptNum', 'Sale #'), S('date', 'Date'), S('customer', 'Customer'), S('method', 'Method'),
+      S('bankName', 'Bank'), S('accountHolder', 'Account Holder'), S('reference', 'Reference'), S('amount', 'Amount') + ' (ETB)',
     ];
     const rows = payments.map((p) => [
       p.sale_number || '',
@@ -269,8 +272,8 @@ export const exportReportsToExcel = (payments, stats, profit) => {
     ]);
     const titleRows = [
       ['LEGASONA MOTORS'],
-      ['Payment Records'],
-      [`Generated: ${new Date().toLocaleString()}`, `Total Payments: ${payments.length}`],
+      [S('paymentRecords', 'Payment Records')],
+      [`Generated: ${new Date().toLocaleString()}`, `${S('payments', 'Payments')}: ${payments.length}`],
       [],
     ];
     const wsPayments = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...rows]);
@@ -279,5 +282,5 @@ export const exportReportsToExcel = (payments, stats, profit) => {
     XLSX.utils.book_append_sheet(wb, wsPayments, 'Payments');
   }
 
-  XLSX.writeFile(wb, `Legasona_Report_${dateStr}.xlsx`);
+  XLSX.writeFile(wb, `Legasona_${S('reportsTitle', 'Report')}_${dateStr}.xlsx`);
 };

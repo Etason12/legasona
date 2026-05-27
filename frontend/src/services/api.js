@@ -1,13 +1,6 @@
 import axios from 'axios';
 
-// Detect if running inside Capacitor (Android app) vs browser
-const isCapacitor = typeof window !== 'undefined' && window.Capacitor?.isNative;
-
-// In Capacitor, use the RENDER_BACKEND_URL env var or fallback
-// In browser, dynamically use the current hostname
-const API_BASE_URL = isCapacitor
-  ? (import.meta.env.VITE_RENDER_URL || 'http://10.0.2.2:5000') + '/api'
-  : (import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000/api`);
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

@@ -115,7 +115,7 @@ const Dashboard = ({ user }) => {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={async () => { const res = await api.get('/sales'); exportSalesToExcel(res.data) }}
+            onClick={async () => { const res = await api.get('/sales'); exportSalesToExcel(res.data, t) }}
             className="px-4 py-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-md text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2"
           >
             <Activity size={16} className="text-brand-600" />

@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, request, send_from_directory
 from flask_jwt_extended import jwt_required
 from app.models import Vehicle, SparePart, db
 from app.utils.auth import role_required
+from app.utils.image_utils import save_compressed_image
 from werkzeug.utils import secure_filename
 
 inventory_bp = Blueprint('inventory', __name__)
@@ -16,8 +17,9 @@ def save_image(file, prefix):
     if not file or file.filename == '':
         return None
     os.makedirs(UPLOAD_DIR, exist_ok=True)
-    filename = secure_filename(f"{prefix}_{int(__import__('time').time())}_{file.filename}")
-    file.save(os.path.join(UPLOAD_DIR, filename))
+    filename = secure_filename(f"{prefix}_{int(__import__('time').time())}.jpg")
+    save_path = os.path.join(UPLOAD_DIR, filename)
+    save_compressed_image(file, save_path)
     return filename
 
 # ── Image serving (public — no JWT, images referenced directly by <img> tags) ──

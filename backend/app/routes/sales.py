@@ -3,6 +3,7 @@ import json
 from flask import Blueprint, request, jsonify, send_from_directory
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.auth import admin_required, role_required
+from app.utils.image_utils import save_compressed_image
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from sqlalchemy import func, or_
@@ -28,8 +29,9 @@ def _save_payment_receipt(sale_id, file, index):
     if not file or not file.filename:
         return None
     os.makedirs(RECEIPT_DIR, exist_ok=True)
-    filename = secure_filename(f"rcpt_{sale_id}_{index}_{int(datetime.utcnow().timestamp())}_{file.filename}")
-    file.save(os.path.join(RECEIPT_DIR, filename))
+    filename = secure_filename(f"rcpt_{sale_id}_{index}_{int(datetime.utcnow().timestamp())}.jpg")
+    save_path = os.path.join(RECEIPT_DIR, filename)
+    save_compressed_image(file, save_path)
     return filename
 
 
@@ -81,6 +83,12 @@ def record_vehicle_sale():
         method = p.get('method')
         ref = p.get('reference')
         if method == 'bank':
+            if not p.get('bank'):
+                db.session.rollback()
+                return jsonify({'message': 'Bank name is required for bank payments'}), 400
+            if not p.get('accountHolder'):
+                db.session.rollback()
+                return jsonify({'message': 'Account holder is required for bank payments'}), 400
             if not ref:
                 db.session.rollback()
                 return jsonify({'message': 'Transaction reference is required for bank payments'}), 400
@@ -93,9 +101,9 @@ def record_vehicle_sale():
 
         db.session.add(Payment(
             sale_id=new_sale.id, payment_method=method,
-            bank_name=p.get('bank'), account_holder=p.get('accountHolder'),
+            bank_name=p.get('bank', '').upper(), account_holder=p.get('accountHolder', '').upper(),
             amount=float(p.get('amount', 0)),
-            transaction_reference=ref, receipt_image=receipt_filename
+            transaction_reference=ref.upper() if ref else None, receipt_image=receipt_filename
         ))
 
     vehicle.status = 'sold' if status == 'completed' else 'reserved'
@@ -147,6 +155,10 @@ def record_spare_part_sale():
         method = p.get('method')
         ref = p.get('reference')
         if method == 'bank':
+            if not p.get('bank'):
+                return jsonify({'message': 'Bank name is required for bank payments'}), 400
+            if not p.get('accountHolder'):
+                return jsonify({'message': 'Account holder is required for bank payments'}), 400
             if not ref:
                 return jsonify({'message': 'Transaction reference is required for bank payments'}), 400
             if Payment.query.filter(func.lower(Payment.transaction_reference) == func.lower(ref)).first():
@@ -154,9 +166,9 @@ def record_spare_part_sale():
 
         db.session.add(Payment(
             sale_id=new_sale.id, payment_method=method,
-            bank_name=p.get('bank'), account_holder=p.get('accountHolder'),
+            bank_name=p.get('bank', '').upper(), account_holder=p.get('accountHolder', '').upper(),
             amount=float(p.get('amount', 0)),
-            transaction_reference=ref
+            transaction_reference=ref.upper() if ref else None
         ))
 
     part.quantity -= qty
@@ -175,12 +187,122 @@ def get_sale_payments(id):
         return jsonify({'message': 'Sale not found'}), 404
     payments = Payment.query.filter_by(sale_id=id).order_by(Payment.payment_date.asc()).all()
     return jsonify([{
-        'id': p.id, 'method': p.payment_method, 'bank': p.bank_name,
-        'account_holder': p.account_holder,
-        'amount': p.amount, 'reference': p.transaction_reference,
+        'id': p.id, 'method': p.payment_method, 'bank': p.bank_name.upper() if p.bank_name else None,
+        'account_holder': p.account_holder.upper() if p.account_holder else None,
+        'amount': p.amount, 'reference': p.transaction_reference.upper() if p.transaction_reference else None,
         'receipt_image': p.receipt_image,
         'date': p.payment_date.isoformat()
     } for p in payments]), 200
+
+# ── Update Payment ──────────────────────────────────────────────────
+@sales_bp.route('/<int:sale_id>/payments/<int:payment_id>', methods=['PUT'])
+@jwt_required()
+@role_required('admin', 'manager')
+def update_payment(sale_id, payment_id):
+    sale = Sale.query.get(sale_id)
+    if not sale:
+        return jsonify({'message': 'Sale not found'}), 404
+
+    payment = Payment.query.get(payment_id)
+    if not payment or payment.sale_id != sale_id:
+        return jsonify({'message': 'Payment not found'}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'message': 'No data provided'}), 400
+
+    method = data.get('method', payment.payment_method)
+    amount = float(data.get('amount', payment.amount))
+
+    if method == 'bank':
+        bank = data.get('bank', payment.bank_name or '')
+        account_holder = data.get('accountHolder', payment.account_holder or '')
+        reference = data.get('reference', payment.transaction_reference or '')
+        if not bank:
+            return jsonify({'message': 'Bank name is required for bank payments'}), 400
+        if not account_holder:
+            return jsonify({'message': 'Account holder is required for bank payments'}), 400
+        if not reference:
+            return jsonify({'message': 'Transaction reference is required for bank payments'}), 400
+        existing = Payment.query.filter(
+            Payment.transaction_reference.ilike(reference),
+            Payment.id != payment_id,
+            Payment.sale_id == sale_id
+        ).first()
+        if existing:
+            return jsonify({'message': f'Transaction reference {reference} already exists'}), 400
+        payment.bank_name = bank.upper()
+        payment.account_holder = account_holder.upper()
+        payment.transaction_reference = reference.upper()
+    else:
+        payment.bank_name = None
+        payment.account_holder = None
+        payment.transaction_reference = None
+
+    payment.payment_method = method
+    payment.amount = amount
+
+    # Recalculate sale status
+    total_paid = db.session.query(func.sum(Payment.amount)).filter(Payment.sale_id == sale.id).scalar() or 0
+    if total_paid >= sale.total_amount:
+        sale.status = 'completed'
+        if sale.sale_type == 'vehicle':
+            v = Vehicle.query.get(sale.item_id)
+            if v:
+                v.status = 'sold'
+    else:
+        sale.status = 'pending'
+        if sale.sale_type == 'vehicle':
+            v = Vehicle.query.get(sale.item_id)
+            if v and v.status == 'sold':
+                v.status = 'reserved'
+
+    user_id = get_jwt_identity()
+    log_activity(user_id, 'UPDATE_PAYMENT', f"Updated payment ETB {amount} on sale {sale.sale_number}")
+
+    db.session.commit()
+    return jsonify({'message': 'Payment updated', 'status': sale.status}), 200
+
+
+# ── Delete Payment ──────────────────────────────────────────────────
+@sales_bp.route('/<int:sale_id>/payments/<int:payment_id>', methods=['DELETE'])
+@jwt_required()
+@role_required('admin', 'manager')
+def delete_payment(sale_id, payment_id):
+    sale = Sale.query.get(sale_id)
+    if not sale:
+        return jsonify({'message': 'Sale not found'}), 404
+
+    payment = Payment.query.get(payment_id)
+    if not payment or payment.sale_id != sale_id:
+        return jsonify({'message': 'Payment not found'}), 404
+
+    # Remove receipt file if exists
+    if payment.receipt_image:
+        receipt_path = os.path.join(RECEIPT_DIR, payment.receipt_image)
+        if os.path.exists(receipt_path):
+            os.remove(receipt_path)
+
+    db.session.delete(payment)
+    db.session.flush()
+
+    # Recalculate sale status
+    total_paid = db.session.query(func.sum(Payment.amount)).filter(Payment.sale_id == sale.id).scalar() or 0
+    if total_paid >= sale.total_amount:
+        sale.status = 'completed'
+    else:
+        sale.status = 'pending'
+        if sale.sale_type == 'vehicle':
+            v = Vehicle.query.get(sale.item_id)
+            if v and v.status == 'sold':
+                v.status = 'reserved'
+
+    user_id = get_jwt_identity()
+    log_activity(user_id, 'DELETE_PAYMENT', f"Deleted payment ETB {payment.amount} from sale {sale.sale_number}")
+
+    db.session.commit()
+    return jsonify({'message': 'Payment deleted', 'status': sale.status}), 200
+
 
 # ── Add Payment to Pending Sale ──────────────────────────────────────
 @sales_bp.route('/<int:id>/add-payment', methods=['POST'])
@@ -208,15 +330,20 @@ def add_payment(id):
         receipt_filename = filename
 
     if method == 'bank':
+        if not bank:
+            return jsonify({'message': 'Bank name is required for bank payments'}), 400
+        if not account_holder:
+            return jsonify({'message': 'Account holder is required for bank payments'}), 400
         if not reference:
             return jsonify({'message': 'Transaction reference is required for bank payments'}), 400
         if Payment.query.filter(func.lower(Payment.transaction_reference) == func.lower(reference)).first():
             return jsonify({'message': f'Transaction reference {reference} already exists'}), 400
 
     new_payment = Payment(
-        sale_id=sale.id, payment_method=method, bank_name=bank,
-        account_holder=account_holder,
-        amount=amount, transaction_reference=reference, receipt_image=receipt_filename
+        sale_id=sale.id, payment_method=method, bank_name=bank.upper() if bank else '',
+        account_holder=account_holder.upper() if account_holder else '',
+        amount=amount, transaction_reference=reference.upper() if reference else '',
+        receipt_image=receipt_filename
     )
     db.session.add(new_payment)
     db.session.flush()  # flush so the new payment is included in the aggregate
@@ -305,10 +432,10 @@ def get_sales():
         sale_payments = Payment.query.filter_by(sale_id=s.id).order_by(Payment.payment_date.asc()).all()
         payments_list = [{
             'method': p.payment_method,
-            'bank': p.bank_name,
-            'account_holder': p.account_holder,
+            'bank': p.bank_name.upper() if p.bank_name else None,
+            'account_holder': p.account_holder.upper() if p.account_holder else None,
             'amount': float(p.amount),
-            'reference': p.transaction_reference,
+            'reference': p.transaction_reference.upper() if p.transaction_reference else None,
             'date': p.payment_date.isoformat()
         } for p in sale_payments]
 

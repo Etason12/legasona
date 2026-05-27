@@ -1,0 +1,12 @@
+{
+  "appId": "com.legasona.app",
+  "appName": "Legasona",
+  "webDir": "dist",
+  "server": {
+    "url": "https://legasona-frontend.onrender.com",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, send_from_directory
 from flask_jwt_extended import jwt_required
 from app.models import Purchase, PurchaseItem, SparePart, Vehicle, db
 from app.utils.auth import role_required
+from app.utils.image_utils import save_compressed_image
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import os
@@ -57,8 +58,9 @@ def record_purchase():
 
     receipt_filename = None
     if file and file.filename:
-        filename = secure_filename(f"pur_{int(datetime.utcnow().timestamp())}_{file.filename}")
-        file.save(os.path.join(RECEIPT_DIR, filename))
+        filename = secure_filename(f"pur_{int(datetime.utcnow().timestamp())}.jpg")
+        save_path = os.path.join(RECEIPT_DIR, filename)
+        save_compressed_image(file, save_path)
         receipt_filename = filename
 
     new_purchase = Purchase(

@@ -17,7 +17,8 @@ import {
   X,
   Landmark,
   Truck,
-  Wrench
+  Wrench,
+  Pencil
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import api, { API_BASE_URL } from '../services/api'
@@ -54,6 +55,8 @@ const Sales = ({ user }) => {
   const [showPaymentHistory, setShowPaymentHistory] = useState(false)
   const [selectedSale, setSelectedSale]           = useState(null)
   const [salePayments, setSalePayments]           = useState([])
+  const [editingPayment, setEditingPayment]       = useState(null)
+  const [editPayMethod, setEditPayMethod]         = useState('cash')
   const [statusFilter, setStatusFilter]           = useState('pending')
   const [searchQuery, setSearchQuery]             = useState('')
   const [startDate, setStartDate]                 = useState(new Date().toISOString().split('T')[0])
@@ -159,17 +162,29 @@ const Sales = ({ user }) => {
     const fd = new FormData(e.target)
 
     for (const p of payments) {
-      if (p.method === 'bank' && !p.reference?.trim()) {
-        toast.error('Reference ID is required for bank transfer payments')
-        setSubmitting(false)
-        return
+      if (p.method === 'bank') {
+        if (!p.bank?.trim()) {
+          toast.error('Bank name is required for bank transfer payments')
+          setSubmitting(false)
+          return
+        }
+        if (!p.accountHolder?.trim()) {
+          toast.error('Account holder is required for bank transfer payments')
+          setSubmitting(false)
+          return
+        }
+        if (!p.reference?.trim()) {
+          toast.error('Reference ID is required for bank transfer payments')
+          setSubmitting(false)
+          return
+        }
       }
     }
 
     const paymentsData = payments.map(p => ({
       method: p.method,
       amount: p.amount,
-      ...(p.method === 'bank' ? { bank: p.bank, reference: p.reference, accountHolder: p.accountHolder } : {}),
+      ...(p.method === 'bank' ? { bank: p.bank?.toUpperCase(), reference: p.reference?.toUpperCase(), accountHolder: p.accountHolder?.toUpperCase() } : {}),
     }))
 
     const hasReceipts = payments.some(p => p.receiptFile)
@@ -196,7 +211,7 @@ const Sales = ({ user }) => {
           payments.forEach((p, idx) => {
             if (p.receiptFile) multipart.append(`receipt_${idx}`, p.receiptFile)
           })
-          await api.post('/sales/vehicle', multipart, { headers: { 'Content-Type': 'multipart/form-data' } })
+          await api.post('/sales/vehicle', multipart)
         } else {
           await api.post('/sales/vehicle', {
             vehicle_id: parseInt(selectedVehicleId, 10),
@@ -270,6 +285,44 @@ const Sales = ({ user }) => {
     }
   }
 
+  const handleUpdatePayment = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    const fd = new FormData(e.target)
+    const data = {
+      method: fd.get('method'),
+      amount: parseFloat(fd.get('amount')),
+      ...(fd.get('method') === 'bank' ? {
+        bank: fd.get('bank'),
+        accountHolder: fd.get('account_holder'),
+        reference: fd.get('reference'),
+      } : {}),
+    }
+    try {
+      const res = await api.put(`/sales/${selectedSale.id}/payments/${editingPayment.id}`, data)
+      toast.success('Payment updated')
+      setEditingPayment(null)
+      fetchSalePayments(selectedSale)
+      fetchData()
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to update payment')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeletePayment = async (payment) => {
+    if (!window.confirm(`Delete payment of ETB ${payment.amount.toLocaleString()}? This action cannot be undone.`)) return
+    try {
+      await api.delete(`/sales/${selectedSale.id}/payments/${payment.id}`)
+      toast.success('Payment deleted')
+      fetchSalePayments(selectedSale)
+      fetchData()
+    } catch {
+      toast.error('Failed to delete payment')
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -279,7 +332,7 @@ const Sales = ({ user }) => {
         </div>
         <div className="flex gap-3">
           <button
-            onClick={() => exportSalesToExcel(sales)}
+            onClick={() => exportSalesToExcel(sales, t)}
             className="px-4 py-2.5 bg-slate-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-2"
           >
             <Download size={18} />
@@ -347,7 +400,7 @@ const Sales = ({ user }) => {
                   <th className="px-6 py-4">{t('receiptNum')}</th>
                   <th className="px-6 py-4">{t('customerDetails')}</th>
                   <th className="px-6 py-4 hidden md:table-cell">{t('financials')}</th>
-                  <th className="px-6 py-4 hidden lg:table-cell">{t('progress')}</th>
+                  <th className="px-6 py-4 table-cell">{t('progress')}</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -379,7 +432,7 @@ const Sales = ({ user }) => {
                         <p className="text-sm font-bold text-slate-700 dark:text-slate-200">ETB {parseFloat(sale.total_amount).toLocaleString()}</p>
                         <p className="text-xs text-slate-500 mt-1">{t('totalContract')}</p>
                       </td>
-                      <td className="px-6 py-4 hidden lg:table-cell">
+                      <td className="px-6 py-4 table-cell">
                         <div className="w-32 space-y-2">
                           <span className={`text-xs font-bold ${sale.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
                             Paid: ETB {sale.amount_paid.toLocaleString()}
@@ -470,13 +523,13 @@ const Sales = ({ user }) => {
                         </div>
                         <div>
                           <p className="text-slate-900 dark:text-white font-bold">ETB {p.amount.toLocaleString()}</p>
-                          <p className="text-xs text-slate-500">{p.method}{p.bank ? ` • ${p.bank}` : ''}{p.account_holder ? ` → ${p.account_holder}` : ''}</p>
+                          <p className="text-xs text-slate-500">{p.method}{p.bank ? ` • ${p.bank.toUpperCase()}` : ''}{p.account_holder ? ` → ${p.account_holder.toUpperCase()}` : ''}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 text-right">
                         <div>
                           <p className="text-xs text-slate-400">{new Date(p.date).toLocaleString()}</p>
-                          <p className="text-xs font-mono text-slate-500 mt-0.5">{p.reference || 'NO REF'}</p>
+                          <p className="text-xs font-mono text-slate-500 mt-0.5">{(p.reference || 'NO REF').toUpperCase()}</p>
                         </div>
                         {p.receipt_image && (
                           <button
@@ -488,6 +541,16 @@ const Sales = ({ user }) => {
                             className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-lg transition-colors"
                           ><Camera size={16} /></button>
                         )}
+                        <button
+                          onClick={() => { setEditingPayment(p); setEditPayMethod(p.method); setShowPaymentHistory(false); }}
+                          className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 rounded-lg transition-colors"
+                          title="Edit Payment"
+                        ><Pencil size={16} /></button>
+                        <button
+                          onClick={() => handleDeletePayment(p)}
+                          className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/50 rounded-lg transition-colors"
+                          title="Delete Payment"
+                        ><Trash2 size={16} /></button>
                       </div>
                     </div>
                   ))
@@ -544,8 +607,8 @@ const Sales = ({ user }) => {
                       </select>
                     </div>
                     <div>
-                      <label className="label">{t('bankName')}</label>
-                      <input name="bank" className="input-field disabled:opacity-40" list="bank-list-add" placeholder={t('typeBankName')} disabled={addPayMethod === 'cash'} />
+                      <label className="label">{t('bankName')} *</label>
+                      <input name="bank" className="input-field disabled:opacity-40" list="bank-list-add" placeholder={t('typeBankName')} disabled={addPayMethod === 'cash'} required />
                       <datalist id="bank-list-add">
                         {['CBE','Awash','Abyssinia','Dashen','BOA','Hibret'].map(b => <option key={b} value={b} />)}
                       </datalist>
@@ -557,15 +620,15 @@ const Sales = ({ user }) => {
                       <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('bankTransferDetails')}</h4>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="label">{t('accountHolder')}</label>
-                          <input name="account_holder" className="input-field" list="account-list-add" placeholder="Select or type" />
+                          <label className="label">{t('accountHolder')} *</label>
+                          <input name="account_holder" className="input-field" list="account-list-add" placeholder="Select or type" required />
                           <datalist id="account-list-add">
                             <option value="Tewelde" /><option value="Berihu" /><option value="Mulugeta" />
                           </datalist>
                         </div>
                         <div>
-                          <label className="label">{t('referenceNumber')}</label>
-                          <input type="text" name="reference" className="input-field" placeholder="TX-123456789" required />
+                          <label className="label">{t('referenceNumber')} *</label>
+                          <input type="text" name="reference" className="input-field uppercase" placeholder="TX-123456789" required />
                         </div>
                       </div>
                       <div>
@@ -588,6 +651,69 @@ const Sales = ({ user }) => {
               <button form="add-pay-form" type="submit" disabled={submitting} className="btn-primary flex items-center gap-2">
                 {submitting ? <Loader2 className="animate-spin" size={16} /> : <CreditCard size={16} />}
                 {t('postPayment')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Payment Modal */}
+      {editingPayment && selectedSale && (
+        <div className="modal-backdrop">
+          <div className="modal-content max-w-xl">
+            <div className="modal-header">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('editPayment') || 'Edit Payment'}</h2>
+                <p className="text-sm text-slate-500 mt-0.5">{t('receiptNum')}: <span className="text-brand-600 font-mono">#{selectedSale.sale_number}</span></p>
+              </div>
+              <button onClick={() => { setEditingPayment(null); setShowPaymentHistory(true) }} className="p-2.5 bg-neutral-100 dark:bg-neutral-800 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700"><X size={22} /></button>
+            </div>
+            <div className="modal-body">
+              <form id="edit-pay-form" onSubmit={handleUpdatePayment} className="space-y-6">
+                <div className="p-6 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-5">
+                  <h3 className="text-xs font-bold text-brand-600 uppercase tracking-wider">{t('paymentDetails')}</h3>
+                  <div>
+                    <label className="label">{t('amountToPay')}</label>
+                    <input type="number" name="amount" className="input-field" defaultValue={editingPayment.amount} placeholder="0.00" required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="label">{t('method')}</label>
+                      <select name="method" className="input-field" value={editPayMethod} onChange={e => setEditPayMethod(e.target.value)}>
+                        <option value="cash">{t('cash')}</option>
+                        <option value="bank">{t('bankTransfer')}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label">{t('bankName')} *</label>
+                      <input name="bank" className="input-field disabled:opacity-40" list="bank-list-add" defaultValue={editingPayment.bank || ''} placeholder={t('typeBankName')} disabled={editPayMethod === 'cash'} required />
+                      <datalist id="bank-list-add">{['CBE','Awash','Abyssinia','Dashen','BOA','Hibret'].map(b => <option key={b} value={b} />)}</datalist>
+                    </div>
+                  </div>
+                  {editPayMethod === 'bank' && (
+                    <div className="pt-4 border-t border-neutral-200 dark:border-neutral-700 space-y-5">
+                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('bankTransferDetails')}</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="label">{t('accountHolder')} *</label>
+                          <input name="account_holder" className="input-field" list="account-list-add" defaultValue={editingPayment.account_holder || ''} placeholder="Select or type" required />
+                          <datalist id="account-list-add"><option value="Tewelde" /><option value="Berihu" /><option value="Mulugeta" /></datalist>
+                        </div>
+                        <div>
+                          <label className="label">{t('referenceNumber')} *</label>
+                          <input type="text" name="reference" className="input-field uppercase" defaultValue={editingPayment.reference || ''} placeholder="TX-123456789" required />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </form>
+            </div>
+            <div className="modal-footer">
+              <button type="button" onClick={() => { setEditingPayment(null); setShowPaymentHistory(true) }} className="btn-secondary">{t('cancel')}</button>
+              <button form="edit-pay-form" type="submit" disabled={submitting} className="btn-primary flex items-center gap-2">
+                {submitting ? <Loader2 className="animate-spin" size={16} /> : <Pencil size={16} />}
+                {t('save') || 'Save'}
               </button>
             </div>
           </div>
@@ -775,20 +901,20 @@ const Sales = ({ user }) => {
                             {p.method === 'bank' && (
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-neutral-200 dark:border-neutral-700">
                                 <div>
-                                  <label className="label">{t('bankName')}</label>
-                                  <input className="input-field" list="bank-list-new" required value={p.bank} onChange={e => { const n = [...payments]; n[index].bank = e.target.value; setPayments(n) }} placeholder={t('typeBankName')} />
+                                  <label className="label">{t('bankName')} *</label>
+                                  <input className="input-field uppercase" list="bank-list-new" required value={p.bank} onChange={e => { const n = [...payments]; n[index].bank = e.target.value.toUpperCase(); setPayments(n) }} placeholder={t('typeBankName')} />
                                   <datalist id="bank-list-new">{['CBE','Awash','Abyssinia','Dashen','BOA','Hibret'].map(b => <option key={b} value={b} />)}</datalist>
                                 </div>
                                 <div>
-                                  <label className="label">{t('accountHolder')}</label>
-                                  <input className="input-field" list="account-list-new" value={p.accountHolder || ''} onChange={e => { const n = [...payments]; n[index].accountHolder = e.target.value; setPayments(n) }} placeholder="Select or type" />
+                                  <label className="label">{t('accountHolder')} *</label>
+                                  <input className="input-field uppercase" list="account-list-new" required value={p.accountHolder || ''} onChange={e => { const n = [...payments]; n[index].accountHolder = e.target.value.toUpperCase(); setPayments(n) }} placeholder="Select or type" />
                                   <datalist id="account-list-new">
                                     <option value="Tewelde" /><option value="Berihu" /><option value="Mulugeta" />
                                   </datalist>
                                 </div>
                                 <div>
                                   <label className="label">{t('referenceNumber')} *</label>
-                                  <input className="input-field" required value={p.reference || ''} onChange={e => { const n = [...payments]; n[index].reference = e.target.value; setPayments(n) }} placeholder="TX-123456789" />
+                                  <input className="input-field uppercase" required value={p.reference || ''} onChange={e => { const n = [...payments]; n[index].reference = e.target.value.toUpperCase(); setPayments(n) }} placeholder="TX-123456789" />
                                 </div>
                                 <div className="sm:col-span-2">
                                   <label className="label">{t('bankReceiptImage')}</label>
@@ -835,7 +961,7 @@ const Sales = ({ user }) => {
 
       {/* Image Preview Modal */}
       {previewImage && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80" onClick={() => setPreviewImage(null)}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80" onClick={() => setPreviewImage(null)}>
           <div className="relative max-w-4xl w-full" onClick={e => e.stopPropagation()}>
             <button onClick={() => setPreviewImage(null)} className="absolute -top-12 right-0 p-2 bg-white dark:bg-neutral-800 rounded-full text-slate-900 dark:text-white transition-colors"><X size={22} /></button>
             <img src={previewImage} alt="Receipt" className="w-full h-auto max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-700" />

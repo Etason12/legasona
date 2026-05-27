@@ -84,9 +84,7 @@ const Purchases = ({ user }) => {
     formData.append('receipt', fileInput.files[0])
    }
 
-   await api.post('/purchases', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-   })
+   await api.post('/purchases', formData)
    toast.success('Purchase recorded successfully')
    setShowModal(false)
    setForm({ supplier_name: '', item_type: 'vehicle', payment_method: 'cash', branch_id: 1, items: [{ description: '', quantity: 1, unit_cost: '', existing_id: null }] })

@@ -66,9 +66,7 @@ const Expenses = ({ user }) => {
   formData.append('user_id', user?.id || 1)
 
   try {
-   await api.post('/expenses', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-   })
+    await api.post('/expenses', formData)
     toast.success('Expense recorded successfully')
     setShowAddModal(false)
     fetchExpenses()

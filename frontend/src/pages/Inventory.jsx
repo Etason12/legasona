@@ -378,7 +378,7 @@ const Inventory = ({ user }) => {
                     </td>
                     {canEdit(role) && (
                       <td className="px-5 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center justify-end gap-2">
                           <button onClick={() => setModal({ mode: 'edit', item })} className="p-2 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-slate-600 dark:text-slate-300 rounded-xl transition-colors" title="Edit"><Edit3 size={15}/></button>
                           {canDelete(role) && (
                             <button onClick={() => handleDelete(item.id)} className="p-2 bg-rose-100 dark:bg-rose-900/30 hover:bg-rose-200 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 rounded-xl transition-colors" title="Delete"><Trash2 size={15}/></button>

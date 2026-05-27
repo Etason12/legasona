@@ -389,13 +389,13 @@ export const translations = {
   am: {
     // Navigation
     dashboard: 'ዳሽቦርድ',
-    inventory: 'ዕቃ ማጠራቀሚያ',
+    inventory: 'ክምችት',
     sales: 'ሽያጭ',
     orders: 'ትዕዛዞች',
     transfers: 'ዝውውሮች',
     purchases: 'ግዢዎች',
     expenses: 'ወጪዎች',
-    reports: 'ሪፖርቶች',
+    reports: 'ጸብጻቦች',
     settings: 'ቅንጅቶች',
     customers: 'ደንበኞች',
     logout: 'ውጣ',
@@ -527,8 +527,8 @@ export const translations = {
     receiptOptional: 'ደረሰኝ / አባሪ (አማራጭ)',
 
     // Inventory
-    inventoryTitle: 'የዕቃ ማጠራቀሚያ',
-    inventoryDesc: 'በቅርንጫፎች ውስጥ ተሽከርካሪዎችን፣ መለዋወጫዎችን እና የዕቃ እንቅስቃሴን ያስተዳድሩ።',
+    inventoryTitle: 'የእቃ ክምችት',
+    inventoryDesc: 'በቅርንጫፎች ውስጥ ተሽከርካሪዎችን፣ መለዋወጫዎችን እና የእቃ እንቅስቃሴን ያስተዳድሩ።',
     addStock: 'ዕቃ አክል',
     lowStock: 'ያነሱ ዕቃዎች',
     totalValue: 'ጠቅላላ የዕቃ ዋጋ',
@@ -717,7 +717,7 @@ export const translations = {
     add: 'ጨምር',
 
     // Inventory Modal
-    highResImageInfo: '�ደቀነት ያላቸው ምስሎች በተሻለ ፍጥነት ይጫናሉ እና የተሻለ ይመስላሉ',
+    highResImageInfo: 'ከፍተኛ ጥራት ያላቸው ምስሎች በተሻለ ፍጥነት ይጫናሉ እና የተሻለ ይመስላሉ',
     vinChassisNumber: 'VIN / የሻሲ ቁጥር',
     vehicleModelName: 'የተሽከርካሪ ሞዴል ስም',
     bodyClassification: 'የሰውነት ምደባ',

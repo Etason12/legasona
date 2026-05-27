@@ -288,7 +288,7 @@ export const exportReportsToExcel = (payments, stats, profit, t = (k) => k) => {
     const rows = payments.map((p) => [
       p.sale_number || '',
       fmtDate(p.sale_date),
-      p.created_at ? fmtDate(p.created_at) : '',
+      p.created_at ? fmtDate(p.created_at) : fmtDate(new Date().toISOString()),
       p.customer_name || '',
       (p.payment_method || '').toUpperCase(),
       p.bank_name || '',

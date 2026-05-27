@@ -115,6 +115,10 @@ class Order(db.Model):
     vehicle_specs = db.Column(db.Text)
     sequence_number = db.Column(db.Integer)
     deposit_amount = db.Column(db.Float, default=0.0)
+    deposit_method = db.Column(db.String(20))
+    deposit_bank = db.Column(db.String(50))
+    deposit_account_holder = db.Column(db.String(50))
+    deposit_transaction_reference = db.Column(db.String(100))
     order_date = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(20), default='waiting')  # waiting, fulfilled, cancelled
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))

@@ -52,6 +52,10 @@ def get_orders():
         'customer_phone': o.customer_phone, 'customer_id': o.customer_id,
         'vehicle_specs': o.vehicle_specs, 'sequence_number': o.sequence_number,
         'deposit_amount': o.deposit_amount, 'status': o.status,
+        'deposit_method': o.deposit_method,
+        'deposit_bank': o.deposit_bank,
+        'deposit_account_holder': o.deposit_account_holder,
+        'deposit_transaction_reference': o.deposit_transaction_reference,
         'order_date': o.order_date.isoformat()
     } for o in orders]), 200
 
@@ -65,6 +69,12 @@ def add_deposit(id):
     if amount <= 0:
         return jsonify({'message': 'Deposit amount must be greater than zero'}), 400
     order.deposit_amount = (order.deposit_amount or 0) + amount
+    method = data.get('method', 'cash')
+    order.deposit_method = method
+    if method == 'bank':
+        order.deposit_bank = data.get('bank', '').upper()
+        order.deposit_account_holder = data.get('account_holder', '').upper()
+        order.deposit_transaction_reference = data.get('reference', '').upper()
     db.session.commit()
     return jsonify({'message': 'Deposit added', 'deposit_amount': order.deposit_amount}), 200
 

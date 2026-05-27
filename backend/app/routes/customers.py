@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from app.models import Customer, Sale, Order, db
+from app.models import Customer, Sale, Order, Vehicle, SparePart, db
 from app.utils.auth import admin_required, role_required
 from sqlalchemy import or_
 
@@ -47,13 +47,33 @@ def get_customer_details(id):
     c      = Customer.query.get_or_404(id)
     sales  = Sale.query.filter_by(customer_id=id).all()
     orders = Order.query.filter_by(customer_id=id).all()
+
+    sales_data = []
+    for s in sales:
+        item_name = None
+        item_detail = None
+        if s.sale_type == 'vehicle' and s.item_id:
+            v = Vehicle.query.get(s.item_id)
+            if v:
+                item_name = v.model
+                item_detail = v.vin
+        elif s.sale_type == 'spare_part' and s.item_id:
+            p = SparePart.query.get(s.item_id)
+            if p:
+                item_name = p.name
+                item_detail = p.part_number
+        sales_data.append({
+            'id': s.id, 'number': s.sale_number, 'amount': s.total_amount,
+            'date': s.sale_date.isoformat(), 'status': s.status,
+            'sale_type': s.sale_type, 'item_name': item_name, 'item_detail': item_detail
+        })
+
     return jsonify({
         'id': c.id, 'full_name': c.full_name, 'phone': c.phone,
         'email': c.email, 'address': c.address, 'type': c.customer_type,
         'credit_limit': c.credit_limit, 'points': c.loyalty_points,
         'history': {
-            'sales':  [{'id': s.id, 'number': s.sale_number, 'amount': s.total_amount,
-                        'date': s.sale_date.isoformat(), 'status': s.status} for s in sales],
+            'sales':  sales_data,
             'orders': [{'id': o.id, 'specs': o.vehicle_specs,
                         'date': o.order_date.isoformat(), 'status': o.status} for o in orders]
         }

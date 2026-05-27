@@ -242,9 +242,14 @@ const Customers = ({ user }) => {
               <CreditCard size={18} />
              </div>
              <div>
-              <p className="text-slate-900 dark:text-white font-bold text-sm tracking-tight">Invoice #{s.number}</p>
-              <p className="text-xs text-slate-500 font-bold mt-0.5">{new Date(s.date).toLocaleDateString()}</p>
-             </div>
+               <p className="text-slate-900 dark:text-white font-bold text-sm tracking-tight">Invoice #{s.number}</p>
+               <p className="text-xs text-slate-500 font-bold mt-0.5">{new Date(s.date).toLocaleDateString()}</p>
+               {s.item_name && (
+                <p className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-1">
+                 {s.item_name}{s.item_detail ? ` — ${s.item_detail}` : ''}
+                </p>
+               )}
+              </div>
             </div>
             <div className="text-right">
              <p className="text-slate-900 dark:text-white font-bold text-sm tracking-tight">ETB {s.amount.toLocaleString()}</p>

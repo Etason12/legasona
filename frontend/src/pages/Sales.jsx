@@ -27,6 +27,7 @@ import { generateReceipt } from '../services/ReceiptService'
 import { exportSalesToExcel } from '../services/ExportService'
 import { useLanguage } from '../i18n/LanguageContext'
 import { Package } from 'lucide-react'
+import { formatDate, formatDateTime } from '../utils/format'
 import { isAdmin } from '../utils/roles'
 
 const ImageCell = ({ imageData, onClick }) => {
@@ -444,7 +445,7 @@ const Sales = ({ user }) => {
                        <td className="px-6 py-4 hidden sm:table-cell"><ImageCell imageData={sale.item_image} onClick={setPreviewImage} /></td>
                       <td className="px-6 py-4">
                         <p className="font-mono text-brand-600 font-bold tracking-tighter">{sale.sale_number}</p>
-                        <p className="text-xs text-slate-500 mt-1">{new Date(sale.sale_date).toLocaleDateString()}</p>
+                        <p className="text-xs text-slate-500 mt-1">{formatDate(sale.sale_date)}</p>
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-slate-700 dark:text-slate-200 font-bold">{sale.customer_name}</p>
@@ -503,7 +504,7 @@ const Sales = ({ user }) => {
                               totalAmount: sale.total_amount,
                               amountPaid: sale.amount_paid,
                               balance: sale.balance ?? sale.total_amount - sale.amount_paid,
-                              date: new Date(sale.sale_date).toLocaleString(),
+                              date: formatDateTime(sale.sale_date),
                               branch: user?.branch_name,
                             })}
                           >
@@ -576,7 +577,7 @@ const Sales = ({ user }) => {
                       </div>
                       <div className="flex items-center gap-3 text-right shrink-0">
                         <div>
-                          <p className="text-xs text-slate-400">{new Date(p.date).toLocaleString()}</p>
+                          <p className="text-xs text-slate-400">{formatDateTime(p.date)}</p>
                           <p className="text-xs font-mono text-slate-500 mt-0.5">{(p.reference || 'NO REF').toUpperCase()}</p>
                         </div>
                         {p.receipt_image && (

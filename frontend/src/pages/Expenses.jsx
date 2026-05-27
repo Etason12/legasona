@@ -4,6 +4,7 @@ import api from '../services/api'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useLanguage } from '../i18n/LanguageContext'
+import { formatDate } from '../utils/format'
 
 const Expenses = ({ user }) => {
  const [expenses, setExpenses] = useState([])
@@ -162,7 +163,7 @@ const Expenses = ({ user }) => {
          filteredExpenses.map((expense) => (
          <tr key={expense.id} className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors group">
           <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">
-           {new Date(expense.expense_date).toLocaleDateString()}
+           {formatDate(expense.expense_date)}
           </td>
           <td className="px-6 py-4">
            <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-300 dark:border-slate-700 uppercase tracking-wider">

@@ -24,6 +24,7 @@ import {
 } from 'recharts'
 import { exportSalesToExcel } from '../services/ExportService'
 import { useLanguage } from '../i18n/LanguageContext'
+import { formatDate } from '../utils/format'
 
 // Theme-aware Recharts tooltip
 const ChartTooltip = ({ active, payload, label }) => {
@@ -90,7 +91,7 @@ const Dashboard = ({ user }) => {
     if (diff < 60)   return 'Just now'
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-    return new Date(iso).toLocaleDateString()
+    return formatDate(iso)
   }
 
   const SkeletonCard = () => (

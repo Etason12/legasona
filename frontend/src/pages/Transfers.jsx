@@ -3,6 +3,7 @@ import { ArrowLeftRight, Plus, Search, Filter, Clock, CheckCircle2, XCircle, Loa
 import api from '../services/api'
 import { toast } from 'react-toastify'
 import { useLanguage } from '../i18n/LanguageContext'
+import { formatDate } from '../utils/format'
 
 const Transfers = ({ user }) => {
  const { t } = useLanguage()
@@ -131,7 +132,7 @@ const Transfers = ({ user }) => {
       <tbody className="divide-y divide-white/5">
        {(transfers || []).map(transfer => (
         <tr key={transfer.id} className="hover:bg-white/5 transition-colors">
-         <td className="px-6 py-4 text-slate-400 text-sm">{new Date(transfer.date).toLocaleDateString()}</td>
+         <td className="px-6 py-4 text-slate-400 text-sm">{formatDate(transfer.date)}</td>
          <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{getBranchName(transfer.from_branch)}</td>
          <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{getBranchName(transfer.to_branch)}</td>
          <td className="px-6 py-4 text-slate-600 dark:text-slate-300">

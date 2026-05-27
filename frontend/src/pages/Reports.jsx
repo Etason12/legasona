@@ -25,6 +25,7 @@ import {
 } from 'recharts'
 import { exportReportsToExcel } from '../services/ExportService'
 import { useLanguage } from '../i18n/LanguageContext'
+import { formatDate } from '../utils/format'
 
 const COLORS = ['#0ea5e9', '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#f97316', '#84cc16'];
 
@@ -347,8 +348,8 @@ const Reports = ({ user }) => {
                 payments.map((p, i) => (
                   <tr key={i} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-3 px-2 text-slate-900 dark:text-white font-medium">{p.customer_name}</td>
-                    <td className="py-3 px-2 text-slate-500">{p.sale_date ? new Date(p.sale_date).toLocaleDateString() : '—'}</td>
-                    <td className="py-3 px-2 text-slate-500">{p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</td>
+                    <td className="py-3 px-2 text-slate-500">{p.sale_date ? formatDate(p.sale_date) : '—'}</td>
+                    <td className="py-3 px-2 text-slate-500">{p.created_at ? formatDate(p.created_at) : '—'}</td>
                     <td className="py-3 px-2 text-right text-slate-900 dark:text-white font-semibold">{p.amount.toLocaleString()}</td>
                     <td className="py-3 px-2 text-slate-500 uppercase">{(p.bank_name || '—').toUpperCase()}</td>
                     <td className="py-3 px-2 text-slate-500 uppercase">{(p.account_holder || '—').toUpperCase()}</td>

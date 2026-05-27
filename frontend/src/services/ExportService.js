@@ -22,7 +22,14 @@ const applySheetLayout = (ws, colWidths, freezeRow = 1) => {
   ws['!freeze'] = { xSplit: 0, ySplit: freezeRow, topLeftCell: 'A2', activePane: 'bottomLeft', state: 'frozen' };
 };
 
-const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString() : '');
+const fmtDate = (iso) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = d.getFullYear()
+  return `${dd}/${mm}/${yyyy}`
+}
 const fmtMoney = (n) => (n != null && !Number.isNaN(Number(n)) ? Number(n) : 0);
 const applyNumFormat = (ws, colIndices, fmt = '#,##0') => {
   if (!ws || !ws['!ref']) return;

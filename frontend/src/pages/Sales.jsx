@@ -441,7 +441,6 @@ const Sales = ({ user }) => {
                   <th className="px-6 py-4 hidden sm:table-cell">{t('photo')}</th>
                   <th className="px-6 py-4">{t('receiptNum')}</th>
                   <th className="px-6 py-4">{t('customerDetails')}</th>
-                  <th className="px-6 py-4 hidden lg:table-cell">{t('item')}</th>
                   <th className="px-6 py-4 hidden md:table-cell">{t('financials')}</th>
                   <th className="px-6 py-4 table-cell">{t('progress')}</th>
                   <th className="px-6 py-4 text-right">Actions</th>
@@ -469,20 +468,12 @@ const Sales = ({ user }) => {
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-slate-700 dark:text-slate-200 font-bold">{capitalizeName(sale.customer_name)}</p>
-                        <p className="text-xs text-slate-500 mt-1">{sale.sale_type.replace('_', ' ')}</p>
-                      </td>
-                      <td className="px-6 py-4 hidden lg:table-cell">
-                        {sale.sale_type === 'vehicle' ? (
-                          <>
-                            <p className="font-mono text-xs font-bold text-slate-700 dark:text-slate-200">{sale.vin || '—'}</p>
-                            <p className="text-xs text-slate-500 mt-1">{sale.item_name || ''}</p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{sale.item_name || '—'}</p>
-                            <p className="text-xs text-slate-500 mt-1">{sale.category || ''}</p>
-                          </>
-                        )}
+                        <p className="text-xs text-slate-500 mt-1">
+                          {sale.sale_type === 'vehicle'
+                            ? `${sale.sale_type.replace('_', ' ')} ${sale.vin ? `— ${sale.vin}` : ''}`
+                            : `${sale.sale_type.replace('_', ' ')} ${sale.item_name ? `— ${sale.item_name}` : ''}`
+                          }
+                        </p>
                       </td>
                       <td className="px-6 py-4 hidden md:table-cell">
                         <p className="text-sm font-bold text-slate-700 dark:text-slate-200">ETB {parseFloat(sale.total_amount).toLocaleString()}</p>

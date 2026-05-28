@@ -557,7 +557,7 @@ const Sales = ({ user }) => {
       {/* Payment History Modal — uses standard modal-backdrop */}
       {showPaymentHistory && selectedSale && (
         <div className="modal-backdrop">
-          <div className="modal-content max-w-2xl">
+          <div className="modal-content max-w-4xl">
             <div className="modal-header">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('paymentAuditLog')}</h2>

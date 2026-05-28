@@ -186,7 +186,15 @@ def get_sale_payments(id):
     sale = Sale.query.get(id)
     if not sale:
         return jsonify({'message': 'Sale not found'}), 404
-    payments = Payment.query.filter_by(sale_id=id).order_by(Payment.payment_date.asc()).all()
+
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    query = Payment.query.join(Sale).filter(Payment.sale_id == id)
+    if start_date:
+        query = query.filter(Sale.sale_date >= datetime.fromisoformat(start_date))
+    if end_date:
+        query = query.filter(Sale.sale_date <= datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59))
+    payments = query.order_by(Payment.payment_date.asc()).all()
     return jsonify([{
         'id': p.id, 'method': p.payment_method, 'bank': p.bank_name.upper() if p.bank_name else None,
         'account_holder': p.account_holder.upper() if p.account_holder else None,

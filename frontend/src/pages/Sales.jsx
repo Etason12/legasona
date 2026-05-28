@@ -142,7 +142,10 @@ const Sales = ({ user }) => {
 
   const fetchSalePayments = async (sale) => {
     try {
-      const res = await api.get(`/sales/${sale.id}/payments`)
+      const params = {}
+      if (startDate) params.start_date = startDate
+      if (endDate) params.end_date = endDate
+      const res = await api.get(`/sales/${sale.id}/payments`, { params })
       setSalePayments(res.data)
       setSelectedSale(sale)
       setShowPaymentHistory(true)

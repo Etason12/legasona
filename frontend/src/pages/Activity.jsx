@@ -3,7 +3,7 @@ import {
   ShoppingCart,
   Package,
   DollarSign,
-  Activity,
+  Activity as ActivityIcon,
   Loader2,
   ChevronLeft,
   ChevronRight
@@ -16,7 +16,7 @@ const ACTION_ICONS = {
   VEHICLE_SALE: ShoppingCart,
   SPARE_PART_SALE: Package,
   ADD_PAYMENT: DollarSign,
-  default: Activity,
+  default: ActivityIcon,
 }
 
 const timeAgo = (iso) => {

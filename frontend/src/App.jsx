@@ -16,6 +16,7 @@ const Reports = lazy(() => import('./pages/Reports'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Purchases = lazy(() => import('./pages/Purchases'))
 const Customers = lazy(() => import('./pages/Customers'))
+const Activity = lazy(() => import('./pages/Activity'))
 import Layout from './components/Layout';
 import ErrorBoundary from './components/ErrorBoundary'
 import api from './services/api'
@@ -128,6 +129,11 @@ function App() {
               <Route path="/settings" element={
                 <ProtectedRoute user={user} allowedRoles={['admin', 'manager']}>
                   <Settings user={user} />
+                </ProtectedRoute>
+              } />
+              <Route path="/activity" element={
+                <ProtectedRoute user={user} allowedRoles={['admin', 'manager', 'cashier', 'storekeeper', 'accountant']}>
+                  <Activity user={user} />
                 </ProtectedRoute>
               } />
             </Route>

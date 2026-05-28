@@ -224,7 +224,7 @@ const Dashboard = ({ user }) => {
               })
             )}
           </div>
-          <button onClick={fetchStats} className="w-full mt-4 py-2 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 rounded-md text-sm font-medium text-slate-500 dark:text-slate-400 transition-colors">
+          <button onClick={() => navigate('/activity')} className="w-full mt-4 py-2 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 rounded-md text-sm font-medium text-slate-500 dark:text-slate-400 transition-colors">
             {t('viewAllActivity')}
           </button>
         </div>

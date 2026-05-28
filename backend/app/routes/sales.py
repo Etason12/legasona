@@ -367,6 +367,34 @@ def add_payment(id):
     return jsonify({'message': 'Payment added', 'status': sale.status}), 200
 
 # ── Cancel / Delete Sale ─────────────────────────────────────────────
+@sales_bp.route('/<int:id>', methods=['PATCH'])
+@jwt_required()
+@admin_required
+def update_sale(id):
+    sale = Sale.query.get_or_404(id)
+    data = request.get_json()
+    if not data:
+        return jsonify({'message': 'No data provided'}), 400
+
+    total_amount = data.get('total_amount')
+    if total_amount is not None:
+        sale.total_amount = float(total_amount)
+        # Recalculate status based on new total
+        total_paid = db.session.query(func.sum(Payment.amount)).filter(Payment.sale_id == sale.id).scalar() or 0
+        if total_paid >= sale.total_amount:
+            sale.status = 'completed'
+        elif total_paid > 0:
+            sale.status = 'pending'
+        else:
+            sale.status = 'completed'  # default back to completed if no payments
+
+    user_id = get_jwt_identity()
+    log_activity(user_id, 'UPDATE_SALE', f"Updated sale {sale.sale_number}: total_amount → {sale.total_amount}")
+
+    db.session.commit()
+    return jsonify({'message': 'Sale updated'}), 200
+
+
 @sales_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required()
 @admin_required
@@ -377,6 +405,7 @@ def cancel_sale(id):
         v = Vehicle.query.get(sale.item_id)
         if v:
             v.status = 'available'
+    Payment.query.filter_by(sale_id=sale.id).delete()
     db.session.commit()
     return jsonify({'message': 'Sale cancelled'}), 200
 
@@ -428,6 +457,7 @@ def get_sales():
         item_image = None
         item_name = None
         power_type = None
+        vin = None
         chassis_number = s.chassis_number
         motor_number = s.motor_number
         if s.sale_type == 'vehicle':
@@ -436,7 +466,8 @@ def get_sales():
                 item_image = v.image
                 item_name = v.model
                 power_type = v.power_type
-                chassis_number = chassis_number or v.vin
+                vin = v.vin
+                chassis_number = chassis_number or vin
                 motor_number = motor_number or v.engine_number
         else:
             p = SparePart.query.get(s.item_id)
@@ -465,6 +496,7 @@ def get_sales():
             'chassis_number': chassis_number, 'motor_number': motor_number,
             'status': s.status, 'sale_date': s.sale_date.isoformat(),
             'item_image': item_image, 'item_name': item_name,
+            'vin': vin,
             'power_type': power_type, 'payments': payments_list,
             'cashier_name': cashier.username if cashier else None,
             'balance': float(s.total_amount) - float(total_paid),

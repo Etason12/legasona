@@ -244,10 +244,17 @@ def get_activity_log():
     branch_id = request.args.get('branch_id')
     limit     = int(request.args.get('limit', 10))
 
-    logs = (ActivityLog.query
-            .order_by(ActivityLog.timestamp.desc())
-            .limit(limit)
-            .all())
+    query = ActivityLog.query.order_by(ActivityLog.timestamp.desc())
+
+    has_page = request.args.get('page')
+    if has_page:
+        page     = int(has_page)
+        per_page = int(request.args.get('per_page', 20))
+        offset   = (page - 1) * per_page
+        total    = query.count()
+        logs     = query.offset(offset).limit(per_page).all()
+    else:
+        logs = query.limit(limit).all()
 
     result = []
     for log in logs:
@@ -259,4 +266,14 @@ def get_activity_log():
             'timestamp':   log.timestamp.isoformat(),
             'username':    user.username if user else 'System',
         })
+
+    if has_page:
+        return jsonify({
+            'items': result,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'pages': (total + per_page - 1) // per_page,
+        }), 200
+
     return jsonify(result), 200

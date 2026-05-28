@@ -65,7 +65,10 @@ const Sales = ({ user }) => {
   const [endDate, setEndDate]                     = useState(new Date().toISOString().split('T')[0])
   const [payments, setPayments]                   = useState([{ id: 1, method: 'cash', amount: '', bank: '', reference: '', accountHolder: '' }])
   const [selectedVehicleId, setSelectedVehicleId] = useState('')
-  const [previewImage, setPreviewImage]           = useState(null)
+  const [previewImage, setPreviewImage] = useState(null)
+  const [showEditSale, setShowEditSale] = useState(false)
+  const [editSaleAmount, setEditSaleAmount] = useState('')
+  const [editSubmitting, setEditSubmitting] = useState(false)
   const [customers, setCustomers]                 = useState([])
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
   const [saleType, setSaleType]                   = useState('vehicle')
@@ -159,6 +162,22 @@ const Sales = ({ user }) => {
       fetchData()
     } catch {
       toast.error('Failed to cancel sale')
+    }
+  }
+
+  const handleUpdateSale = async (e) => {
+    e.preventDefault()
+    setEditSubmitting(true)
+    try {
+      await api.patch(`/sales/${selectedSale.id}`, { total_amount: parseFloat(editSaleAmount) })
+      toast.success(t('saleUpdated'))
+      setShowEditSale(false)
+      setSelectedSale(null)
+      fetchData()
+    } catch {
+      toast.error(t('failedToUpdateSale'))
+    } finally {
+      setEditSubmitting(false)
     }
   }
 
@@ -422,6 +441,7 @@ const Sales = ({ user }) => {
                   <th className="px-6 py-4 hidden sm:table-cell">{t('photo')}</th>
                   <th className="px-6 py-4">{t('receiptNum')}</th>
                   <th className="px-6 py-4">{t('customerDetails')}</th>
+                  <th className="px-6 py-4 hidden lg:table-cell">{t('item')}</th>
                   <th className="px-6 py-4 hidden md:table-cell">{t('financials')}</th>
                   <th className="px-6 py-4 table-cell">{t('progress')}</th>
                   <th className="px-6 py-4 text-right">Actions</th>
@@ -429,7 +449,7 @@ const Sales = ({ user }) => {
               </thead>
               <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
                 {sales.length === 0 ? (
-                  <tr><td colSpan="7" className="px-6 py-12 text-center text-slate-500">{t('noTransactionsFound')}</td></tr>
+                  <tr><td colSpan="8" className="px-6 py-12 text-center text-slate-500">{t('noTransactionsFound')}</td></tr>
                 ) : (
                   sales.map(sale => (
                     <tr key={sale.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/60 transition-colors group">
@@ -450,6 +470,19 @@ const Sales = ({ user }) => {
                       <td className="px-6 py-4">
                         <p className="text-slate-700 dark:text-slate-200 font-bold">{capitalizeName(sale.customer_name)}</p>
                         <p className="text-xs text-slate-500 mt-1">{sale.sale_type.replace('_', ' ')}</p>
+                      </td>
+                      <td className="px-6 py-4 hidden lg:table-cell">
+                        {sale.sale_type === 'vehicle' ? (
+                          <>
+                            <p className="font-mono text-xs font-bold text-slate-700 dark:text-slate-200">{sale.vin || '—'}</p>
+                            <p className="text-xs text-slate-500 mt-1">{sale.item_name || ''}</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{sale.item_name || '—'}</p>
+                            <p className="text-xs text-slate-500 mt-1">{sale.category || ''}</p>
+                          </>
+                        )}
                       </td>
                       <td className="px-6 py-4 hidden md:table-cell">
                         <p className="text-sm font-bold text-slate-700 dark:text-slate-200">ETB {parseFloat(sale.total_amount).toLocaleString()}</p>
@@ -479,13 +512,22 @@ const Sales = ({ user }) => {
                             </button>
                           )}
                           {isAdmin(user) && sale.status !== 'cancelled' && (
-                            <button
-                              onClick={() => handleCancelSale(sale)}
-                              className="p-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl border border-rose-200 dark:border-rose-800 transition-colors"
-                              title="Cancel Sale"
-                            >
-                              <Trash2 size={18} />
-                            </button>
+                            <>
+                              <button
+                                onClick={() => { setSelectedSale(sale); setEditSaleAmount(String(sale.total_amount)); setShowEditSale(true) }}
+                                className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-200 dark:border-indigo-800 transition-colors"
+                                title={t('editSale')}
+                              >
+                                <Pencil size={18} />
+                              </button>
+                              <button
+                                onClick={() => handleCancelSale(sale)}
+                                className="p-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl border border-rose-200 dark:border-rose-800 transition-colors"
+                                title="Cancel Sale"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </>
                           )}
                           <button
                             className="p-2.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-200 dark:border-blue-800 transition-colors"
@@ -539,7 +581,7 @@ const Sales = ({ user }) => {
                   <div className="py-10 text-center text-slate-500">{t('noPaymentRecords')}</div>
                 ) : (
                   salePayments.map(p => (
-                    <div key={p.id} className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+                    <div key={p.id} className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-4 min-w-0">
                         <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                           {p.method === 'cash' ? <CreditCard size={18} /> : <Landmark size={18} />}
@@ -549,10 +591,10 @@ const Sales = ({ user }) => {
                           <p className="text-xs text-slate-500 truncate">{p.method}{p.bank ? ` • ${p.bank}` : ''}{p.account_holder ? ` → ${p.account_holder}` : ''}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 text-right shrink-0">
-                        <div>
+                      <div className="flex items-center gap-3 sm:text-right sm:shrink-0">
+                        <div className="min-w-0">
                           <p className="text-xs text-slate-400">{formatDateTime(p.date)}</p>
-                          <p className="text-xs font-mono text-slate-500 mt-0.5">{(p.reference || 'NO REF').toUpperCase()}</p>
+                          <p className="text-xs font-mono text-slate-500 mt-0.5 truncate max-w-[160px] sm:max-w-none">{(p.reference || 'NO REF').toUpperCase()}</p>
                         </div>
                         {p.receipt_image && (
                           <button
@@ -566,14 +608,14 @@ const Sales = ({ user }) => {
                         {isAdmin(user) && (
                           <button
                             onClick={() => { setEditingPayment(p); setEditPayMethod(p.method); setShowPaymentHistory(false); }}
-                            className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 rounded-lg transition-colors"
+                            className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 rounded-lg transition-colors shrink-0"
                             title="Edit Payment"
                           ><Pencil size={16} /></button>
                         )}
                         {isAdmin(user) && (
                           <button
                             onClick={() => handleDeletePayment(p)}
-                            className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/50 rounded-lg transition-colors"
+                            className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/50 rounded-lg transition-colors shrink-0"
                             title="Delete Payment"
                           ><Trash2 size={16} /></button>
                         )}
@@ -1009,6 +1051,39 @@ const Sales = ({ user }) => {
                 {t('completeRecord')}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Sale Modal */}
+      {showEditSale && selectedSale && (
+        <div className="modal-backdrop">
+          <div className="modal-content max-w-md">
+            <div className="modal-header">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('editSale')}</h2>
+                <p className="text-xs font-medium text-slate-500 mt-0.5">{t('receiptNum')}: <span className="text-blue-600 font-mono">#{selectedSale.sale_number}</span></p>
+              </div>
+              <button onClick={() => { setShowEditSale(false); setSelectedSale(null) }} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleUpdateSale}>
+              <div className="modal-body">
+                <div className="p-6 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-5">
+                  <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('financials')}</h3>
+                  <div>
+                    <label className="label">{t('totalContract')}</label>
+                    <input type="number" className="input-field" value={editSaleAmount} onChange={e => setEditSaleAmount(e.target.value)} step="0.01" min="0" required />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" onClick={() => { setShowEditSale(false); setSelectedSale(null) }} className="btn-secondary">{t('cancel')}</button>
+                <button type="submit" disabled={editSubmitting} className="btn-primary flex items-center gap-2">
+                  {editSubmitting ? <Loader2 className="animate-spin" size={16} /> : <Pencil size={16} />}
+                  {t('save')}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

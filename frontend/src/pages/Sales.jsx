@@ -638,7 +638,7 @@ const Sales = ({ user }) => {
       {/* Add Payment Modal */}
       {showAddPayment && selectedSale && (
         <div className="modal-backdrop">
-          <div className="modal-content max-w-xl">
+          <div className="modal-content max-w-3xl">
             <div className="modal-header">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('collectPayment')}</h2>
@@ -724,7 +724,7 @@ const Sales = ({ user }) => {
       {/* Edit Payment Modal */}
       {editingPayment && selectedSale && (
         <div className="modal-backdrop">
-          <div className="modal-content max-w-xl">
+          <div className="modal-content max-w-3xl">
             <div className="modal-header">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('editPayment') || 'Edit Payment'}</h2>
@@ -1052,7 +1052,7 @@ const Sales = ({ user }) => {
       {/* Edit Sale Modal */}
       {showEditSale && selectedSale && (
         <div className="modal-backdrop">
-          <div className="modal-content max-w-md">
+          <div className="modal-content max-w-2xl">
             <div className="modal-header">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('editSale')}</h2>

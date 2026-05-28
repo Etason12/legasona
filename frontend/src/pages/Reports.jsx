@@ -37,9 +37,10 @@ const Reports = ({ user }) => {
   const [branchComparison, setBranchComparison] = useState([])
   const [inventoryDist, setInventoryDist] = useState(null)
   const today = new Date()
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
+  const pad = n => String(n).padStart(2, '0')
+  const monthStart = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-01`
   const [startDate, setStartDate] = useState(monthStart)
-  const [endDate, setEndDate] = useState(today.toISOString().split('T')[0])
+  const [endDate, setEndDate] = useState(`${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

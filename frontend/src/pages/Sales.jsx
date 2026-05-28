@@ -61,8 +61,9 @@ const Sales = ({ user }) => {
   const [statusFilter, setStatusFilter]           = useState('pending')
   const [searchQuery, setSearchQuery]             = useState('')
   const [debouncedSearch, setDebouncedSearch]     = useState('')
-  const [startDate, setStartDate]                 = useState(new Date().toISOString().split('T')[0])
-  const [endDate, setEndDate]                     = useState(new Date().toISOString().split('T')[0])
+  const today = new Date(); const pad = n => String(n).padStart(2, '0')
+  const [startDate, setStartDate]                 = useState(`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`)
+  const [endDate, setEndDate]                     = useState(`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`)
   const [payments, setPayments]                   = useState([{ id: 1, method: 'cash', amount: '', bank: '', reference: '', accountHolder: '' }])
   const [selectedVehicleId, setSelectedVehicleId] = useState('')
   const [previewImage, setPreviewImage] = useState(null)
@@ -896,53 +897,9 @@ const Sales = ({ user }) => {
                               <label className="label">{t('sellingPrice')}</label>
                               <input type="number" name="total_amount" readOnly required className="input-field bg-neutral-100 dark:bg-neutral-800" value={form.total_amount ?? ''} />
                             </div>
-                            <div><label className="label">{t('date')}</label><input type="date" name="sale_date" required className="input-field" defaultValue={new Date().toISOString().split('T')[0]} /></div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="p-8 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-6">
-                        <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('sparePart')}</h3>
-                        <div className="space-y-4">
-                          <div>
-                            <label className="label">{t('selectItem')} *</label>
-                            <select className="input-field" value={selectedPartId} onChange={e => {
-                              setSelectedPartId(e.target.value)
-                              const p = availableParts.find(part => part.id === parseInt(e.target.value, 10))
-                              if (p) {
-                                const qty = parseInt(partQuantity, 10) || 1
-                                setForm(prev => ({...prev, total_amount: qty * Number(p.unit_price)}))
-                              }
-                            }}>
-                              <option value="">{t('selectItem')}</option>
-                              {sortedParts.map(p => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name} ({p.part_number}) — {t('availableStock')}: {p.quantity} — ETB {Number(p.unit_price).toLocaleString()}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                              <label className="label">{t('quantity')}</label>
-                              <input type="number" min="1" className="input-field" value={partQuantity} onChange={e => {
-                                const qty = parseInt(e.target.value, 10) || 1
-                                setPartQuantity(qty)
-                                const p = availableParts.find(part => part.id === parseInt(selectedPartId, 10))
-                                if (p) setForm(prev => ({...prev, total_amount: qty * Number(p.unit_price)}))
-                              }} />
-                            </div>
-                            <div>
-                              <label className="label">{t('unitPrice')}</label>
-                              <input type="number" readOnly className="input-field bg-neutral-100 dark:bg-neutral-800" value={selectedPartId ? (availableParts.find(p => p.id === parseInt(selectedPartId, 10))?.unit_price ?? '') : ''} />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                              <label className="label">{t('totalContract')}</label>
-                              <input type="number" name="total_amount" readOnly required className="input-field bg-neutral-100 dark:bg-neutral-800" value={form.total_amount ?? ''} />
-                            </div>
-                            <div><label className="label">{t('date')}</label><input type="date" name="sale_date" required className="input-field" defaultValue={new Date().toISOString().split('T')[0]} /></div>
+                            <div><label className="label">{t('date')}</label><input type="date" name="sale_date" required className="input-field" defaultValue={`${new Date().getFullYear()}-${pad(new Date().getMonth()+1)}-${pad(new Date().getDate())}`} /></div>
+
+                            <div><label className="label">{t('date')}</label><input type="date" name="sale_date" required className="input-field" defaultValue={`${new Date().getFullYear()}-${pad(new Date().getMonth()+1)}-${pad(new Date().getDate())}`} /></div>
                           </div>
                         </div>
                       </div>

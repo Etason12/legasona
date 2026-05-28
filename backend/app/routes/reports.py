@@ -175,7 +175,7 @@ def get_payment_report():
     if branch_id:
         query = query.filter(Sale.branch_id == branch_id)
 
-    query = _date_filter(query, Payment.payment_date, start_date, end_date)
+    query = _date_filter(query, Sale.sale_date, start_date, end_date)
 
     query = query.order_by(Payment.payment_date.desc()).all()
 

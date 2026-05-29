@@ -405,7 +405,7 @@ def update_sale(id):
 
 @sales_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required()
-@admin_required
+@role_required('admin', 'manager')
 def cancel_sale(id):
     sale = Sale.query.get_or_404(id)
     sale.status = 'cancelled'

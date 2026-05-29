@@ -471,7 +471,7 @@ const Sales = ({ user }) => {
                         </div>
                       </td>
                        <td className="px-6 py-4 hidden sm:table-cell"><ImageCell imageData={sale.item_image} onClick={setPreviewImage} /></td>
-                      <td className="px-6 py-4">
+                       <td className="px-6 py-4 whitespace-nowrap">
                         <p className="font-mono text-brand-600 font-bold tracking-tighter">{sale.sale_number}</p>
                         <p className="text-xs text-slate-500 mt-1">{formatDate(sale.sale_date)}</p>
                       </td>

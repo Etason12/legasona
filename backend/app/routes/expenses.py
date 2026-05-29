@@ -43,6 +43,7 @@ def get_expenses():
     branch_id  = request.args.get('branch_id')
     start_date = request.args.get('start_date')
     end_date   = request.args.get('end_date')
+    category   = request.args.get('category')
 
     query = Expense.query
     if branch_id:
@@ -51,6 +52,8 @@ def get_expenses():
         query = query.filter(Expense.expense_date >= datetime.fromisoformat(start_date))
     if end_date:
         query = query.filter(Expense.expense_date <= datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59))
+    if category:
+        query = query.filter(Expense.category == category)
 
     expenses = query.order_by(Expense.expense_date.desc()).all()
     return jsonify([{
@@ -58,6 +61,30 @@ def get_expenses():
         'amount': e.amount, 'expense_date': e.expense_date.isoformat(),
         'branch_id': e.branch_id, 'receipt_attachment': e.receipt_attachment
     } for e in expenses]), 200
+
+@expenses_bp.route('/budget', methods=['PATCH'])
+@jwt_required()
+@role_required('admin', 'manager')
+def update_budget():
+    data = request.get_json()
+    branch_id = data.get('branch_id')
+    monthly_budget = data.get('monthly_budget')
+    if monthly_budget is None:
+        return jsonify({'message': 'monthly_budget is required'}), 400
+
+    if branch_id:
+        branch = Branch.query.get(branch_id)
+        if not branch:
+            return jsonify({'message': 'Branch not found'}), 404
+        branch.monthly_budget = float(monthly_budget)
+    else:
+        branches = Branch.query.all()
+        for b in branches:
+            b.monthly_budget = float(monthly_budget)
+
+    db.session.commit()
+    return jsonify({'message': 'Budget updated'}), 200
+
 
 @expenses_bp.route('/budget', methods=['GET'])
 @jwt_required()

@@ -141,6 +141,11 @@ export const translations = {
     other: 'Other',
     saveExpense: 'Save Expense',
     receiptOptional: 'Receipt / Attachment (Optional)',
+    allCategories: 'All Categories',
+    setBudget: 'Set Budget',
+    monthlyBudget: 'Monthly Budget',
+    budgetUpdated: 'Budget updated successfully',
+    budgetUpdateFailed: 'Failed to update budget',
 
     // Inventory
     inventoryTitle: 'Enterprise Inventory',
@@ -529,6 +534,11 @@ export const translations = {
     other: 'ሌላ',
     saveExpense: 'ወጪን አስቀምጥ',
     receiptOptional: 'ደረሰኝ / አባሪ (አማራጭ)',
+    allCategories: 'ሁሉም ምድቦች',
+    setBudget: 'በጀት አዘጋጅ',
+    monthlyBudget: 'ወርሃዊ በጀት',
+    budgetUpdated: 'በጀት በተሳካ ሁኔታ ተዘምኗል',
+    budgetUpdateFailed: 'በጀቱን ማዘመን አልተሳካም',
 
     // Inventory
     inventoryTitle: 'የእቃ ክምችት',
@@ -915,6 +925,11 @@ export const translations = {
     other: 'ካልእ',
     saveExpense: 'ወጻኢ ዓቅብ',
     receiptOptional: 'ቅብሊት / መተሓሓዚ (ኣማራጺ)',
+    allCategories: 'ኩሎም መደባት',
+    setBudget: 'በጀት ኣቘም',
+    monthlyBudget: 'ወርሓዊ በጀት',
+    budgetUpdated: 'በጀት ብትኽክል ተዓመተ',
+    budgetUpdateFailed: 'ነቲ በጀት ምዕማት ኣይተኻኣለን',
 
     // Inventory
     inventoryTitle: 'ክምችት ትካል',

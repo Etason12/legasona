@@ -11,17 +11,25 @@ const Expenses = ({ user }) => {
  const [loading, setLoading] = useState(true)
  const [showAddModal, setShowAddModal] = useState(false)
  const [submitting, setSubmitting] = useState(false)
- const [previewImage, setPreviewImage] = useState(null)
-  const today = new Date(); const pad = n => String(n).padStart(2, '0')
-  const [startDate, setStartDate] = useState(`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`)
-  const [endDate, setEndDate] = useState(`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`)
- const [search, setSearch] = useState('')
- const [budgetData, setBudgetData] = useState({ budget: 0, spent: 0, remaining: 0 })
- const { t } = useLanguage()
- const filteredExpenses = useMemo(() => expenses.filter(e =>
-  e.description?.toLowerCase().includes(search.toLowerCase()) ||
-  e.category?.toLowerCase().includes(search.toLowerCase())
- ), [expenses, search])
+  const [previewImage, setPreviewImage] = useState(null)
+   const today = new Date(); const pad = n => String(n).padStart(2, '0')
+   const [startDate, setStartDate] = useState(`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`)
+   const [endDate, setEndDate] = useState(`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`)
+  const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [budgetData, setBudgetData] = useState({ budget: 0, spent: 0, remaining: 0 })
+  const [showBudgetModal, setShowBudgetModal] = useState(false)
+  const [budgetInput, setBudgetInput] = useState('')
+  const [budgetSaving, setBudgetSaving] = useState(false)
+  const { t } = useLanguage()
+  const filteredExpenses = useMemo(() => expenses.filter(e => {
+   if (categoryFilter && e.category !== categoryFilter) return false
+   if (!search) return true
+   return e.description?.toLowerCase().includes(search.toLowerCase()) ||
+    e.category?.toLowerCase().includes(search.toLowerCase())
+  }), [expenses, search, categoryFilter])
+
+  const categories = ['Operational', 'Maintenance', 'Inventory Acquisition', 'Utilities', 'Rental', 'Other']
 
  useEffect(() => {
   Promise.all([fetchExpenses(), fetchBudget()])
@@ -102,7 +110,7 @@ const Expenses = ({ user }) => {
    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
     <div className="glass-card p-6 border-l-4 border-rose-500">
      <p className="text-xs text-slate-500 uppercase font-bold ">{t('totalMonthly')}</p>
-     <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">ETB {expenses.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString()}</p>
+      <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">ETB {filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString()}</p>
     </div>
     <div className="glass-card p-6 border-l-4 border-amber-500">
      <p className="text-xs text-slate-500 uppercase font-bold ">{t('pendingApproval')}</p>
@@ -111,30 +119,37 @@ const Expenses = ({ user }) => {
     <div className="glass-card p-6 border-l-4 border-primary-500">
      <p className="text-xs text-slate-500 uppercase font-bold ">{t('budgetRemaining')}</p>
      <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">ETB {budgetData.remaining.toLocaleString()}</p>
-     <p className="text-xs text-slate-400 mt-1">of ETB {budgetData.budget.toLocaleString()} budget</p>
+      <p className="text-xs text-slate-400 mt-1">of ETB {budgetData.budget.toLocaleString()} budget</p>
+      {(user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'manager') && (
+        <button onClick={() => { setBudgetInput(String(budgetData.budget)); setShowBudgetModal(true) }} className="mt-3 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">{t('setBudget')}</button>
+      )}
+     </div>
     </div>
-   </div>
 
    <div className="glass-card overflow-hidden">
     <div className="p-6 border-b border-slate-200 dark:border-slate-300 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
      <h3 className="text-lg font-bold text-slate-900 dark:text-white">{t('transactionHistory')}</h3>
-     <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
-      <div className="flex items-center gap-2 w-full md:w-auto">
-       <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="input-field py-1.5 text-sm" />
-       <span className="text-slate-500">-</span>
-       <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="input-field py-1.5 text-sm" />
+      <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+       <div className="flex items-center gap-2 w-full md:w-auto">
+        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="input-field py-1.5 text-sm" />
+        <span className="text-slate-500">-</span>
+        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="input-field py-1.5 text-sm" />
+       </div>
+       <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="input-field py-1.5 text-sm w-full md:w-44">
+        <option value="">{t('allCategories')}</option>
+        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+       </select>
+       <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-300 dark:border-slate-700 px-4 py-2 rounded-xl w-full md:w-64">
+        <Search size={18} className="text-slate-500" />
+        <input 
+         type="text" 
+         placeholder={t('searchExpenses')} 
+         className="bg-transparent border-none outline-none text-sm w-full text-slate-600 dark:text-slate-300"
+         value={search}
+         onChange={(e) => setSearch(e.target.value)}
+        />
+       </div>
       </div>
-      <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-300 dark:border-slate-700 px-4 py-2 rounded-xl w-full md:w-64">
-       <Search size={18} className="text-slate-500" />
-       <input 
-        type="text" 
-        placeholder={t('searchExpenses')} 
-        className="bg-transparent border-none outline-none text-sm w-full text-slate-600 dark:text-slate-300"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-       />
-      </div>
-     </div>
     </div>
     
     <div className="overflow-x-auto custom-scrollbar">
@@ -222,13 +237,14 @@ const Expenses = ({ user }) => {
          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
            <label className="label">{t('category')}</label>
-           <select name="category" className="input-field bg-slate-900" required>
-            <option value="Operational">{t('operational')}</option>
-            <option value="Maintenance">{t('maintenance')}</option>
-            <option value="Inventory Acquisition">{t('inventoryAcquisition')}</option>
-            <option value="Utilities">{t('utilities')}</option>
-            <option value="Other">{t('other')}</option>
-           </select>
+            <select name="category" className="input-field bg-slate-900" required>
+             <option value="Operational">{t('operational')}</option>
+             <option value="Maintenance">{t('maintenance')}</option>
+             <option value="Inventory Acquisition">{t('inventoryAcquisition')}</option>
+             <option value="Utilities">{t('utilities')}</option>
+             <option value="Rental">Rental</option>
+             <option value="Other">{t('other')}</option>
+            </select>
           </div>
           <div>
            <label className="label">{t('amount')} (ETB)</label>
@@ -281,6 +297,49 @@ const Expenses = ({ user }) => {
        </div>
      </div>
     </div>
+   )}
+
+   {/* Budget Setting Modal */}
+   {showBudgetModal && (
+     <div className="modal-backdrop">
+      <div className="modal-content max-w-sm">
+       <div className="modal-header">
+        <div>
+         <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('setBudget')}</h2>
+         <p className="text-xs font-medium text-slate-500 mt-0.5">{t('monthlyBudget')}</p>
+        </div>
+        <button onClick={() => setShowBudgetModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20}/></button>
+       </div>
+       <form onSubmit={async (e) => {
+        e.preventDefault()
+        setBudgetSaving(true)
+        try {
+         const branchId = user?.role?.toLowerCase() === 'admin' ? '' : (user?.branch_id || '')
+         await api.patch(`/expenses/budget`, { branch_id: branchId, monthly_budget: parseFloat(budgetInput) })
+         toast.success(t('budgetUpdated'))
+         setShowBudgetModal(false)
+         fetchBudget()
+        } catch { toast.error(t('budgetUpdateFailed')) }
+        finally { setBudgetSaving(false) }
+       }}>
+        <div className="modal-body">
+         <div className="p-6 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-5">
+          <div>
+           <label className="label">{t('monthlyBudget')} (ETB)</label>
+           <input type="number" className="input-field" value={budgetInput} onChange={e => setBudgetInput(e.target.value)} step="0.01" min="0" required />
+          </div>
+         </div>
+        </div>
+        <div className="modal-footer">
+         <button type="button" onClick={() => setShowBudgetModal(false)} className="btn-secondary">{t('cancel')}</button>
+         <button type="submit" disabled={budgetSaving} className="btn-primary flex items-center gap-2">
+          {budgetSaving ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
+          {t('save')}
+         </button>
+        </div>
+       </form>
+      </div>
+     </div>
    )}
 
    {/* Image Preview Modal */}

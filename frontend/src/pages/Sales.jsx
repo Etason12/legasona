@@ -485,7 +485,7 @@ const Sales = ({ user }) => {
                         </p>
                       </td>
                       <td className="px-6 py-4 hidden md:table-cell">
-                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">ETB {parseFloat(sale.total_amount).toLocaleString()}</p>
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{parseFloat(sale.total_amount).toLocaleString()}</p>
                         <p className="text-xs text-slate-500 mt-1">{t('totalContract')}</p>
                       </td>
                       <td className="px-6 py-4 table-cell">

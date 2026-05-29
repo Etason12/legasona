@@ -61,9 +61,10 @@ const Orders = ({ user }) => {
    customer_phone: formData.get('customer_phone'),
    customer_id: selectedCustomerId || null,
    vehicle_specs: formData.get('vehicle_specs'),
-   deposit_amount: parseFloat(formData.get('deposit_amount') || 0),
-   branch_id: user?.branch_id || 1
-  }
+    deposit_amount: parseFloat(formData.get('deposit_amount') || 0),
+    branch_id: user?.branch_id || 1,
+    remark: formData.get('remark')
+   }
 
   try {
    await api.post('/orders', data)
@@ -184,30 +185,31 @@ const Orders = ({ user }) => {
      </div>
     </div>
 
-    <div className="overflow-x-auto custom-scrollbar">
-     <table className="w-full text-left min-w-[900px]">
-      <thead>
-       <tr className="bg-white dark:bg-slate-800 border-b border-slate-300 dark:border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-500 ">
-        <th className="px-6 py-4 hidden sm:table-cell">{t('seqNo')}</th>
-        <th className="px-6 py-4">{t('customerDetails')}</th>
-        <th className="px-6 py-4 hidden md:table-cell">{t('vehicleSpecs')}</th>
-        <th className="px-6 py-4 hidden lg:table-cell">{t('deposit')}</th>
-        <th className="px-6 py-4">{t('statusHeader')}</th>
-        <th className="px-6 py-4 text-right">{t('actions')}</th>
-       </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-800/50">
-       {loading ? (
-        <tr>
-         <td colSpan="6" className="px-6 py-12 text-center">
+     <div className="overflow-x-auto custom-scrollbar">
+      <table className="w-full text-left min-w-[1000px]">
+       <thead>
+        <tr className="bg-white dark:bg-slate-800 border-b border-slate-300 dark:border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-500 ">
+         <th className="px-6 py-4 hidden sm:table-cell">{t('seqNo')}</th>
+         <th className="px-6 py-4">{t('customerDetails')}</th>
+         <th className="px-6 py-4 hidden md:table-cell">{t('vehicleSpecs')}</th>
+         <th className="px-6 py-4 hidden lg:table-cell">{t('deposit')}</th>
+         <th className="px-6 py-4">{t('statusHeader')}</th>
+         <th className="px-6 py-4 hidden md:table-cell">{t('remark')}</th>
+         <th className="px-6 py-4 text-right">{t('actions')}</th>
+        </tr>
+       </thead>
+       <tbody className="divide-y divide-slate-800/50">
+        {loading ? (
+         <tr>
+          <td colSpan="7" className="px-6 py-12 text-center">
           <Loader2 className="animate-spin inline-block text-blue-600 dark:text-blue-400 mb-2" size={32} />
            <p className="text-slate-500 text-sm">{t('syncingQueue')}</p>
          </td>
         </tr>
-        ) : filteredOrders.length === 0 ? (
-        <tr>
-          <td colSpan="6" className="px-6 py-12 text-center text-slate-500">{t('noOrdersFound')}</td>
-        </tr>
+         ) : filteredOrders.length === 0 ? (
+         <tr>
+           <td colSpan="7" className="px-6 py-12 text-center text-slate-500">{t('noOrdersFound')}</td>
+         </tr>
        ) : (
         filteredOrders.map((order) => (
          <tr key={order.id} className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors group">
@@ -228,26 +230,36 @@ const Orders = ({ user }) => {
           <td className="px-6 py-4 text-slate-600 dark:text-slate-300 text-sm hidden md:table-cell">
            {order.vehicle_specs}
           </td>
-          <td className="px-6 py-4 hidden lg:table-cell">
-           <p className="text-emerald-600 dark:text-emerald-400 font-bold">ETB {(order.deposit_amount || 0).toLocaleString()}</p>
-           {order.deposit_method && (
-            <span className={`mt-1 inline-block text-xs font-bold px-2 py-0.5 rounded-full ${
-             order.deposit_method === 'bank'
-              ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-              : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+           <td className="px-6 py-4 hidden lg:table-cell">
+            <p className="text-emerald-600 dark:text-emerald-400 font-bold">ETB {(order.deposit_amount || 0).toLocaleString()}</p>
+            {order.deposit_method && (
+             <span className={`mt-1 inline-block text-xs font-bold px-2 py-0.5 rounded-full ${
+              order.deposit_method === 'bank'
+               ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+               : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+             }`}>
+              {order.deposit_method.toUpperCase()}
+             </span>
+            )}
+            {order.deposit_method === 'bank' && (
+             <div className="mt-2 text-[11px] text-slate-500 space-y-0.5">
+              {order.deposit_bank && <p>{order.deposit_bank}</p>}
+              {order.deposit_account_holder && <p>{order.deposit_account_holder}</p>}
+              {order.deposit_transaction_reference && <p className="text-blue-500 font-mono">Ref: {order.deposit_transaction_reference}</p>}
+             </div>
+            )}
+           </td>
+           <td className="px-6 py-4">
+            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
+             order.status === 'waiting' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
             }`}>
-             {order.deposit_method.toUpperCase()}
+             {order.status}
             </span>
-           )}
-          </td>
-          <td className="px-6 py-4">
-           <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
-            order.status === 'waiting' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-           }`}>
-            {order.status}
-           </span>
-          </td>
-           <td className="px-6 py-4 text-right">
+           </td>
+           <td className="px-6 py-4 hidden md:table-cell text-sm text-slate-600 dark:text-slate-300 max-w-[200px] truncate">
+            {order.remark || '-'}
+           </td>
+            <td className="px-6 py-4 text-right">
             <div className="flex items-center justify-end gap-2">
              {order.status === 'waiting' && (
               <>
@@ -329,24 +341,33 @@ const Orders = ({ user }) => {
          <input type="number" name="deposit_amount" className="input-field" placeholder="0.00" />
         </div>
 
-        <div>
-         <label className="label">{t('vehicleSpecs')} *</label>
-         <textarea 
-          name="vehicle_specs" 
-          className="input-field h-28 resize-none" 
-          placeholder="Model, Color, Power type..." 
-          required
-         />
-        </div>
-       </form>
-      </div>
+         <div>
+          <label className="label">{t('vehicleSpecs')} *</label>
+          <textarea 
+           name="vehicle_specs" 
+           className="input-field h-28 resize-none" 
+           placeholder="Model, Color, Power type..." 
+           required
+          />
+         </div>
 
-      <div className="modal-footer">
-       <button 
-        type="button" 
-        onClick={() => setShowAddModal(false)}
-        className="btn-secondary"
-       >
+         <div>
+          <label className="label">{t('remark')}</label>
+          <textarea 
+           name="remark" 
+           className="input-field h-20 resize-none" 
+           placeholder="Optional notes..."
+          />
+         </div>
+        </form>
+       </div>
+
+       <div className="modal-footer">
+        <button 
+         type="button" 
+         onClick={() => setShowAddModal(false)}
+         className="btn-secondary"
+        >
         {t('cancel')}
        </button>
        <button 

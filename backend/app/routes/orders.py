@@ -37,7 +37,8 @@ def create_order():
         vehicle_specs=data.get('vehicle_specs'),
         sequence_number=next_seq,
         deposit_amount=data.get('deposit_amount', 0),
-        branch_id=data.get('branch_id')
+        branch_id=data.get('branch_id'),
+        remark=data.get('remark')
     )
     db.session.add(new_order)
     db.session.commit()
@@ -56,7 +57,8 @@ def get_orders():
         'deposit_bank': o.deposit_bank,
         'deposit_account_holder': o.deposit_account_holder,
         'deposit_transaction_reference': o.deposit_transaction_reference,
-        'order_date': o.order_date.isoformat()
+        'order_date': o.order_date.isoformat(),
+        'remark': o.remark
     } for o in orders]), 200
 
 @orders_bp.route('/<int:id>/deposit', methods=['POST'])

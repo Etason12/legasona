@@ -69,6 +69,7 @@ const Sales = ({ user }) => {
   const [previewImage, setPreviewImage] = useState(null)
   const [showEditSale, setShowEditSale] = useState(false)
   const [editSaleAmount, setEditSaleAmount] = useState('')
+  const [editSaleRemark, setEditSaleRemark] = useState('')
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [customers, setCustomers]                 = useState([])
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
@@ -173,7 +174,7 @@ const Sales = ({ user }) => {
     e.preventDefault()
     setEditSubmitting(true)
     try {
-      await api.patch(`/sales/${selectedSale.id}`, { total_amount: parseFloat(editSaleAmount) })
+      await api.patch(`/sales/${selectedSale.id}`, { total_amount: parseFloat(editSaleAmount), remark: editSaleRemark })
       toast.success(t('saleUpdated'))
       setShowEditSale(false)
       setSelectedSale(null)
@@ -236,6 +237,7 @@ const Sales = ({ user }) => {
           multipart.append('total_amount', String(sellingPrice))
           multipart.append('sale_date', fd.get('sale_date'))
           multipart.append('user_id', user?.id)
+          multipart.append('remark', fd.get('remark'))
           multipart.append('payments', JSON.stringify(paymentsData))
           payments.forEach((p, idx) => {
             if (p.receiptFile) multipart.append(`receipt_${idx}`, p.receiptFile)
@@ -251,6 +253,7 @@ const Sales = ({ user }) => {
             motor_number: form.motor_number || '',
             total_amount: sellingPrice,
             sale_date: fd.get('sale_date'),
+            remark: fd.get('remark'),
             payments: paymentsData,
             user_id: user?.id,
           })
@@ -277,6 +280,7 @@ const Sales = ({ user }) => {
           customer_id: selectedCustomerId ? parseInt(selectedCustomerId, 10) : null,
           total_amount: totalAmount,
           sale_date: fd.get('sale_date'),
+          remark: fd.get('remark'),
           payments: paymentsData,
           user_id: user?.id,
         })
@@ -447,7 +451,8 @@ const Sales = ({ user }) => {
                   <th className="px-6 py-4">{t('customerDetails')}</th>
                   <th className="px-6 py-4 hidden md:table-cell">{t('financials')}</th>
                   <th className="px-6 py-4 table-cell">{t('progress')}</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
+                   <th className="px-6 py-4 hidden md:table-cell">{t('remark')}</th>
+                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
@@ -496,8 +501,11 @@ const Sales = ({ user }) => {
                           </div>
                         </div>
                       </td>
+                      <td className="px-6 py-4 hidden md:table-cell text-sm text-slate-600 dark:text-slate-300 max-w-[200px] truncate">
+                        {sale.remark || '-'}
+                      </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                         <div className="flex items-center justify-end gap-2">
                           <button onClick={() => fetchSalePayments(sale)} className="p-2.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-slate-600 dark:text-slate-300 rounded-xl border border-neutral-200 dark:border-neutral-700 transition-colors" title="View Payments">
                             <Eye size={18} />
                           </button>
@@ -510,7 +518,7 @@ const Sales = ({ user }) => {
                             <>
                               {sale.status === 'pending' && (
                                 <button
-                                  onClick={() => { setSelectedSale(sale); setEditSaleAmount(String(sale.total_amount)); setShowEditSale(true) }}
+                                  onClick={() => { setSelectedSale(sale); setEditSaleAmount(String(sale.total_amount)); setEditSaleRemark(sale.remark || ''); setShowEditSale(true) }}
                                   className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-200 dark:border-indigo-800 transition-colors"
                                   title={t('editSale')}
                                 >
@@ -799,9 +807,15 @@ const Sales = ({ user }) => {
                       <button type="button" onClick={() => { setEditingPayment(prev => ({ ...prev, receipt_preview: null })); if (receiptRef.current) receiptRef.current.value = '' }} className="text-xs text-red-500 hover:text-red-700 font-medium">{t('remove')}</button>
                     </div>
                   )}
+                <div className="col-span-full">
+                  <div className="p-6 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-4">
+                    <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('remark')}</h3>
+                    <textarea name="remark" className="input-field h-20 resize-none" placeholder="Optional notes..." />
+                  </div>
                 </div>
               </form>
             </div>
+
             <div className="modal-footer">
               <button type="button" onClick={() => { setEditingPayment(null); setShowPaymentHistory(true) }} className="btn-secondary">{t('cancel')}</button>
               <button form="edit-pay-form" type="submit" disabled={submitting} className="btn-primary flex items-center gap-2">
@@ -1024,6 +1038,10 @@ const Sales = ({ user }) => {
                   <div>
                     <label className="label">{t('totalContract')}</label>
                     <input type="number" className="input-field" value={editSaleAmount} onChange={e => setEditSaleAmount(e.target.value)} step="0.01" min="0" required />
+                  </div>
+                  <div>
+                    <label className="label">{t('remark')}</label>
+                    <textarea className="input-field h-20 resize-none" value={editSaleRemark} onChange={e => setEditSaleRemark(e.target.value)} placeholder="Optional notes..." />
                   </div>
                 </div>
               </div>

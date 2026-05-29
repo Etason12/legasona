@@ -91,6 +91,7 @@ class Sale(db.Model):
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     sale_date = db.Column(db.DateTime, default=datetime.utcnow)
+    remark = db.Column(db.Text)
     payments = db.relationship('Payment', backref='sale', lazy=True)
 
 class Payment(db.Model):
@@ -122,6 +123,7 @@ class Order(db.Model):
     order_date = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(20), default='waiting')  # waiting, fulfilled, cancelled
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))
+    remark = db.Column(db.Text)
 
 class Transfer(db.Model):
     __tablename__ = 'transfers'

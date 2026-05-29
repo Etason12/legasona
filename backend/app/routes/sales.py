@@ -70,7 +70,8 @@ def record_vehicle_sale():
         user_id=int(get_jwt_identity()) if get_jwt_identity() else data.get('user_id'),
         sale_date=sale_date,
         cost_at_sale=vehicle.cost_price or 0.0,
-        category='Vehicle'
+        category='Vehicle',
+        remark=data.get('remark')
     )
     db.session.add(new_sale)
     db.session.flush()
@@ -146,7 +147,8 @@ def record_spare_part_sale():
         category=part.category,
         branch_id=part.branch_id, user_id=data.get('user_id'),
         sale_date=sale_date,
-        cost_at_sale=(part.cost_price or 0.0) * qty
+        cost_at_sale=(part.cost_price or 0.0) * qty,
+        remark=data.get('remark')
     )
     db.session.add(new_sale)
     db.session.flush()
@@ -396,6 +398,10 @@ def update_sale(id):
         else:
             sale.status = 'completed'  # default back to completed if no payments
 
+    remark = data.get('remark')
+    if remark is not None:
+        sale.remark = remark
+
     user_id = get_jwt_identity()
     log_activity(user_id, 'UPDATE_SALE', f"Updated sale {sale.sale_number}: total_amount → {sale.total_amount}")
 
@@ -508,5 +514,6 @@ def get_sales():
             'power_type': power_type, 'payments': payments_list,
             'cashier_name': cashier.username if cashier else None,
             'balance': float(s.total_amount) - float(total_paid),
+            'remark': s.remark,
         })
     return jsonify(result), 200

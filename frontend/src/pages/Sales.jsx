@@ -898,12 +898,10 @@ const Sales = ({ user }) => {
                               <input type="number" name="total_amount" readOnly required className="input-field bg-neutral-100 dark:bg-neutral-800" value={form.total_amount ?? ''} />
                             </div>
                             <div><label className="label">{t('date')}</label><input type="date" name="sale_date" required className="input-field" defaultValue={`${new Date().getFullYear()}-${pad(new Date().getMonth()+1)}-${pad(new Date().getDate())}`} /></div>
-
-                            <div><label className="label">{t('date')}</label><input type="date" name="sale_date" required className="input-field" defaultValue={`${new Date().getFullYear()}-${pad(new Date().getMonth()+1)}-${pad(new Date().getDate())}`} /></div>
                           </div>
                         </div>
                       </div>
-                    )}
+                    ) : null}
                   </div>
 
                   {/* Right Column */}

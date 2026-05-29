@@ -508,13 +508,15 @@ const Sales = ({ user }) => {
                           )}
                           {isAdmin(user) && sale.status !== 'cancelled' && (
                             <>
-                              <button
-                                onClick={() => { setSelectedSale(sale); setEditSaleAmount(String(sale.total_amount)); setShowEditSale(true) }}
-                                className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-200 dark:border-indigo-800 transition-colors"
-                                title={t('editSale')}
-                              >
-                                <Pencil size={18} />
-                              </button>
+                              {sale.status === 'pending' && (
+                                <button
+                                  onClick={() => { setSelectedSale(sale); setEditSaleAmount(String(sale.total_amount)); setShowEditSale(true) }}
+                                  className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-200 dark:border-indigo-800 transition-colors"
+                                  title={t('editSale')}
+                                >
+                                  <Pencil size={18} />
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleCancelSale(sale)}
                                 className="p-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl border border-rose-200 dark:border-rose-800 transition-colors"

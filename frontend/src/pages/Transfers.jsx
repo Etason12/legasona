@@ -220,8 +220,8 @@ const Transfers = ({ user }) => {
           <select name="item_id" required className="input-field">
            <option value="">{t('chooseItem')}</option>
            {requestItemType === 'vehicle' ? (
-            vehicles.length > 0 ? (
-             vehicles.map(v => (
+            vehicles.filter(v => v.status === 'available').length > 0 ? (
+             vehicles.filter(v => v.status === 'available').map(v => (
               <option key={`v-${v.id}`} value={v.id}>{v.model.toUpperCase()} ({v.vin})</option>
              ))
             ) : (

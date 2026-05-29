@@ -477,14 +477,14 @@ const Sales = ({ user }) => {
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-slate-700 dark:text-slate-200 font-bold">{capitalizeName(sale.customer_name)}</p>
-                        <p className="text-xs text-slate-500 mt-1">
+                        <p className="text-xs text-slate-500 mt-1 whitespace-nowrap">
                           {sale.sale_type === 'vehicle'
                             ? `${sale.sale_type.replace('_', ' ')} ${sale.vin ? `— ${sale.vin}` : ''}`
                             : `${sale.sale_type.replace('_', ' ')} ${sale.item_name ? `— ${sale.item_name}` : ''}`
                           }
                         </p>
                       </td>
-                      <td className="px-6 py-4 hidden md:table-cell">
+                       <td className="px-6 py-4 hidden md:table-cell whitespace-nowrap">
                         <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{parseFloat(sale.total_amount).toLocaleString()}</p>
                         <p className="text-xs text-slate-500 mt-1">{t('totalContract')}</p>
                       </td>

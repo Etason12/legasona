@@ -194,7 +194,7 @@ const Orders = ({ user }) => {
          <th className="px-6 py-4 hidden md:table-cell">{t('vehicleSpecs')}</th>
          <th className="px-6 py-4 hidden lg:table-cell">{t('deposit')}</th>
          <th className="px-6 py-4">{t('statusHeader')}</th>
-         <th className="px-6 py-4 hidden md:table-cell">{t('remark')}</th>
+         <th className="px-6 py-4 hidden md:table-cell">{t('notes')}</th>
          <th className="px-6 py-4 text-right">{t('actions')}</th>
         </tr>
        </thead>

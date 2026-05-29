@@ -451,7 +451,7 @@ const Sales = ({ user }) => {
                   <th className="px-6 py-4">{t('customerDetails')}</th>
                   <th className="px-6 py-4 hidden md:table-cell">{t('financials')}</th>
                   <th className="px-6 py-4 table-cell">{t('progress')}</th>
-                   <th className="px-6 py-4 hidden md:table-cell">{t('remark')}</th>
+                   <th className="px-6 py-4 hidden md:table-cell">{t('notes')}</th>
                    <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -806,8 +806,9 @@ const Sales = ({ user }) => {
                       <img src={editingPayment.receipt_preview} alt="Preview" className="w-24 h-24 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shrink-0" />
                       <button type="button" onClick={() => { setEditingPayment(prev => ({ ...prev, receipt_preview: null })); if (receiptRef.current) receiptRef.current.value = '' }} className="text-xs text-red-500 hover:text-red-700 font-medium">{t('remove')}</button>
                     </div>
-                  )}
-                <div className="col-span-full">
+                   )}
+                 </div>
+                 <div className="col-span-full">
                   <div className="p-6 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-4">
                     <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('remark')}</h3>
                     <textarea name="remark" className="input-field h-20 resize-none" placeholder="Optional notes..." />

@@ -37,6 +37,26 @@ const Purchases = ({ user }) => {
   p.items?.some(it => it.description?.toLowerCase().includes(search.toLowerCase()))
  ), [purchases, search])
 
+ const uniqueSpareParts = useMemo(() => {
+  const seen = new Set()
+  return inventory.spareParts.filter(p => {
+   const key = p.name?.toLowerCase().trim()
+   if (!key || seen.has(key)) return false
+   seen.add(key)
+   return true
+  })
+ }, [inventory.spareParts])
+
+ const uniqueVehicles = useMemo(() => {
+  const seen = new Set()
+  return inventory.vehicles.filter(v => {
+   const key = v.model?.toLowerCase().trim()
+   if (!key || seen.has(key)) return false
+   seen.add(key)
+   return true
+  })
+ }, [inventory.vehicles])
+
  useEffect(() => {
   Promise.all([fetchPurchases(), fetchInventory()])
  }, [])
@@ -250,107 +270,124 @@ const Purchases = ({ user }) => {
       <div className="modal-body custom-scrollbar">
        <form id="purchase-form" onSubmit={handleSubmit} className="space-y-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-         {/* General Info */}
-         <div className="lg:col-span-4 space-y-8">
-          <div className="p-8 bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] border border-slate-200 dark:border-slate-300 dark:border-slate-700 space-y-6">
-           <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 ">{t('sourceAndLogistics')}</h3>
-           <div className="space-y-4">
-            <div>
-             <label className="label">{t('supplierName')}</label>
-             <input required className="input-field" placeholder="e.g. Addis Tyre Trading" value={form.supplier_name} onChange={e => setForm(f => ({ ...f, supplier_name: e.target.value }))}/>
+          {/* Left Column */}
+          <div className="lg:col-span-4 space-y-8">
+           {/* Supplier Information */}
+           <div className="p-8 bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] border border-slate-200 dark:border-slate-300 dark:border-slate-700 space-y-6">
+            <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-2">
+             <Truck size={14}/> {t('supplierInfo')}
+            </h3>
+            <div className="space-y-4">
+             <div>
+              <label className="label">{t('supplierName')}</label>
+              <input required className="input-field" placeholder="e.g. Addis Tyre Trading" value={form.supplier_name} onChange={e => setForm(f => ({ ...f, supplier_name: e.target.value }))}/>
+             </div>
+             <div>
+              <label className="label">{t('branch')}</label>
+              <select className="input-field" value={form.branch_id} onChange={e => setForm(f => ({ ...f, branch_id: parseInt(e.target.value) }))}>
+               <option value="">{t('selectBranch')}</option>
+               {branches.map(b => <option key={b.id} value={b.id}>{b.name.toUpperCase()}</option>)}
+              </select>
+             </div>
             </div>
-            <div>
-             <label className="label">{t('branch')}</label>
-             <select className="input-field bg-slate-900" value={form.branch_id} onChange={e => setForm(f => ({ ...f, branch_id: parseInt(e.target.value) }))}>
-              <option value="">{t('selectBranch')}</option>
-              {branches.map(b => <option key={b.id} value={b.id}>{b.name.toUpperCase()}</option>)}
-             </select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+           </div>
+
+           {/* Transaction Details */}
+           <div className="p-8 bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] border border-slate-200 dark:border-slate-300 dark:border-slate-700 space-y-6">
+            <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-2">
+             <ShoppingBag size={14}/> {t('transactionDetails')}
+            </h3>
+            <div className="space-y-4">
              <div>
               <label className="label">{t('itemType')}</label>
-              <select className="input-field bg-slate-900" value={form.item_type} onChange={e => setForm(f => ({ ...f, item_type: e.target.value }))}>
+              <select className="input-field" value={form.item_type} onChange={e => setForm(f => ({ ...f, item_type: e.target.value }))}>
                {ITEM_TYPES.map(it => <option key={it} value={it}>{t(it).toUpperCase()}</option>)}
               </select>
              </div>
              <div>
               <label className="label">{t('paymentMethod')}</label>
-              <select className="input-field bg-slate-900" value={form.payment_method} onChange={e => setForm(f => ({ ...f, payment_method: e.target.value }))}>
+              <select className="input-field" value={form.payment_method} onChange={e => setForm(f => ({ ...f, payment_method: e.target.value }))}>
                {PAYMENT_METHODS.map(m => <option key={m} value={m}>{t(m === 'bank_transfer' ? 'bankTransferShort' : m).toUpperCase()}</option>)}
               </select>
              </div>
             </div>
            </div>
-          </div>
 
-          <div className="p-8 bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] border border-slate-200 dark:border-slate-300 dark:border-slate-700 space-y-4">
-           <label className="label">{t('receiptAttachment')}</label>
-           <div className="relative group">
-            <input type="file" id="receipt-upload" className="hidden" accept="image/*,application/pdf" />
-            <label 
-             htmlFor="receipt-upload"
-             className="flex flex-col items-center justify-center gap-2 w-full py-6 border-2 border-dashed border-slate-300 dark:border-slate-300 dark:border-slate-700 rounded-3xl text-slate-500 hover:text-slate-900 dark:text-white hover:border-primary-500/50 transition-colors cursor-pointer bg-slate-900/20 group-hover:bg-primary-500/5"
-            >
-             <Package size={20} />
-             <span className="text-xs font-bold ">{t('uploadInvoice')}</span>
-            </label>
+           {/* Receipt Upload */}
+           <div className="p-8 bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] border border-slate-200 dark:border-slate-300 dark:border-slate-700 space-y-4">
+            <label className="label">{t('receiptAttachment')}</label>
+            <div className="relative group">
+             <input type="file" id="receipt-upload" className="hidden" accept="image/*,application/pdf" />
+             <label 
+              htmlFor="receipt-upload"
+              className="flex flex-col items-center justify-center gap-2 w-full py-6 border-2 border-dashed border-slate-300 dark:border-slate-300 dark:border-slate-700 rounded-3xl text-slate-500 hover:text-slate-900 dark:text-white hover:border-primary-500/50 transition-colors cursor-pointer bg-slate-900/20 group-hover:bg-primary-500/5"
+             >
+              <Package size={20} />
+              <span className="text-xs font-bold ">{t('uploadInvoice')}</span>
+             </label>
+            </div>
            </div>
           </div>
-         </div>
 
-         {/* Line Items */}
-         <div className="lg:col-span-8 space-y-8">
-          <div className="p-8 bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] border border-slate-200 dark:border-slate-300 dark:border-slate-700 space-y-6">
-           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 ">{t('manifestItems')}</h3>
-            <button type="button" onClick={addLineItem} className="px-4 py-2 bg-blue-100 dark:bg-blue-900/30 hover:bg-primary-600/20 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400 transition-colors flex items-center gap-2">
-             <Plus size={14}/> {t('addRow')}
-            </button>
-           </div>
+          {/* Right Column - Manifest Items */}
+          <div className="lg:col-span-8 space-y-8">
+           <div className="p-8 bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] border border-slate-200 dark:border-slate-300 dark:border-slate-700 space-y-6">
+            <div className="flex items-center justify-between">
+             <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-2">
+              <Package size={14}/> {t('manifestItems')}
+             </h3>
+             <button type="button" onClick={addLineItem} className="px-4 py-2 bg-blue-100 dark:bg-blue-900/30 hover:bg-primary-600/20 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400 transition-colors flex items-center gap-2">
+              <Plus size={14}/> {t('addRow')}
+             </button>
+            </div>
 
-           <div className="space-y-4">
-            {form.items.map((item, idx) => (
-             <div key={idx} className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-200 dark:bg-slate-700 border border-slate-200 dark:border-slate-300 dark:border-slate-700 relative group">
-              <div className="grid grid-cols-12 gap-4 items-end">
-               <div className="col-span-12 sm:col-span-5">
-                <label className="label">{t('descSelect')}</label>
-                <div className="flex gap-2">
-                 <input className="input-field py-2" placeholder={t('descSelect')} value={item.description} onChange={e => setItem(idx, 'description', e.target.value)}/>
-                 <select className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-300 dark:border-slate-700 rounded-xl px-2 text-xs text-slate-400 w-24"
-                  onChange={(e) => {
-                   if (!e.target.value) return;
-                   const itm = JSON.parse(e.target.value);
-                   setItem(idx, 'description', itm.name || itm.model);
-                   setItem(idx, 'existing_id', itm.id);
-                  }}>
-                   <option value="">{t('inventoryTitle')}</option>
-                  <optgroup label={t('sparePartsGroup')}>
-                   {inventory.spareParts.map(p => <option key={p.id} value={JSON.stringify(p)}>{p.name}</option>)}
-                  </optgroup>
-                  <optgroup label={t('vehiclesGroup')}>
-                   {inventory.vehicles.map(v => <option key={v.id} value={JSON.stringify(v)}>{v.model}</option>)}
-                  </optgroup>
-                 </select>
+            <div className="space-y-3">
+             {form.items.map((item, idx) => (
+              <div key={idx} className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-200 dark:bg-slate-700 border border-slate-200 dark:border-slate-300 dark:border-slate-700">
+               <div className="grid grid-cols-12 gap-3 items-end">
+                <div className="col-span-12 sm:col-span-5">
+                 <label className="label text-[10px]">{t('descSelect')}</label>
+                 <div className="flex gap-1.5">
+                  <input className="input-field py-2 text-sm flex-1 min-w-0" placeholder={t('descSelect')} value={item.description} onChange={e => setItem(idx, 'description', e.target.value)}/>
+                  <select className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-300 dark:border-slate-700 rounded-xl px-2 py-2 text-xs text-slate-400 w-28 shrink-0"
+                   onChange={(e) => {
+                    if (!e.target.value) return;
+                    const itm = JSON.parse(e.target.value);
+                    setItem(idx, 'description', itm.name || itm.model);
+                    setItem(idx, 'existing_id', itm.id);
+                   }}>
+                    <option value="">{t('inventoryTitle')}</option>
+                   <optgroup label={t('sparePartsGroup')}>
+                    {uniqueSpareParts.map(p => <option key={p.id} value={JSON.stringify(p)}>{p.name}</option>)}
+                   </optgroup>
+                   <optgroup label={t('vehiclesGroup')}>
+                    {uniqueVehicles.map(v => <option key={v.id} value={JSON.stringify(v)}>{v.model}</option>)}
+                   </optgroup>
+                  </select>
+                 </div>
+                </div>
+                <div className="col-span-4 sm:col-span-2">
+                 <label className="label text-[10px]">{t('qty')}</label>
+                 <input type="number" className="input-field py-2 text-sm" placeholder="1" min="1" value={item.quantity} onChange={e => setItem(idx, 'quantity', e.target.value)}/>
+                </div>
+                <div className="col-span-5 sm:col-span-3">
+                 <label className="label text-[10px]">{t('unitCost')}</label>
+                 <input type="number" className="input-field py-2 text-sm" placeholder="0.00" value={item.unit_cost} onChange={e => setItem(idx, 'unit_cost', e.target.value)}/>
+                </div>
+                <div className="col-span-3 sm:col-span-2 flex items-end justify-end gap-1 pb-0.5">
+                 <div className="text-right mr-2 hidden sm:block">
+                  <p className="text-[10px] text-slate-500 font-medium">{t('subtotal')}</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">ETB {(parseFloat(item.quantity || 0) * parseFloat(item.unit_cost || 0)).toLocaleString()}</p>
+                 </div>
+                 {form.items.length > 1 && (
+                  <button type="button" onClick={() => removeLineItem(idx)} className="p-2 text-rose-400 hover:text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:bg-rose-900/30 rounded-xl transition-colors"><Trash2 size={15}/></button>
+                 )}
                 </div>
                </div>
-               <div className="col-span-4 sm:col-span-2">
-                <label className="label">{t('qty')}</label>
-                <input type="number" className="input-field py-2" placeholder="1" min="1" value={item.quantity} onChange={e => setItem(idx, 'quantity', e.target.value)}/>
-               </div>
-               <div className="col-span-8 sm:col-span-4">
-                <label className="label">{t('unitCost')}</label>
-                <input type="number" className="input-field py-2" placeholder="0.00" value={item.unit_cost} onChange={e => setItem(idx, 'unit_cost', e.target.value)}/>
-               </div>
-               <div className="col-span-12 sm:col-span-1 flex justify-end">
-                {form.items.length > 1 && (
-                 <button type="button" onClick={() => removeLineItem(idx)} className="p-2 text-rose-500/50 hover:text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:bg-rose-900/30 rounded-xl transition-colors"><Trash2 size={16}/></button>
-                )}
-               </div>
               </div>
-             </div>
-            ))}
+             ))}
+            </div>
            </div>
-          </div>
 
           <div className="p-8 bg-blue-50 dark:bg-blue-900/20 rounded-[2.5rem] border border-blue-100 dark:border-blue-800 flex items-center justify-between">
            <div>

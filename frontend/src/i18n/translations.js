@@ -189,6 +189,7 @@ export const translations = {
     vehicleSpecs: 'Vehicle Specs',
     deposit: 'Deposit',
     remark: 'Remark',
+    notes: 'Notes',
     fromBranch: 'From',
     toBranch: 'To',
     item: 'Item',
@@ -278,6 +279,8 @@ export const translations = {
     manifestItems: 'Manifest Items',
     totalUnits: 'Total Units',
     enterpriseProcurementSystem: 'Enterprise Procurement System',
+    supplierInfo: 'Supplier Information',
+    transactionDetails: 'Transaction Details',
 
     // Expenses UI
     deleteExpenseConfirm: 'Delete this expense?',
@@ -584,6 +587,7 @@ export const translations = {
     vehicleSpecs: 'የተሽከርካሪ ዝርዝር',
     deposit: 'ቅድመ ክፍያ',
     remark: 'ማስታወሻ',
+    notes: 'ማስታወሻ',
     fromBranch: 'ከ (መነሻ)',
     toBranch: 'ወደ (መድረሻ)',
     item: 'ዕቃ',
@@ -673,6 +677,8 @@ export const translations = {
     manifestItems: 'የዕቃ ዝርዝር',
     totalUnits: 'ጠቅላላ ብዛት',
     enterpriseProcurementSystem: 'የኢንተርፕራይዝ ግዢ ሥርዓት',
+    supplierInfo: 'የአቅራቢ መረጃ',
+    transactionDetails: 'የግብይት ዝርዝሮች',
 
     // Expenses UI
     deleteExpenseConfirm: 'ይህን ወጪ መሰረዝ ይፈልጋሉ?',
@@ -977,6 +983,7 @@ export const translations = {
     vehicleSpecs: 'ዝርዝር ተሽከርካሪ',
     deposit: 'ቅድመ-ክፍሊት',
     remark: 'ማስታወሻ',
+    notes: 'ማስታወሻ',
     fromBranch: 'ካብ (መበገሲ)',
     toBranch: 'ናብ (መዕረፊ)',
     item: 'ኣቕሓ',
@@ -1066,6 +1073,8 @@ export const translations = {
     manifestItems: 'ዝርዝር ኣቑሑት',
     totalUnits: 'ጠቕላላ ብዝሒ',
     enterpriseProcurementSystem: 'ስርዓት ዕድጊ ትካል',
+    supplierInfo: 'ሓበሬታ ኣቕራቢ',
+    transactionDetails: 'ዝርዝራት ትራንዛክሽን',
 
     // Expenses UI
     deleteExpenseConfirm: 'ነዚ ወጻኢ ክትስርዝዎ ርግጸኛ ዲኹም?',

@@ -19,7 +19,7 @@ def import_excel_vehicles():
         wb = openpyxl.load_workbook(excel_path)
         ws = wb.active
         headers = [cell.value for cell in ws[1]]
-        col_map = {'Serial': 'vin', 'Model': 'model', 'Motor/Engine No': 'engine_number', 'Price': 'selling_price', 'cost': 'cost_price'}
+        col_map = {'Serial/VIN': 'vin', 'Model': 'model', 'Motor/Engine No': 'engine_number', 'Price': 'selling_price', 'cost': 'cost_price'}
         col_idx = {}
         for label, key in col_map.items():
             try:

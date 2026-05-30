@@ -16,7 +16,7 @@ def import_vehicles():
 
     headers = [cell.value for cell in ws[1]]
     col_map = {
-        'Serial': 'vin',
+        'Serial/VIN': 'vin',
         'Model': 'model',
         'Motor/Engine No': 'engine_number',
         'Price': 'selling_price',

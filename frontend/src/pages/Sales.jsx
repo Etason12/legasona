@@ -78,6 +78,8 @@ const Sales = ({ user }) => {
   const [partQuantity, setPartQuantity]           = useState(1)
   // Add-payment form state (replaces DOM getElementById hacks)
   const [addPayMethod, setAddPayMethod]           = useState('cash')
+  const [addPayReceipt, setAddPayReceipt]           = useState(null)
+  const addPayReceiptRef = useRef(null)
   const { t } = useLanguage()
   const receiptRef = useRef(null)
   const sortedVehicles = useMemo(() => [...availableVehicles].sort((a, b) => a.model.localeCompare(b.model)), [availableVehicles])
@@ -97,6 +99,15 @@ const Sales = ({ user }) => {
       setPayments([{ id: 1, method: 'cash', amount: '', bank: '', reference: '', accountHolder: '' }])
     }
   }, [showNewSale])
+
+  useEffect(() => {
+    if (!showAddPayment) {
+      if (addPayReceiptRef.current) {
+        URL.revokeObjectURL(addPayReceiptRef.current)
+        addPayReceiptRef.current = null
+      }
+    }
+  }, [showAddPayment])
 
   const handleVehicleSelect = (vehicleId) => {
     setSelectedVehicleId(vehicleId)
@@ -309,10 +320,12 @@ const Sales = ({ user }) => {
       await api.post(`/sales/${selectedSale.id}/add-payment`, formData)
       toast.success('Payment recorded successfully')
       setShowAddPayment(false)
+      setAddPayReceipt(null)
       setAddPayMethod('cash')
       fetchData()
-    } catch {
-      toast.error('Failed to add payment')
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.response?.data?.msg || err?.message || 'Failed to add payment'
+      toast.error(msg)
     } finally {
       setSubmitting(false)
     }
@@ -510,7 +523,7 @@ const Sales = ({ user }) => {
                             <Eye size={18} />
                           </button>
                           {sale.status === 'pending' && (
-                            <button onClick={() => { setSelectedSale(sale); setShowAddPayment(true) }} className="p-2.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl border border-amber-200 dark:border-amber-800 transition-colors" title="Collect Payment">
+                            <button onClick={() => { setSelectedSale(sale); setAddPayReceipt(null); setShowAddPayment(true) }} className="p-2.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl border border-amber-200 dark:border-amber-800 transition-colors" title="Collect Payment">
                               <CreditCard size={18} />
                             </button>
                           )}
@@ -707,14 +720,27 @@ const Sales = ({ user }) => {
                         </div>
                       </div>
                       <div>
-                        <label className="label">{t('bankReceiptImage')}</label>
-                        <div className="relative">
-                          <input type="file" name="receipt" accept="image/*" className="hidden" id="receipt-upload-add" />
-                          <label htmlFor="receipt-upload-add" className="flex items-center justify-center gap-3 w-full py-4 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-blue-500 hover:text-blue-600 transition-colors cursor-pointer">
+                         <label className="label">{t('bankReceiptImage')}</label>
+                         <div className="relative">
+                           <input type="file" name="receipt" accept="image/*" className="hidden" id="receipt-upload-add" onChange={e => {
+                            if (e.target.files?.[0]) {
+                             const url = URL.createObjectURL(e.target.files[0])
+                             addPayReceiptRef.current = url
+                             setAddPayReceipt(url)
+                            } else { setAddPayReceipt(null) }
+                           }} />
+                           {addPayReceipt ? (
+                            <div className="flex items-center gap-4">
+                             <img src={addPayReceipt} alt="Preview" className="w-24 h-24 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shrink-0" />
+                             <button type="button" onClick={() => { URL.revokeObjectURL(addPayReceipt); addPayReceiptRef.current = null; document.getElementById('receipt-upload-add').value = ''; setAddPayReceipt(null) }} className="text-xs text-red-500 hover:text-red-700 font-medium">{t('remove')}</button>
+                            </div>
+                          ) : (
+                           <label htmlFor="receipt-upload-add" className="flex items-center justify-center gap-3 w-full py-4 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-blue-500 hover:text-blue-600 transition-colors cursor-pointer">
                             <Camera size={20} /><span className="text-sm font-medium">{t('selectImageFile')}</span>
-                          </label>
-                        </div>
-                      </div>
+                           </label>
+                          )}
+                         </div>
+                       </div>
                     </div>
                   )}
                 </div>

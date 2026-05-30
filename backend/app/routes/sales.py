@@ -1,4 +1,5 @@
 import json
+import logging
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.auth import admin_required, role_required
@@ -9,6 +10,7 @@ from app.models import Sale, Payment, Vehicle, SparePart, User, Customer, db
 from app.utils.logging import log_activity
 
 sales_bp = Blueprint('sales', __name__)
+logger = logging.getLogger(__name__)
 
 def _ensure_customer(data):
     """Create a Customer record if one doesn't exist for this phone number.
@@ -334,47 +336,52 @@ def add_payment(id):
     if sale.status == 'completed':
         return jsonify({'message': 'Sale already fully paid'}), 400
 
-    amount = float(request.form.get('amount', 0))
-    method = request.form.get('method', 'cash')
-    bank = request.form.get('bank', '')
-    account_holder = request.form.get('account_holder', '')
-    reference = request.form.get('reference', '')
+    try:
+        amount = float(request.form.get('amount', 0))
+        method = request.form.get('method', 'cash')
+        bank = request.form.get('bank', '')
+        account_holder = request.form.get('account_holder', '')
+        reference = request.form.get('reference', '')
 
-    receipt_data = compress_to_base64(request.files.get('receipt'))
+        receipt_data = compress_to_base64(request.files.get('receipt'))
 
-    if method == 'bank':
-        if not bank:
-            return jsonify({'message': 'Bank name is required for bank payments'}), 400
-        if not account_holder:
-            return jsonify({'message': 'Account holder is required for bank payments'}), 400
-        if not reference:
-            return jsonify({'message': 'Transaction reference is required for bank payments'}), 400
-        if Payment.query.filter(func.lower(Payment.transaction_reference) == func.lower(reference)).first():
-            return jsonify({'message': f'Transaction reference {reference} already exists'}), 400
+        if method == 'bank':
+            if not bank:
+                return jsonify({'message': 'Bank name is required for bank payments'}), 400
+            if not account_holder:
+                return jsonify({'message': 'Account holder is required for bank payments'}), 400
+            if not reference:
+                return jsonify({'message': 'Transaction reference is required for bank payments'}), 400
+            if Payment.query.filter(func.lower(Payment.transaction_reference) == func.lower(reference)).first():
+                return jsonify({'message': f'Transaction reference {reference} already exists'}), 400
 
-    new_payment = Payment(
-        sale_id=sale.id, payment_method=method, bank_name=bank.upper() if bank else '',
-        account_holder=account_holder.upper() if account_holder else '',
-        amount=amount, transaction_reference=reference.upper() if reference else '',
-        receipt_image=receipt_data
-    )
-    db.session.add(new_payment)
-    db.session.flush()  # flush so the new payment is included in the aggregate
+        new_payment = Payment(
+            sale_id=sale.id, payment_method=method, bank_name=bank.upper() if bank else '',
+            account_holder=account_holder.upper() if account_holder else '',
+            amount=amount, transaction_reference=reference.upper() if reference else '',
+            receipt_image=receipt_data
+        )
+        db.session.add(new_payment)
+        db.session.flush()
 
-    total_paid = db.session.query(func.sum(Payment.amount)).filter(Payment.sale_id == sale.id).scalar() or 0
+        total_paid = db.session.query(func.sum(Payment.amount)).filter(Payment.sale_id == sale.id).scalar() or 0
 
-    if total_paid >= sale.total_amount:
-        sale.status = 'completed'
-        if sale.sale_type == 'vehicle':
-            v = Vehicle.query.get(sale.item_id)
-            if v:
-                v.status = 'sold'
+        if total_paid >= sale.total_amount:
+            sale.status = 'completed'
+            if sale.sale_type == 'vehicle':
+                v = Vehicle.query.get(sale.item_id)
+                if v:
+                    v.status = 'sold'
 
-    user_id = get_jwt_identity()
-    log_activity(user_id, 'ADD_PAYMENT', f"Added ETB {amount} to sale {sale.sale_number}")
+        user_id = get_jwt_identity()
+        log_activity(user_id, 'ADD_PAYMENT', f"Added ETB {amount} to sale {sale.sale_number}")
 
-    db.session.commit()
-    return jsonify({'message': 'Payment added', 'status': sale.status}), 200
+        db.session.commit()
+        return jsonify({'message': 'Payment added', 'status': sale.status}), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"add_payment failed for sale {id}: {e}", exc_info=True)
+        return jsonify({'message': f'Server error: {str(e)}'}), 500
 
 # ── Cancel / Delete Sale ─────────────────────────────────────────────
 @sales_bp.route('/<int:id>', methods=['PATCH'])
@@ -419,7 +426,8 @@ def cancel_sale(id):
         v = Vehicle.query.get(sale.item_id)
         if v:
             v.status = 'available'
-    Payment.query.filter_by(sale_id=sale.id).delete()
+    for p in Payment.query.filter_by(sale_id=sale.id).all():
+        db.session.delete(p)
     db.session.commit()
     return jsonify({'message': 'Sale cancelled'}), 200
 

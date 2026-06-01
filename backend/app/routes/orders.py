@@ -98,6 +98,7 @@ def get_orders():
         'deposit_transaction_reference': o.deposit_transaction_reference,
         'order_date': o.order_date.isoformat(),
         'remark': o.remark,
+        'branch_id': o.branch_id,
         'branch_name': branches.get(o.branch_id)
     } for o in orders]), 200
 

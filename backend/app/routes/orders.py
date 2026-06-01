@@ -5,7 +5,7 @@ from app.utils.auth import role_required
 
 orders_bp = Blueprint('orders', __name__)
 
-def _ensure_customer(data):
+def _ensure_customer(data, branch_id):
     customer_id = data.get('customer_id')
     name = (data.get('customer_name') or '').strip().title()
     phone = (data.get('customer_phone') or '').strip()
@@ -14,7 +14,7 @@ def _ensure_customer(data):
         if existing:
             customer_id = existing.id
         else:
-            customer = Customer(full_name=name, phone=phone, branch_id=data.get('branch_id'))
+            customer = Customer(full_name=name, phone=phone, branch_id=branch_id)
             db.session.add(customer)
             db.session.flush()
             customer_id = customer.id
@@ -25,10 +25,21 @@ def _ensure_customer(data):
 @role_required('admin', 'manager', 'cashier')
 def create_order():
     data = request.get_json()
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    # Determine branch_id
+    if current_user.branch_id:
+        branch_id = current_user.branch_id
+    else:
+        branch_id = data.get('branch_id')
+        if not branch_id:
+            return jsonify({'message': 'Branch ID is required'}), 400
+
     last_order = Order.query.order_by(Order.sequence_number.desc()).first()
     next_seq   = (last_order.sequence_number + 1) if last_order else 1
 
-    customer_id = _ensure_customer(data) or data.get('customer_id') or None
+    customer_id = _ensure_customer(data, branch_id) or data.get('customer_id') or None
 
     deposit_method = data.get('deposit_method', 'cash')
     new_order = Order(
@@ -39,7 +50,7 @@ def create_order():
         sequence_number=next_seq,
         deposit_amount=data.get('deposit_amount', 0),
         deposit_method=deposit_method,
-        branch_id=data.get('branch_id'),
+        branch_id=branch_id,
         remark=data.get('remark')
     )
     if deposit_method == 'bank':
@@ -55,9 +66,18 @@ def create_order():
 def get_orders():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
+    branch_id = request.args.get('branch_id')
+    
     query = Order.query
-    if current_user.branch_id:
+    
+    # If the user is not an admin, enforce filtering by their branch.
+    # Admin can filter by branch_id if provided.
+    if current_user.role != 'admin' and current_user.branch_id:
         query = query.filter(Order.branch_id == current_user.branch_id)
+    elif branch_id:
+        query = query.filter(Order.branch_id == branch_id)
+    # If admin and no branch_id provided, show all orders.
+        
     orders = query.order_by(Order.sequence_number).all()
     
     branch_ids = {o.branch_id for o in orders if o.branch_id}

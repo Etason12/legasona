@@ -23,6 +23,7 @@ const Expenses = ({ user }) => {
   const [budgetSaving, setBudgetSaving] = useState(false)
   const [expenseUsers, setExpenseUsers] = useState([])
   const [userFilter, setUserFilter] = useState('')
+  const [branches, setBranches] = useState([])
   const { t } = useLanguage()
   const filteredExpenses = useMemo(() => expenses.filter(e => {
    if (categoryFilter && e.category !== categoryFilter) return false
@@ -34,7 +35,7 @@ const Expenses = ({ user }) => {
   const categories = ['Operational', 'Maintenance', 'Inventory Acquisition', 'Utilities', 'Rental', 'Other']
 
   useEffect(() => {
-   Promise.all([fetchExpenses(), fetchBudget(), fetchExpenseUsers()])
+   Promise.all([fetchExpenses(), fetchBudget(), fetchExpenseUsers(), fetchBranches()])
   }, [startDate, endDate, userFilter])
 
   useEffect(() => {
@@ -75,6 +76,18 @@ const Expenses = ({ user }) => {
    } catch { /* ignore */ }
   }
 
+  const fetchBranches = async () => {
+    try {
+      const res = await api.get('/branches')
+      const sorted = res.data.sort((a, b) => {
+        if (a.name === 'Headquarters') return -1
+        if (b.name === 'Headquarters') return 1
+        return a.name.localeCompare(b.name)
+      })
+      setBranches(sorted)
+    } catch { /* ignore */ }
+  }
+
  const handleDelete = async (id) => {
   if (!window.confirm(t('deleteExpenseConfirm'))) return
   try {
@@ -87,12 +100,14 @@ const Expenses = ({ user }) => {
   }
  }
 
- const handleSubmit = async (e) => {
-  e.preventDefault()
-  setSubmitting(true)
-  const formData = new FormData(e.target)
-  formData.append('branch_id', user?.branch_id || 1)
-  formData.append('user_id', user?.id || 1)
+  const handleSubmit = async (e) => {
+   e.preventDefault()
+   setSubmitting(true)
+   const formData = new FormData(e.target)
+   const hqBranch = branches.find(b => b.name === 'Headquarters')
+   const defaultBranchId = hqBranch?.id || user?.branch_id || branches?.[0]?.id
+   formData.append('branch_id', user?.branch_id || defaultBranchId)
+   formData.append('user_id', user?.id || 1)
 
   try {
     await api.post('/expenses', formData)

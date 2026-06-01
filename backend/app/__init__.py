@@ -86,6 +86,15 @@ def create_app(config_class=Config):
         except Exception:
             db.session.rollback()
 
+        # Ensure Headquarters branch exists
+        try:
+            if not Branch.query.filter_by(name='Headquarters').first():
+                hq = Branch(name='Headquarters', location='Head Office')
+                db.session.add(hq)
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+
         db.session.commit()
         if not Branch.query.filter_by(name='Shire').first():
             shire = Branch(name='Shire', location='Shire, Tigray')
@@ -96,9 +105,16 @@ def create_app(config_class=Config):
             shire = Branch.query.filter_by(name='Shire').first()
             mekelle = Branch.query.filter_by(name='Mekelle').first()
         if not User.query.filter_by(username='admin').first():
-            admin = User(username='admin', role='admin')
+            hq = Branch.query.filter_by(name='Headquarters').first()
+            admin = User(username='admin', role='admin', branch_id=hq.id if hq else None)
             admin.set_password('admin123')
             db.session.add(admin)
+        else:
+            # Ensure existing admin gets HQ as default branch
+            hq = Branch.query.filter_by(name='Headquarters').first()
+            admin = User.query.filter_by(username='admin').first()
+            if hq and admin.role == 'admin' and not admin.branch_id:
+                admin.branch_id = hq.id
         if not Vehicle.query.first():
             vehicles = [
                 Vehicle(vin='HILUX-4WD-001', type='4-wheel', model='Toyota Hilux 4x4 2025', chassis_number='HILUX-4WD-001', engine_number='1KD-FTV-88421', branch_id=shire.id, status='available', selling_price=4500000, cost_price=3200000, color='White', power_type='non-electric'),

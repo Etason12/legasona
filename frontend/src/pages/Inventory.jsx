@@ -40,10 +40,11 @@ const ItemModal = ({ mode, item, type, onClose, onSaved, branches }) => {
   const [saving, setSaving]   = useState(false)
   const user = JSON.parse(localStorage.getItem('user'))
   const { t } = useLanguage()
+  const defaultBranch = branches?.find(b => b.name === 'Headquarters')?.id || user?.branch_id || branches?.[0]?.id
   const [form, setForm] = useState(
     type === 'vehicles'
-      ? { vin: '', model: '', type: '4-wheel', power_type: 'non-electric', color: '', chassis_number: '', engine_number: '', cost_price: '', selling_price: '', branch_id: item?.branch_id || (user?.branch_id || 1), status: 'available', ...item, chassis_number: item?.vin || item?.chassis_number || '' }
-      : { part_number: '', name: '', category: '', quantity: '', unit_price: '', cost_price: '', branch_id: item?.branch_id || (user?.branch_id || 1), ...item }
+      ? { vin: '', model: '', type: '4-wheel', power_type: 'non-electric', color: '', chassis_number: '', engine_number: '', cost_price: '', selling_price: '', branch_id: item?.branch_id || defaultBranch, status: 'available', ...item, chassis_number: item?.vin || item?.chassis_number || '' }
+      : { part_number: '', name: '', category: '', quantity: '', unit_price: '', cost_price: '', branch_id: item?.branch_id || defaultBranch, ...item }
   )
 
   const set = (k, v) => setForm(f => {

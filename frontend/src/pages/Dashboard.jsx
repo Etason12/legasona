@@ -58,7 +58,7 @@ const Dashboard = ({ user }) => {
       const branchId = user?.role?.toLowerCase() === 'admin' ? '' : (user?.branch_id || '')
       const [statsRes, activityRes] = await Promise.all([
         api.get(`/reports/dashboard?branch_id=${branchId}`),
-        api.get(`/reports/activity?limit=6&branch_id=${branchId}`)
+        api.get('/reports/activity?limit=6')
       ])
       setData(statsRes.data)
       setActivity(activityRes.data)

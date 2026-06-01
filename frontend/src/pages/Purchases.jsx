@@ -76,9 +76,10 @@ const Purchases = ({ user }) => {
    ])
    setInventory({ vehicles: vRes.data, spareParts: sRes.data })
    setBranches(bRes.data)
-   if (bRes.data.length > 0 && !form.branch_id) {
-    setForm(f => ({ ...f, branch_id: bRes.data[0].id }))
-   }
+    if (bRes.data.length > 0 && !form.branch_id) {
+      const defaultId = user?.branch_id || bRes.data[0].id
+      setForm(f => ({ ...f, branch_id: defaultId }))
+     }
   } catch {}
  }
 
@@ -130,7 +131,7 @@ const Purchases = ({ user }) => {
       await api.post('/purchases', formData)
       toast.success('Purchase recorded successfully')
       setShowModal(false)
-      setForm({ supplier_name: '', item_type: 'vehicle', payment_method: 'cash', branch_id: 1, items: [{ description: '', quantity: 1, unit_cost: '', existing_id: null }] })
+       setForm({ supplier_name: '', item_type: 'vehicle', payment_method: 'cash', branch_id: user?.branch_id || branches?.[0]?.id || 1, items: [{ description: '', quantity: 1, unit_cost: '', existing_id: null }] })
       setPreview(null)
       setSelectedFile(null)
       fetchPurchases()
@@ -227,7 +228,7 @@ const Purchases = ({ user }) => {
        <div className="flex items-center gap-4">
         <div className="text-right">
          <p className="text-slate-900 dark:text-white font-bold">ETB {parseFloat(pu.total_amount).toLocaleString()}</p>
-         <p className="text-xs text-slate-500 uppercase">{pu.branch_id === 1 ? 'Shire' : 'Mekelle'}</p>
+          <p className="text-xs text-slate-500 uppercase">{branches.find(b => b.id === pu.branch_id)?.name || `Branch ${pu.branch_id}`}</p>
         </div>
         {pu.receipt_attachment && (
           <button 

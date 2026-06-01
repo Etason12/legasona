@@ -41,8 +41,7 @@ const Activity = ({ user }) => {
   const fetchActivity = async (p) => {
     setLoading(true)
     try {
-      const branchId = user?.role?.toLowerCase() === 'admin' ? '' : (user?.branch_id || '')
-      const res = await api.get(`/reports/activity?page=${p}&per_page=${perPage}&branch_id=${branchId}`)
+      const res = await api.get(`/reports/activity?page=${p}&per_page=${perPage}`)
       setItems(res.data.items)
       setTotal(res.data.total)
       setPages(res.data.pages)

@@ -286,10 +286,16 @@ def get_inventory_distribution():
 @jwt_required()
 def get_activity_log():
     """Recent activity log for the dashboard feed."""
-    branch_id = request.args.get('branch_id')
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+
     limit     = int(request.args.get('limit', 10))
 
     query = ActivityLog.query.order_by(ActivityLog.timestamp.desc())
+
+    # Non-admin users only see their own activities
+    if current_user.role != 'admin':
+        query = query.filter(ActivityLog.user_id == current_user_id)
 
     has_page = request.args.get('page')
     if has_page:

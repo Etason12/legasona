@@ -135,6 +135,8 @@ def fulfill_order(id):
 def update_order(id):
     order = Order.query.get_or_404(id)
     data = request.get_json()
+    current_user = User.query.get(get_jwt_identity())
+    
     if 'customer_name' in data:
         order.customer_name = (data['customer_name'] or '').strip().title()
     if 'customer_phone' in data:
@@ -147,9 +149,10 @@ def update_order(id):
         order.deposit_method = data['deposit_method']
     if 'remark' in data:
         order.remark = data['remark']
-    # Explicitly prevent branch_id update
-    if 'branch_id' in data:
-        return jsonify({'message': 'Branch cannot be updated'}), 400
+    # Admin can change the branch of an existing order
+    if 'branch_id' in data and current_user.role == 'admin':
+        order.branch_id = data['branch_id']
+        
     if data.get('deposit_method') == 'bank':
         order.deposit_bank = data.get('deposit_bank', order.deposit_bank or '').upper()
         order.deposit_account_holder = data.get('deposit_account_holder', order.deposit_account_holder or '').upper()

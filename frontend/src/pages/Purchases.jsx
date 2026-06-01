@@ -261,10 +261,10 @@ const Purchases = ({ user }) => {
       <div className="modal-content max-w-5xl">
        <div className="modal-header">
         <div>
-         <h2 className="text-xl font-bold text-slate-900 dark:text-white er">{t('recordNewPurchase')}</h2>
-         <p className="text-xs font-medium text-slate-500 mt-0.5">{t('enterpriseProcurementSystem')}</p>
-        </div>
-        <button onClick={() => setShowModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20}/></button>
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white er">{t('recordNewPurchase')}</h2>
+          <p className="text-xs font-medium text-neutral-500 mt-0.5">{t('enterpriseProcurementSystem')}</p>
+         </div>
+         <button onClick={() => setShowModal(false)} className="p-2 bg-neutral-100 dark:bg-neutral-800 rounded-2xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700"><X size={20}/></button>
        </div>
 
        <div className="modal-body custom-scrollbar">
@@ -276,8 +276,8 @@ const Purchases = ({ user }) => {
            <input type="file" id="receipt-upload" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*,application/pdf" />
           </div>
           <div className="text-center md:text-left">
-           <h4 className="text-slate-900 dark:text-white font-bold">{t('receiptAttachment')}</h4>
-           <p className="text-xs text-slate-500 mt-1 max-w-xs leading-relaxed">{t('uploadInvoice')}</p>
+            <h4 className="text-neutral-900 dark:text-white font-bold">{t('receiptAttachment')}</h4>
+            <p className="text-xs text-neutral-500 mt-1 max-w-xs leading-relaxed">{t('uploadInvoice')}</p>
            <label htmlFor="receipt-upload" className="mt-4 inline-block cursor-pointer px-5 py-2.5 bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400 transition-colors">
             {t('uploadInvoice')}
            </label>
@@ -334,7 +334,7 @@ const Purchases = ({ user }) => {
                <label className="label text-[10px]">{t('descSelect')}</label>
                <div className="flex gap-1.5">
                 <input className="input-field py-2 text-sm flex-1 min-w-0" placeholder={t('descSelect')} value={item.description} onChange={e => setItem(idx, 'description', e.target.value)}/>
-                <select className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl px-2 py-2 text-xs text-slate-400 w-28 shrink-0"
+                 <select className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl px-2 py-2 text-xs text-neutral-400 w-28 shrink-0"
                  onChange={(e) => {
                   if (!e.target.value) return;
                   const itm = JSON.parse(e.target.value);
@@ -361,8 +361,8 @@ const Purchases = ({ user }) => {
               </div>
               <div className="col-span-3 sm:col-span-2 flex items-end justify-end gap-1 pb-0.5">
                <div className="text-right mr-2 hidden sm:block">
-                <p className="text-[10px] text-slate-500 font-medium">{t('subtotal')}</p>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">ETB {(parseFloat(item.quantity || 0) * parseFloat(item.unit_cost || 0)).toLocaleString()}</p>
+                 <p className="text-[10px] text-neutral-500 font-medium">{t('subtotal')}</p>
+                 <p className="text-sm font-bold text-neutral-900 dark:text-white">ETB {(parseFloat(item.quantity || 0) * parseFloat(item.unit_cost || 0)).toLocaleString()}</p>
                </div>
                {form.items.length > 1 && (
                 <button type="button" onClick={() => removeLineItem(idx)} className="p-2 text-rose-400 hover:text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:bg-rose-900/30 rounded-xl transition-colors"><Trash2 size={15}/></button>
@@ -377,11 +377,11 @@ const Purchases = ({ user }) => {
          {/* Summary */}
          <div className="p-8 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
           <div>
-           <p className="text-xs font-bold text-slate-500 ">{t('totalAmount')}</p>
-           <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2 tracking-tighter">ETB {lineTotal.toLocaleString()}</p>
+            <p className="text-xs font-bold text-neutral-500 ">{t('totalAmount')}</p>
+            <p className="text-3xl font-bold text-neutral-900 dark:text-white mt-2 tracking-tighter">ETB {lineTotal.toLocaleString()}</p>
           </div>
           <div className="text-right">
-           <p className="text-xs font-bold text-slate-500 ">{t('totalUnits')}</p>
+            <p className="text-xs font-bold text-neutral-500 ">{t('totalUnits')}</p>
            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-2">{form.items.reduce((s, i) => s + (parseInt(i.quantity) || 0), 0)}</p>
           </div>
          </div>
@@ -401,21 +401,21 @@ const Purchases = ({ user }) => {
 
    {/* Image Preview Modal */}
    {previewImage && (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/90 dark:bg-slate-950/90 " onClick={() => setPreviewImage(null)}>
-     <div className="relative max-w-4xl w-full" onClick={e => e.stopPropagation()}>
-      <button 
-       onClick={() => setPreviewImage(null)}
-       className="absolute -top-12 right-0 p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-900 dark:text-white hover:bg-slate-800 transition-colors"
-      >
-       <X size={24} />
-      </button>
-      <img 
-       src={previewImage} 
-       alt="Receipt Preview" 
-       className="w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-slate-300 dark:border-slate-300 dark:border-slate-700"
-      />
+     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-neutral-900/90 dark:bg-neutral-950/90 " onClick={() => setPreviewImage(null)}>
+      <div className="relative max-w-4xl w-full" onClick={e => e.stopPropagation()}>
+       <button 
+        onClick={() => setPreviewImage(null)}
+        className="absolute -top-12 right-0 p-2 bg-neutral-100 dark:bg-neutral-800 rounded-full text-neutral-900 dark:text-white hover:bg-neutral-800 transition-colors"
+       >
+        <X size={24} />
+       </button>
+       <img 
+        src={previewImage} 
+        alt="Receipt Preview" 
+        className="w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-neutral-300 dark:border-neutral-700"
+       />
+      </div>
      </div>
-    </div>
    )}
   </div>
  )

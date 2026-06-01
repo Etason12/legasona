@@ -169,10 +169,10 @@ const Transfers = ({ user }) => {
       <div className="modal-content max-w-xl">
        <div className="modal-header">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('requestTransfer')}</h2>
-          <p className="text-xs font-medium text-slate-500 mt-0.5">{t('interBranchLogistics')}</p>
-        </div>
-        <button onClick={() => setShowNewRequest(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700">
+           <h2 className="text-xl font-bold text-neutral-900 dark:text-white">{t('requestTransfer')}</h2>
+           <p className="text-xs font-medium text-neutral-500 mt-0.5">{t('interBranchLogistics')}</p>
+         </div>
+         <button onClick={() => setShowNewRequest(false)} className="p-2 bg-neutral-100 dark:bg-neutral-800 rounded-2xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700">
          <X size={20} />
         </button>
        </div>

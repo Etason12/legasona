@@ -225,19 +225,19 @@ const Expenses = ({ user }) => {
       <div className="modal-content max-w-2xl">
        <div className="modal-header">
         <div>
-         <h2 className="text-xl font-bold text-slate-900 dark:text-white er">{t('recordExpense')}</h2>
-         <p className="text-xs font-medium text-slate-500 mt-0.5">{t('financialOpsMgmt')}</p>
-        </div>
-        <button onClick={() => setShowAddModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20}/></button>
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white er">{t('recordExpense')}</h2>
+          <p className="text-xs font-medium text-neutral-500 mt-0.5">{t('financialOpsMgmt')}</p>
+         </div>
+         <button onClick={() => setShowAddModal(false)} className="p-2 bg-neutral-100 dark:bg-neutral-800 rounded-2xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700"><X size={20}/></button>
        </div>
 
       <div className="modal-body custom-scrollbar">
        <form id="expense-form" onSubmit={handleSubmit} className="space-y-8">
-        <div className="p-8 bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] border border-slate-200 dark:border-slate-300 dark:border-slate-700 space-y-6">
+         <div className="p-8 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-6">
          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
            <label className="label">{t('category')}</label>
-            <select name="category" className="input-field bg-slate-900" required>
+             <select name="category" className="input-field bg-neutral-900" required>
              <option value="Operational">{t('operational')}</option>
              <option value="Maintenance">{t('maintenance')}</option>
              <option value="Inventory Acquisition">{t('inventoryAcquisition')}</option>
@@ -249,7 +249,7 @@ const Expenses = ({ user }) => {
           <div>
            <label className="label">{t('amount')} (ETB)</label>
            <div className="relative group">
-            <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-600 dark:text-blue-400 transition-colors" size={16} />
+             <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500 group-focus-within:text-blue-600 dark:text-blue-400 transition-colors" size={16} />
             <input type="number" name="amount" className="input-field pl-12" placeholder="0.00" required />
            </div>
           </div>
@@ -277,7 +277,7 @@ const Expenses = ({ user }) => {
            />
            <label 
             htmlFor="expense-receipt"
-            className="flex items-center justify-center gap-4 w-full py-8 border-2 border-dashed border-slate-300 dark:border-slate-300 dark:border-slate-700 rounded-3xl text-slate-500 hover:text-slate-900 dark:text-white hover:border-primary-500/50 transition-colors cursor-pointer bg-slate-900/20 group-hover:bg-primary-500/5"
+             className="flex items-center justify-center gap-4 w-full py-8 border-2 border-dashed border-neutral-300 dark:border-neutral-700 rounded-2xl text-neutral-500 hover:text-neutral-900 dark:text-white hover:border-primary-500/50 transition-colors cursor-pointer bg-neutral-900/20 group-hover:bg-primary-500/5"
            >
             <ImageIcon size={24} />
              <span className="text-sm font-bold ">{t('attachDigitalProof')}</span>
@@ -305,10 +305,10 @@ const Expenses = ({ user }) => {
       <div className="modal-content max-w-sm">
        <div className="modal-header">
         <div>
-         <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('setBudget')}</h2>
-         <p className="text-xs font-medium text-slate-500 mt-0.5">{t('monthlyBudget')}</p>
-        </div>
-        <button onClick={() => setShowBudgetModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20}/></button>
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white">{t('setBudget')}</h2>
+          <p className="text-xs font-medium text-neutral-500 mt-0.5">{t('monthlyBudget')}</p>
+         </div>
+         <button onClick={() => setShowBudgetModal(false)} className="p-2 bg-neutral-100 dark:bg-neutral-800 rounded-2xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700"><X size={20}/></button>
        </div>
        <form onSubmit={async (e) => {
         e.preventDefault()
@@ -344,21 +344,21 @@ const Expenses = ({ user }) => {
 
    {/* Image Preview Modal */}
    {previewImage && (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/90 dark:bg-slate-950/90 " onClick={() => setPreviewImage(null)}>
-     <div className="relative max-w-4xl w-full" onClick={e => e.stopPropagation()}>
-      <button 
-       onClick={() => setPreviewImage(null)}
-       className="absolute -top-12 right-0 p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-900 dark:text-white hover:bg-slate-800 transition-colors"
-      >
-       <X size={24} />
-      </button>
-      <img 
-       src={previewImage} 
-       alt="Receipt Preview" 
-       className="w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-slate-300 dark:border-slate-300 dark:border-slate-700"
-      />
+     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-neutral-900/90 dark:bg-neutral-950/90 " onClick={() => setPreviewImage(null)}>
+      <div className="relative max-w-4xl w-full" onClick={e => e.stopPropagation()}>
+       <button 
+        onClick={() => setPreviewImage(null)}
+        className="absolute -top-12 right-0 p-2 bg-neutral-100 dark:bg-neutral-800 rounded-full text-neutral-900 dark:text-white hover:bg-neutral-800 transition-colors"
+       >
+        <X size={24} />
+       </button>
+       <img 
+        src={previewImage} 
+        alt="Receipt Preview" 
+        className="w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-neutral-300 dark:border-neutral-700"
+       />
+      </div>
      </div>
-    </div>
    )}
   </div>
  )

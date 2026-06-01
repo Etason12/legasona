@@ -179,18 +179,32 @@ def get_payment_report():
 
     query = query.order_by(Payment.payment_date.desc()).all()
 
-    return jsonify([{
-        'customer_name':        sale.customer_name,
-        'payment_date':         payment.payment_date.isoformat(),
-        'sale_date':            sale.sale_date.isoformat() if sale.sale_date else None,
-        'created_at':           payment.created_at.isoformat() if payment.created_at else None,
-        'amount':               float(payment.amount),
-        'bank_name':            payment.bank_name.upper() if payment.bank_name else None,
-        'account_holder':       payment.account_holder.upper() if payment.account_holder else None,
-        'transaction_reference': payment.transaction_reference.upper() if payment.transaction_reference else None,
-        'payment_method':       payment.payment_method,
-        'sale_number':          sale.sale_number,
-    } for payment, sale in query]), 200
+    result = []
+    for payment, sale in query:
+        item_name = None
+        if sale.sale_type == 'vehicle':
+            v = db.session.get(Vehicle, sale.item_id)
+            if v:
+                item_name = v.model
+        else:
+            p = db.session.get(SparePart, sale.item_id)
+            if p:
+                item_name = p.name
+        result.append({
+            'customer_name':        sale.customer_name,
+            'payment_date':         payment.payment_date.isoformat(),
+            'sale_date':            sale.sale_date.isoformat() if sale.sale_date else None,
+            'created_at':           payment.created_at.isoformat() if payment.created_at else None,
+            'amount':               float(payment.amount),
+            'bank_name':            payment.bank_name.upper() if payment.bank_name else None,
+            'account_holder':       payment.account_holder.upper() if payment.account_holder else None,
+            'transaction_reference': payment.transaction_reference.upper() if payment.transaction_reference else None,
+            'payment_method':       payment.payment_method,
+            'sale_number':          sale.sale_number,
+            'sale_type':            sale.sale_type,
+            'item_name':            item_name,
+        })
+    return jsonify(result), 200
 
 
 @reports_bp.route('/branch-comparison', methods=['GET'])

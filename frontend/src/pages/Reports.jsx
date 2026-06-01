@@ -42,6 +42,7 @@ const Reports = ({ user }) => {
   const [startDate, setStartDate] = useState(monthStart)
   const [endDate, setEndDate] = useState(`${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`)
   const [loading, setLoading] = useState(true)
+  const [saleTypeFilter, setSaleTypeFilter] = useState('')
 
   useEffect(() => {
     fetchReportData()
@@ -107,22 +108,22 @@ const Reports = ({ user }) => {
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{t('reportsTitle')}</h1>
           <p className="text-slate-400 mt-1 font-medium">{t('reportsDesc')}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5">
-            <input type="date" value={startDate} onKeyDown={e => e.preventDefault()} onChange={e => setStartDate(e.target.value)}
-              className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-32" />
-            <span className="text-slate-400">—</span>
-            <input type="date" value={endDate} onKeyDown={e => e.preventDefault()} onChange={e => setEndDate(e.target.value)}
-              className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-32" />
-          </div>
-          <button
-            onClick={() => exportReportsToExcel(payments, data, profit, t)}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Download size={18} />
-            {t('exportFullAudit')}
-          </button>
-        </div>
+         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+           <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5">
+             <input type="date" value={startDate} onKeyDown={e => e.preventDefault()} onChange={e => setStartDate(e.target.value)}
+               className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-32" />
+             <span className="text-slate-400">—</span>
+             <input type="date" value={endDate} onKeyDown={e => e.preventDefault()} onChange={e => setEndDate(e.target.value)}
+               className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-32" />
+           </div>
+           <button
+             onClick={() => exportReportsToExcel(payments, data, profit, t)}
+             className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
+           >
+             <Download size={18} />
+             {t('exportFullAudit')}
+           </button>
+         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -320,14 +321,34 @@ const Reports = ({ user }) => {
 
       {/* Payment Details Table */}
       <div className="glass-card p-6 md:p-8">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">Payment Details</h3>
+          <div className="flex bg-white dark:bg-neutral-900 p-1 rounded-xl border border-neutral-200 dark:border-neutral-700">
+            {[
+              { label: 'All', val: '' },
+              { label: 'Vehicle', val: 'vehicle' },
+              { label: 'Spare Part', val: 'spare_part' },
+            ].map(({ label, val }) => (
+              <button key={val}
+                onClick={() => setSaleTypeFilter(val)}
+                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                  saleTypeFilter === val
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-700">
                 <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Customer Name</th>
+                <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Type</th>
+                <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Item</th>
                 <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Sale Date</th>
                 <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Created On</th>
                 <th className="text-right py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Amount (ETB)</th>
@@ -337,23 +358,34 @@ const Reports = ({ user }) => {
               </tr>
             </thead>
             <tbody>
-              {payments.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-8 text-slate-400">No payments recorded yet.</td>
-                </tr>
-              ) : (
-                payments.map((p, i) => (
-                  <tr key={i} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="py-3 px-2 text-slate-900 dark:text-white font-medium">{capitalizeName(p.customer_name)}</td>
-                    <td className="py-3 px-2 text-slate-500">{p.sale_date ? formatDate(p.sale_date) : '—'}</td>
-                    <td className="py-3 px-2 text-slate-500">{p.created_at ? formatDate(p.created_at) : formatDate(new Date().toISOString())}</td>
-                    <td className="py-3 px-2 text-right text-slate-900 dark:text-white font-semibold">{p.amount.toLocaleString()}</td>
-                    <td className="py-3 px-2 text-slate-500 uppercase">{(p.bank_name || '—').toUpperCase()}</td>
-                    <td className="py-3 px-2 text-slate-500 uppercase">{(p.account_holder || '—').toUpperCase()}</td>
-                    <td className="py-3 px-2 text-slate-500 font-mono text-xs uppercase">{(p.transaction_reference || '—').toUpperCase()}</td>
+              {(() => {
+                const filtered = saleTypeFilter ? payments.filter(p => p.sale_type === saleTypeFilter) : payments
+                return filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="text-center py-8 text-slate-400">No payments recorded yet.</td>
                   </tr>
-                ))
-              )}
+                ) : (
+                  filtered.map((p, i) => (
+                    <tr key={i} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="py-3 px-2 text-slate-900 dark:text-white font-medium">{capitalizeName(p.customer_name)}</td>
+                      <td className="py-3 px-2">
+                        {p.sale_type === 'vehicle' ? (
+                          <span className="inline-block px-2 py-0.5 rounded-lg text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">VEHICLE</span>
+                        ) : (
+                          <span className="inline-block px-2 py-0.5 rounded-lg text-xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">SPARE PART</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-2 text-slate-500 text-xs max-w-[120px] truncate">{p.item_name || '—'}</td>
+                      <td className="py-3 px-2 text-slate-500">{p.sale_date ? formatDate(p.sale_date) : '—'}</td>
+                      <td className="py-3 px-2 text-slate-500">{p.created_at ? formatDate(p.created_at) : formatDate(new Date().toISOString())}</td>
+                      <td className="py-3 px-2 text-right text-slate-900 dark:text-white font-semibold">{p.amount.toLocaleString()}</td>
+                      <td className="py-3 px-2 text-slate-500 uppercase">{(p.bank_name || '—').toUpperCase()}</td>
+                      <td className="py-3 px-2 text-slate-500 uppercase">{(p.account_holder || '—').toUpperCase()}</td>
+                      <td className="py-3 px-2 text-slate-500 font-mono text-xs uppercase">{(p.transaction_reference || '—').toUpperCase()}</td>
+                    </tr>
+                  ))
+                )
+              })()}
             </tbody>
           </table>
         </div>

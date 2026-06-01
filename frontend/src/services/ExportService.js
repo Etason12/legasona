@@ -283,11 +283,13 @@ export const exportReportsToExcel = (payments, stats, profit, t = (k) => k) => {
   // ── Payments sheet ──
   if (payments.length > 0) {
     const headers = [
-      S('receiptNum', 'Sale #'), S('date', 'Sale Date'), S('createdOn', 'Created On'), S('customer', 'Customer'), S('method', 'Method'),
+      S('receiptNum', 'Sale #'), S('type', 'Type'), S('item', 'Item'), S('date', 'Sale Date'), S('createdOn', 'Created On'), S('customer', 'Customer'), S('method', 'Method'),
       S('bankName', 'Bank'), S('accountHolder', 'Account Holder'), S('reference', 'Reference'), S('amount', 'Amount') + ' (ETB)',
     ];
     const rows = payments.map((p) => [
       p.sale_number || '',
+      (p.sale_type || '').toUpperCase(),
+      p.item_name || '',
       fmtDate(p.sale_date),
       p.created_at ? fmtDate(p.created_at) : fmtDate(new Date().toISOString()),
       capitalizeName(p.customer_name) || '',

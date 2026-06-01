@@ -26,9 +26,6 @@ def get_dashboard_stats():
 
     sales_q   = db.session.query(func.sum(Sale.total_amount))
     orders_q  = Order.query.filter(Order.status == 'waiting')
-    if current_user.branch_id:
-        orders_q = orders_q.filter(Order.branch_id == current_user.branch_id)
-    
     vehicle_q = db.session.query(func.sum(Vehicle.selling_price)).filter(Vehicle.status == 'available')
 
     if branch_id:

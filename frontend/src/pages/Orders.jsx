@@ -44,12 +44,7 @@ const Orders = ({ user }) => {
   const fetchBranches = async () => {
     try {
       const res = await api.get('/branches')
-      const sorted = res.data.sort((a, b) => {
-        if (a.name === 'Headquarters') return -1
-        if (b.name === 'Headquarters') return 1
-        return a.name.localeCompare(b.name)
-      })
-      setBranches(sorted)
+      setBranches(res.data)
     } catch (err) {
       console.error('Failed to fetch branches')
     }
@@ -208,10 +203,10 @@ const Orders = ({ user }) => {
      <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{t('ordersTitle')}</h1>
      <p className="text-slate-400 mt-1 font-medium">{t('ordersDesc')}</p>
     </div>
-    const hqBranch = branches.find(b => b.name === 'Headquarters')
+    const defaultBranchId = branches?.[0]?.id || user?.branch_id || ''
 
      <button 
-       onClick={() => { setShowAddModal(true); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); setSelectedCustomerId(''); setNewCustPhone(''); setPhoneWarning(''); setSelectedBranchId(hqBranch?.id || ''); }}
+       onClick={() => { setShowAddModal(true); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); setSelectedCustomerId(''); setNewCustPhone(''); setPhoneWarning(''); setSelectedBranchId(defaultBranchId); }}
       className="btn-primary flex items-center gap-2"
      >
       <Plus size={20} />

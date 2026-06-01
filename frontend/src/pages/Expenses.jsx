@@ -79,12 +79,7 @@ const Expenses = ({ user }) => {
   const fetchBranches = async () => {
     try {
       const res = await api.get('/branches')
-      const sorted = res.data.sort((a, b) => {
-        if (a.name === 'Headquarters') return -1
-        if (b.name === 'Headquarters') return 1
-        return a.name.localeCompare(b.name)
-      })
-      setBranches(sorted)
+      setBranches(res.data)
     } catch { /* ignore */ }
   }
 
@@ -104,9 +99,8 @@ const Expenses = ({ user }) => {
    e.preventDefault()
    setSubmitting(true)
    const formData = new FormData(e.target)
-   const hqBranch = branches.find(b => b.name === 'Headquarters')
-   const defaultBranchId = hqBranch?.id || user?.branch_id || branches?.[0]?.id
-   formData.append('branch_id', user?.branch_id || defaultBranchId)
+   const defaultBranchId = user?.branch_id || branches?.[0]?.id
+   formData.append('branch_id', defaultBranchId)
    formData.append('user_id', user?.id || 1)
 
   try {

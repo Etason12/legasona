@@ -50,6 +50,26 @@ const Orders = ({ user }) => {
     }
   }
 
+  const fetchOrders = async () => {
+   try {
+    const res = await api.get('/orders')
+    setOrders(res.data)
+   } catch (error) {
+    toast.error('Failed to fetch orders')
+   } finally {
+    setLoading(false)
+   }
+  }
+
+  const fetchCustomers = async () => {
+   try {
+    const res = await api.get('/customers')
+    setCustomers(res.data)
+   } catch (err) {
+    console.error('Failed to fetch customers')
+   }
+  }
+
   const handleSubmit = async (e) => {
    e.preventDefault()
    setSubmitting(true)

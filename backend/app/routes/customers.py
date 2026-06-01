@@ -21,7 +21,7 @@ def get_customers():
         ))
     if branch_id:
         query = query.filter(Customer.branch_id == branch_id)
-    elif current_user.role != 'admin':
+    elif current_user.branch_id:
         query = query.filter(Customer.branch_id == current_user.branch_id)
     customers = query.order_by(Customer.full_name.asc()).all()
     return jsonify([{

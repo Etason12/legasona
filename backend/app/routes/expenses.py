@@ -52,6 +52,8 @@ def get_expenses():
 
     if branch_id:
         query = query.filter(Expense.branch_id == branch_id)
+    elif current_user.branch_id:
+        query = query.filter(Expense.branch_id == current_user.branch_id)
     if start_date:
         query = query.filter(Expense.expense_date >= datetime.fromisoformat(start_date))
     if end_date:
@@ -111,7 +113,8 @@ def update_budget():
 def get_budget():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
-    branch_id = request.args.get('branch_id') or (user.branch_id if user.role != 'admin' else None)
+    # Use explicit branch_id from args if provided, otherwise default to user's assigned branch
+    branch_id = request.args.get('branch_id') or user.branch_id
 
     from datetime import date
     today = date.today()
@@ -121,15 +124,23 @@ def get_budget():
         Expense.expense_date >= first_of_month,
         Expense.expense_date <= today
     )
+    
+    # If user has a branch, restrict to that branch. Admin without branch restriction sees all.
     if branch_id:
         total_spent = total_spent.filter(Expense.branch_id == branch_id)
+    elif user.role != 'admin':
+        # Fallback if a user somehow has no branch assigned but isn't admin
+        total_spent = total_spent.filter(Expense.branch_id == -1)
+
     total_spent = total_spent.scalar() or 0
 
     if branch_id:
         branch = Branch.query.get(branch_id)
         budget = branch.monthly_budget or 150000.0 if branch else 150000.0
-    else:
+    elif user.role == 'admin':
         budget = db.session.query(db.func.sum(Branch.monthly_budget)).scalar() or 150000.0
+    else:
+        budget = 0.0
 
     return jsonify({
         'budget': float(budget),

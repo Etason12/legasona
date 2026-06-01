@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
-from app.models import Order, Customer, db
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.models import Order, Customer, User, Branch, db
 from app.utils.auth import role_required
 
 orders_bp = Blueprint('orders', __name__)
@@ -53,7 +53,16 @@ def create_order():
 @orders_bp.route('', methods=['GET'])
 @jwt_required()
 def get_orders():
-    orders = Order.query.order_by(Order.sequence_number).all()
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    query = Order.query
+    if current_user.branch_id:
+        query = query.filter(Order.branch_id == current_user.branch_id)
+    orders = query.order_by(Order.sequence_number).all()
+    
+    branch_ids = {o.branch_id for o in orders if o.branch_id}
+    branches = {b.id: b.name for b in Branch.query.filter(Branch.id.in_(branch_ids)).all()}
+    
     return jsonify([{
         'id': o.id, 'customer_name': o.customer_name,
         'customer_phone': o.customer_phone, 'customer_id': o.customer_id,
@@ -64,7 +73,8 @@ def get_orders():
         'deposit_account_holder': o.deposit_account_holder,
         'deposit_transaction_reference': o.deposit_transaction_reference,
         'order_date': o.order_date.isoformat(),
-        'remark': o.remark
+        'remark': o.remark,
+        'branch_name': branches.get(o.branch_id)
     } for o in orders]), 200
 
 @orders_bp.route('/<int:id>/deposit', methods=['POST'])

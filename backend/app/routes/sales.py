@@ -440,10 +440,14 @@ def get_sales():
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
     branch_id = request.args.get('branch_id')
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
 
     query = Sale.query
     if branch_id:
         query = query.filter(Sale.branch_id == branch_id)
+    elif current_user.branch_id:
+        query = query.filter(Sale.branch_id == current_user.branch_id)
     if status_filter:
         query = query.filter(Sale.status == status_filter)
     if start_date:

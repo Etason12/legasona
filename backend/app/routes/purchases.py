@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
-from app.models import Purchase, PurchaseItem, SparePart, Vehicle, db
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.models import Purchase, PurchaseItem, SparePart, Vehicle, User, db
 from app.utils.auth import role_required
 from app.utils.image_utils import compress_to_base64
 from datetime import datetime
@@ -11,10 +11,14 @@ purchases_bp = Blueprint('purchases', __name__)
 @purchases_bp.route('', methods=['GET'])
 @jwt_required()
 def get_purchases():
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
     branch_id = request.args.get('branch_id')
     query = Purchase.query
     if branch_id:
         query = query.filter(Purchase.branch_id == branch_id)
+    elif current_user.branch_id:
+        query = query.filter(Purchase.branch_id == current_user.branch_id)
     purchases = query.order_by(Purchase.purchase_date.desc()).all()
     result = []
     for pu in purchases:

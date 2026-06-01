@@ -74,6 +74,18 @@ def create_app(config_class=Config):
             upgrade()
         except Exception:
             db.session.rollback()
+
+        # Ensure all existing orders are assigned to Mekelle branch
+        try:
+            from app.models import Order
+            mekelle = Branch.query.filter_by(name='Mekelle').first()
+            if mekelle:
+                # Update orders that don't have a branch assigned
+                Order.query.filter(Order.branch_id == None).update({'branch_id': mekelle.id})
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+
         db.session.commit()
         if not Branch.query.filter_by(name='Shire').first():
             shire = Branch(name='Shire', location='Shire, Tigray')

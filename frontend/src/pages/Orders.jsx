@@ -23,6 +23,10 @@ const Orders = ({ user }) => {
   const [depositReference, setDepositReference] = useState('')
   const [showCustomerModal, setShowCustomerModal] = useState(false)
   const [customerDetail, setCustomerDetail] = useState(null)
+  const [orderMethod, setOrderMethod] = useState('cash')
+  const [orderBank, setOrderBank] = useState('')
+  const [orderAccountHolder, setOrderAccountHolder] = useState('')
+  const [orderReference, setOrderReference] = useState('')
   const filteredOrders = useMemo(() => orders.filter(o =>
     o.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
     o.vehicle_specs?.toLowerCase().includes(search.toLowerCase())
@@ -56,21 +60,26 @@ const Orders = ({ user }) => {
   e.preventDefault()
   setSubmitting(true)
   const formData = new FormData(e.target)
-  const data = {
-   customer_name: formData.get('customer_name'),
-   customer_phone: formData.get('customer_phone'),
-   customer_id: selectedCustomerId || null,
-   vehicle_specs: formData.get('vehicle_specs'),
-    deposit_amount: parseFloat(formData.get('deposit_amount') || 0),
-    branch_id: user?.branch_id || 1,
-    remark: formData.get('remark')
-   }
+   const data = {
+    customer_name: formData.get('customer_name'),
+    customer_phone: formData.get('customer_phone'),
+    customer_id: selectedCustomerId || null,
+    vehicle_specs: formData.get('vehicle_specs'),
+     deposit_amount: parseFloat(formData.get('deposit_amount') || 0),
+     deposit_method: orderMethod,
+     deposit_bank: orderBank,
+     deposit_account_holder: orderAccountHolder,
+     deposit_transaction_reference: orderReference,
+     branch_id: user?.branch_id || 1,
+     remark: formData.get('remark')
+    }
 
   try {
-   await api.post('/orders', data)
-   toast.success('Order added to waiting list')
-   setShowAddModal(false)
-   fetchOrders()
+    await api.post('/orders', data)
+    toast.success('Order added to waiting list')
+    setShowAddModal(false)
+    setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference('')
+    fetchOrders()
   } catch (error) {
    toast.error('Failed to create order')
   } finally {
@@ -147,7 +156,7 @@ const Orders = ({ user }) => {
      <p className="text-slate-400 mt-1 font-medium">{t('ordersDesc')}</p>
     </div>
     <button 
-     onClick={() => setShowAddModal(true)}
+     onClick={() => { setShowAddModal(true); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); }}
      className="btn-primary flex items-center gap-2"
     >
      <Plus size={20} />
@@ -293,10 +302,10 @@ const Orders = ({ user }) => {
       <div className="modal-content max-w-xl">
        <div className="modal-header">
         <div>
-         <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('newReservation')}</h2>
-          <p className="text-xs font-medium text-slate-500 mt-0.5">{t('reservationQueue')}</p>
-        </div>
-        <button onClick={() => setShowAddModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700">
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white">{t('newReservation')}</h2>
+           <p className="text-xs font-medium text-neutral-500 mt-0.5">{t('reservationQueue')}</p>
+         </div>
+          <button onClick={() => { setShowAddModal(false); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); }} className="p-2 bg-neutral-100 dark:bg-neutral-800 rounded-2xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700">
          <X size={20} />
         </button>
        </div>
@@ -336,10 +345,49 @@ const Orders = ({ user }) => {
          </div>
         </div>
 
-        <div>
-         <label className="label">{t('initialDeposit')} (ETB)</label>
-         <input type="number" name="deposit_amount" className="input-field" placeholder="0.00" />
-        </div>
+         <div className="space-y-4">
+          <div>
+           <label className="label">{t('initialDeposit')} (ETB)</label>
+           <input type="number" name="deposit_amount" className="input-field" placeholder="0.00" />
+          </div>
+          <div>
+           <label className="label">{t('paymentMethod') || 'Payment Method'}</label>
+           <div className="grid grid-cols-2 gap-3">
+            <button type="button" onClick={() => setOrderMethod('cash')}
+              className={`p-3 rounded-xl border-2 text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                orderMethod === 'cash'
+                  ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                  : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:border-neutral-300'
+              }`}>
+             <CreditCard size={18} /> {t('cash') || 'Cash'}
+            </button>
+            <button type="button" onClick={() => setOrderMethod('bank')}
+              className={`p-3 rounded-xl border-2 text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                orderMethod === 'bank'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                  : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:border-neutral-300'
+              }`}>
+             <Landmark size={18} /> {t('bankTransfer') || 'Bank Transfer'}
+            </button>
+           </div>
+          </div>
+          {orderMethod === 'bank' && (
+           <div className="space-y-4 p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800">
+            <div>
+             <label className="label">{t('bankName') || 'Bank Name'} *</label>
+             <input type="text" className="input-field" value={orderBank} onChange={e => setOrderBank(e.target.value)} placeholder="e.g. CBE" />
+            </div>
+            <div>
+             <label className="label">{t('accountHolder') || 'Account Holder'} *</label>
+             <input type="text" className="input-field" value={orderAccountHolder} onChange={e => setOrderAccountHolder(e.target.value)} placeholder="Full name on account" />
+            </div>
+            <div>
+             <label className="label">{t('transactionRef') || 'Transaction Reference'} *</label>
+             <input type="text" className="input-field" value={orderReference} onChange={e => setOrderReference(e.target.value)} placeholder="Transaction ID" />
+            </div>
+           </div>
+          )}
+         </div>
 
          <div>
           <label className="label">{t('vehicleSpecs')} *</label>
@@ -365,8 +413,8 @@ const Orders = ({ user }) => {
        <div className="modal-footer">
         <button 
          type="button" 
-         onClick={() => setShowAddModal(false)}
-         className="btn-secondary"
+          onClick={() => { setShowAddModal(false); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); }}
+          className="btn-secondary"
         >
         {t('cancel')}
        </button>
@@ -390,21 +438,21 @@ const Orders = ({ user }) => {
       <div className="modal-content max-w-lg">
        <div className="modal-header">
         <div>
-         <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('addDeposit') || 'Add Deposit'}</h2>
-         <p className="text-xs font-medium text-slate-500 mt-0.5">#{depositOrder.sequence_number}</p>
-        </div>
-        <button onClick={() => setShowDepositModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700">
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white">{t('addDeposit') || 'Add Deposit'}</h2>
+          <p className="text-xs font-medium text-neutral-500 mt-0.5">#{depositOrder.sequence_number}</p>
+         </div>
+         <button onClick={() => setShowDepositModal(false)} className="p-2 bg-neutral-100 dark:bg-neutral-800 rounded-2xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700">
          <X size={20} />
         </button>
        </div>
       <div className="modal-body">
        <form id="deposit-form" onSubmit={handleAddDeposit} className="space-y-6">
         {/* Customer Details Card */}
-        <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200 dark:border-blue-800">
-         <div className="flex items-start justify-between">
-          <div>
-           <p className="text-lg font-bold text-slate-900 dark:text-white">{capitalizeName(depositOrder.customer_name)}</p>
-           <p className="text-sm text-slate-500 mt-0.5 flex items-center gap-1.5">
+         <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200 dark:border-blue-800">
+          <div className="flex items-start justify-between">
+           <div>
+            <p className="text-lg font-bold text-neutral-900 dark:text-white">{capitalizeName(depositOrder.customer_name)}</p>
+            <p className="text-sm text-neutral-500 mt-0.5 flex items-center gap-1.5">
             <Phone size={13} /> {depositOrder.customer_phone}
            </p>
           </div>
@@ -419,7 +467,7 @@ const Orders = ({ user }) => {
 
         {/* Current Deposit */}
         <div className="flex items-center justify-between px-1">
-         <span className="text-sm text-slate-500">{t('currentDeposit') || 'Current Deposit'}:</span>
+          <span className="text-sm text-neutral-500">{t('currentDeposit') || 'Current Deposit'}:</span>
          <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">ETB {(depositOrder.deposit_amount || 0).toLocaleString()}</span>
         </div>
 
@@ -437,15 +485,15 @@ const Orders = ({ user }) => {
             className={`p-3 rounded-xl border-2 text-sm font-bold transition-all flex items-center justify-center gap-2 ${
               depositMethod === 'cash'
                 ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
-            }`}>
-           <CreditCard size={18} /> {t('cash') || 'Cash'}
-          </button>
-          <button type="button" onClick={() => setDepositMethod('bank')}
-            className={`p-3 rounded-xl border-2 text-sm font-bold transition-all flex items-center justify-center gap-2 ${
-              depositMethod === 'bank'
-                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+               : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:border-neutral-300'
+             }`}>
+            <CreditCard size={18} /> {t('cash') || 'Cash'}
+           </button>
+           <button type="button" onClick={() => setDepositMethod('bank')}
+             className={`p-3 rounded-xl border-2 text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+               depositMethod === 'bank'
+                 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                 : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:border-neutral-300'
             }`}>
            <Landmark size={18} /> {t('bankTransfer') || 'Bank Transfer'}
           </button>
@@ -488,9 +536,9 @@ const Orders = ({ user }) => {
       <div className="modal-content max-w-md" onClick={e => e.stopPropagation()}>
        <div className="modal-header">
         <div>
-         <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t('customerDetails') || 'Customer Details'}</h2>
-        </div>
-        <button onClick={() => setShowCustomerModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700">
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white">{t('customerDetails') || 'Customer Details'}</h2>
+         </div>
+         <button onClick={() => setShowCustomerModal(false)} className="p-2 bg-neutral-100 dark:bg-neutral-800 rounded-2xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700">
          <X size={20} />
         </button>
        </div>
@@ -502,7 +550,7 @@ const Orders = ({ user }) => {
            <User size={28} />
           </div>
           <div>
-           <p className="text-lg font-bold text-slate-900 dark:text-white">{capitalizeName(customerDetail.full_name)}</p>
+            <p className="text-lg font-bold text-neutral-900 dark:text-white">{capitalizeName(customerDetail.full_name)}</p>
            <span className={`inline-block mt-1 text-xs font-bold px-2 py-0.5 rounded-full ${
              customerDetail.type === 'corporate' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
            }`}>
@@ -512,72 +560,72 @@ const Orders = ({ user }) => {
          </div>
 
          <div className="grid grid-cols-1 gap-4">
-          <div className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl">
-           <Phone size={18} className="text-slate-400" />
-           <div>
-            <p className="text-xs text-slate-500">{t('phoneNumber') || 'Phone'}</p>
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">{customerDetail.phone}</p>
-           </div>
-          </div>
-
-          {customerDetail.email && (
            <div className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl">
-            <Mail size={18} className="text-slate-400" />
+            <Phone size={18} className="text-neutral-400" />
             <div>
-             <p className="text-xs text-slate-500">{t('email') || 'Email'}</p>
-             <p className="text-sm font-semibold text-slate-900 dark:text-white">{customerDetail.email}</p>
+             <p className="text-xs text-neutral-500">{t('phoneNumber') || 'Phone'}</p>
+             <p className="text-sm font-semibold text-neutral-900 dark:text-white">{customerDetail.phone}</p>
             </div>
            </div>
-          )}
 
-          {customerDetail.address && (
+           {customerDetail.email && (
+            <div className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl">
+             <Mail size={18} className="text-neutral-400" />
+             <div>
+              <p className="text-xs text-neutral-500">{t('email') || 'Email'}</p>
+              <p className="text-sm font-semibold text-neutral-900 dark:text-white">{customerDetail.email}</p>
+             </div>
+            </div>
+           )}
+
+           {customerDetail.address && (
+            <div className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl">
+             <MapPin size={18} className="text-neutral-400" />
+             <div>
+              <p className="text-xs text-neutral-500">{t('address') || 'Address'}</p>
+              <p className="text-sm font-semibold text-neutral-900 dark:text-white">{customerDetail.address}</p>
+             </div>
+            </div>
+           )}
+
            <div className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl">
-            <MapPin size={18} className="text-slate-400" />
+            <Award size={18} className="text-neutral-400" />
             <div>
-             <p className="text-xs text-slate-500">{t('address') || 'Address'}</p>
-             <p className="text-sm font-semibold text-slate-900 dark:text-white">{customerDetail.address}</p>
+             <p className="text-xs text-neutral-500">{t('loyaltyPoints') || 'Loyalty Points'}</p>
+             <p className="text-sm font-semibold text-neutral-900 dark:text-white">{customerDetail.points || 0}</p>
             </div>
            </div>
-          )}
 
-          <div className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl">
-           <Award size={18} className="text-slate-400" />
-           <div>
-            <p className="text-xs text-slate-500">{t('loyaltyPoints') || 'Loyalty Points'}</p>
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">{customerDetail.points || 0}</p>
-           </div>
-          </div>
-
-          {customerDetail.credit_limit > 0 && (
-           <div className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl">
-            <CardIcon size={18} className="text-slate-400" />
-            <div>
-             <p className="text-xs text-slate-500">{t('creditLimit') || 'Credit Limit'}</p>
-             <p className="text-sm font-semibold text-slate-900 dark:text-white">ETB {customerDetail.credit_limit.toLocaleString()}</p>
+           {customerDetail.credit_limit > 0 && (
+            <div className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl">
+             <CardIcon size={18} className="text-neutral-400" />
+             <div>
+              <p className="text-xs text-neutral-500">{t('creditLimit') || 'Credit Limit'}</p>
+              <p className="text-sm font-semibold text-neutral-900 dark:text-white">ETB {customerDetail.credit_limit.toLocaleString()}</p>
+             </div>
             </div>
-           </div>
-          )}
+           )}
          </div>
 
          {/* History Summary */}
          {customerDetail.history && (
-          <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
-           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">{t('history') || 'History'}</p>
+           <div className="border-t border-neutral-200 dark:border-neutral-700 pt-4">
+            <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-3">{t('history') || 'History'}</p>
            <div className="grid grid-cols-2 gap-3">
             <div className="p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl text-center">
              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{customerDetail.history.sales?.length || 0}</p>
-             <p className="text-xs text-slate-500">{t('sales') || 'Sales'}</p>
-            </div>
-            <div className="p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl text-center">
-             <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{customerDetail.history.orders?.length || 0}</p>
-             <p className="text-xs text-slate-500">{t('orders') || 'Orders'}</p>
+              <p className="text-xs text-neutral-500">{t('sales') || 'Sales'}</p>
+             </div>
+             <div className="p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl text-center">
+              <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{customerDetail.history.orders?.length || 0}</p>
+              <p className="text-xs text-neutral-500">{t('orders') || 'Orders'}</p>
             </div>
            </div>
           </div>
          )}
         </div>
        ) : (
-        <div className="py-10 text-center text-slate-500">
+         <div className="py-10 text-center text-neutral-500">
          <User size={40} className="mx-auto mb-3 opacity-50" />
          <p>{t('noCustomerData') || 'No customer data available'}</p>
         </div>

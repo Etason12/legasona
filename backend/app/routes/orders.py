@@ -30,6 +30,7 @@ def create_order():
 
     customer_id = _ensure_customer(data) or data.get('customer_id') or None
 
+    deposit_method = data.get('deposit_method', 'cash')
     new_order = Order(
         customer_name=(data.get('customer_name') or '').strip().title(),
         customer_phone=data.get('customer_phone'),
@@ -37,9 +38,14 @@ def create_order():
         vehicle_specs=data.get('vehicle_specs'),
         sequence_number=next_seq,
         deposit_amount=data.get('deposit_amount', 0),
+        deposit_method=deposit_method,
         branch_id=data.get('branch_id'),
         remark=data.get('remark')
     )
+    if deposit_method == 'bank':
+        new_order.deposit_bank = data.get('deposit_bank', '').upper()
+        new_order.deposit_account_holder = data.get('deposit_account_holder', '').upper()
+        new_order.deposit_transaction_reference = data.get('deposit_transaction_reference', '').upper()
     db.session.add(new_order)
     db.session.commit()
     return jsonify({'message': 'Order created', 'sequence_number': next_seq}), 201

@@ -11,53 +11,21 @@ const Orders = ({ user }) => {
  const [loading, setLoading] = useState(true)
  const [showAddModal, setShowAddModal] = useState(false)
  const [submitting, setSubmitting] = useState(false)
-  const [customers, setCustomers] = useState([])
-  const [selectedCustomerId, setSelectedCustomerId] = useState('')
-  const [newCustPhone, setNewCustPhone] = useState('')
-  const [phoneWarning, setPhoneWarning] = useState('')
-  const [search, setSearch] = useState('')
-  const [showDepositModal, setShowDepositModal] = useState(false)
-  const [editingOrder, setEditingOrder] = useState(null)
-  const [depositOrder, setDepositOrder] = useState(null)
-  const [depositAmount, setDepositAmount] = useState('')
-  const [depositMethod, setDepositMethod] = useState('cash')
-  const [depositBank, setDepositBank] = useState('')
-  const [depositAccountHolder, setDepositAccountHolder] = useState('')
-  const [depositReference, setDepositReference] = useState('')
-  const [showCustomerModal, setShowCustomerModal] = useState(false)
-  const [customerDetail, setCustomerDetail] = useState(null)
-  const [orderMethod, setOrderMethod] = useState('cash')
-  const [orderBank, setOrderBank] = useState('')
-  const [orderAccountHolder, setOrderAccountHolder] = useState('')
-  const [orderReference, setOrderReference] = useState('')
-  const filteredOrders = useMemo(() => orders.filter(o =>
-    o.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
-    o.vehicle_specs?.toLowerCase().includes(search.toLowerCase())
-  ), [orders, search])
+  const [branches, setBranches] = useState([])
+  const [selectedBranchId, setSelectedBranchId] = useState('')
 
- useEffect(() => {
-  Promise.all([fetchOrders(), fetchCustomers()])
- }, [])
+  useEffect(() => {
+   Promise.all([fetchOrders(), fetchCustomers(), fetchBranches()])
+  }, [])
 
- const fetchOrders = async () => {
-  try {
-   const res = await api.get('/orders')
-   setOrders(res.data)
-  } catch (error) {
-   toast.error('Failed to fetch orders')
-  } finally {
-   setLoading(false)
+  const fetchBranches = async () => {
+    try {
+      const res = await api.get('/branches')
+      setBranches(res.data)
+    } catch (err) {
+      console.error('Failed to fetch branches')
+    }
   }
- }
-
- const fetchCustomers = async () => {
-  try {
-   const res = await api.get('/customers')
-   setCustomers(res.data)
-  } catch (err) {
-   console.error('Failed to fetch customers')
-  }
- }
 
   const handleSubmit = async (e) => {
    e.preventDefault()
@@ -73,7 +41,7 @@ const Orders = ({ user }) => {
       deposit_bank: orderBank,
       deposit_account_holder: orderAccountHolder,
       deposit_transaction_reference: orderReference,
-      branch_id: user?.branch_id || 1,
+      branch_id: selectedBranchId || user?.branch_id || null,
       remark: formData.get('remark')
      }
 
@@ -96,6 +64,7 @@ const Orders = ({ user }) => {
     setSubmitting(false)
    }
   }
+
 
   const handleFulfill = async (orderId) => {
    if (!window.confirm('Mark this order as fulfilled?')) return
@@ -124,6 +93,7 @@ const Orders = ({ user }) => {
    setEditingOrder(order)
    setSelectedCustomerId(order.customer_id || '')
    setNewCustPhone(order.customer_phone || '')
+   setSelectedBranchId(order.branch_id || '')
    setOrderMethod(order.deposit_method || 'cash')
    setOrderBank(order.deposit_bank || '')
    setOrderAccountHolder(order.deposit_account_holder || '')
@@ -131,6 +101,7 @@ const Orders = ({ user }) => {
    setPhoneWarning('')
    setShowAddModal(true)
   }
+
 
   const viewCustomerDetail = async (order) => {
     if (order.customer_id) {
@@ -190,12 +161,13 @@ const Orders = ({ user }) => {
      <p className="text-slate-400 mt-1 font-medium">{t('ordersDesc')}</p>
     </div>
     <button 
-      onClick={() => { setShowAddModal(true); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); setSelectedCustomerId(''); setNewCustPhone(''); setPhoneWarning(''); }}
+      onClick={() => { setShowAddModal(true); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); setSelectedCustomerId(''); setNewCustPhone(''); setPhoneWarning(''); setSelectedBranchId(''); }}
      className="btn-primary flex items-center gap-2"
     >
      <Plus size={20} />
      {t('newReservation')}
     </button>
+
    </div>
 
    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -353,35 +325,52 @@ const Orders = ({ user }) => {
           <h2 className="text-xl font-bold text-neutral-900 dark:text-white">{editingOrder ? t('edit') : t('newReservation')}</h2>
            <p className="text-xs font-medium text-neutral-500 mt-0.5">{t('reservationQueue')}</p>
          </div>
-           <button onClick={() => { setShowAddModal(false); setEditingOrder(null); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); setNewCustPhone(''); setPhoneWarning(''); }} className="p-2 bg-neutral-100 dark:bg-neutral-800 rounded-2xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700">
+            <button onClick={() => { setShowAddModal(false); setEditingOrder(null); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); setNewCustPhone(''); setPhoneWarning(''); setSelectedBranchId(''); }} className="p-2 bg-neutral-100 dark:bg-neutral-800 rounded-2xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700">
          <X size={20} />
         </button>
+
        </div>
 
       <div className="modal-body custom-scrollbar">
        <form key={editingOrder?.id || 'new'} id="order-form" onSubmit={handleSubmit} className="space-y-6">
-        <div>
-         <label className="label">{t('selectExistingCustomer')}</label>
-          <select 
-           className="input-field" 
-           value={selectedCustomerId}
-           onChange={(e) => {
-            setSelectedCustomerId(e.target.value)
-            setPhoneWarning('')
-            if (e.target.value) {
-             const c = customers.find(c => c.id === parseInt(e.target.value))
-             if (c) {
-              const form = e.target.closest('form')
-              form.customer_name.value = c.full_name
-              setNewCustPhone(c.phone)
+         <div>
+          <label className="label">{t('selectExistingCustomer')}</label>
+           <select 
+            className="input-field" 
+            value={selectedCustomerId}
+            onChange={(e) => {
+             setSelectedCustomerId(e.target.value)
+             setPhoneWarning('')
+             if (e.target.value) {
+              const c = customers.find(c => c.id === parseInt(e.target.value))
+              if (c) {
+               const form = e.target.closest('form')
+               form.customer_name.value = c.full_name
+               setNewCustPhone(c.phone)
+              }
              }
-            }
-           }}
-          >
-          <option value="">{t('newCustomer')}</option>
-          {customers.map(c => <option key={c.id} value={c.id}>{capitalizeName(c.full_name)} ({c.phone})</option>)}
-         </select>
-        </div>
+            }}
+           >
+           <option value="">{t('newCustomer')}</option>
+           {customers.map(c => <option key={c.id} value={c.id}>{capitalizeName(c.full_name)} ({c.phone})</option>)}
+          </select>
+         </div>
+
+         {user?.role === 'admin' && (
+          <div>
+            <label className="label">{t('branch') || 'Branch'} *</label>
+            <select
+              className="input-field"
+              value={selectedBranchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              required
+            >
+              <option value="">{t('selectBranch') || 'Select Branch'}</option>
+              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </div>
+         )}
+
 
          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -474,7 +463,7 @@ const Orders = ({ user }) => {
         <div className="modal-footer">
          <button 
           type="button" 
-            onClick={() => { setShowAddModal(false); setEditingOrder(null); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); setNewCustPhone(''); setPhoneWarning(''); }}
+            onClick={() => { setShowAddModal(false); setEditingOrder(null); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); setNewCustPhone(''); setPhoneWarning(''); setSelectedBranchId(''); }}
            className="btn-secondary"
          >
          {t('cancel')}

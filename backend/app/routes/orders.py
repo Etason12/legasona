@@ -33,13 +33,22 @@ def create_order():
     
     logger.info(f"User {current_user.username} (role: {current_user.role}, branch_id: {current_user.branch_id}) creating order")
     
-    # Determine branch_id
-    if current_user.branch_id:
-        branch_id = current_user.branch_id
-    else:
+    # Determine branch_id: 
+    # If admin, allow selecting.
+    # If not admin but assigned a branch, force that branch.
+    if current_user.role == 'admin':
         branch_id = data.get('branch_id')
         if not branch_id:
-            return jsonify({'message': 'Branch ID is required'}), 400
+            # If admin didn't select, but has a branch assigned, use it. Otherwise error.
+            if current_user.branch_id:
+                branch_id = current_user.branch_id
+            else:
+                return jsonify({'message': 'Branch ID is required for admin'}), 400
+    elif current_user.branch_id:
+        branch_id = current_user.branch_id
+    else:
+        # Non-admin with no branch assigned - should probably not be possible, but handle it
+        return jsonify({'message': 'User not assigned to any branch'}), 403
 
     logger.info(f"Order will be assigned to branch_id: {branch_id}")
 

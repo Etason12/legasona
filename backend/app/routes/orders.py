@@ -2,6 +2,9 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Order, Customer, User, Branch, db
 from app.utils.auth import role_required
+import logging
+
+logger = logging.getLogger(__name__)
 
 orders_bp = Blueprint('orders', __name__)
 
@@ -28,6 +31,8 @@ def create_order():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
+    logger.info(f"User {current_user.username} (role: {current_user.role}, branch_id: {current_user.branch_id}) creating order")
+    
     # Determine branch_id
     if current_user.branch_id:
         branch_id = current_user.branch_id
@@ -35,6 +40,8 @@ def create_order():
         branch_id = data.get('branch_id')
         if not branch_id:
             return jsonify({'message': 'Branch ID is required'}), 400
+
+    logger.info(f"Order will be assigned to branch_id: {branch_id}")
 
     last_order = Order.query.order_by(Order.sequence_number.desc()).first()
     next_seq   = (last_order.sequence_number + 1) if last_order else 1
@@ -68,6 +75,8 @@ def get_orders():
     current_user = User.query.get(current_user_id)
     branch_id = request.args.get('branch_id')
     
+    logger.info(f"User {current_user.username} (role: {current_user.role}, branch_id: {current_user.branch_id}) requesting orders. Filter branch_id: {branch_id}")
+    
     query = Order.query
     
     # If the user is not an admin, enforce filtering by their branch.
@@ -79,6 +88,7 @@ def get_orders():
     # If admin and no branch_id provided, show all orders.
         
     orders = query.order_by(Order.sequence_number).all()
+    logger.info(f"Found {len(orders)} orders for user {current_user.username}")
     
     branch_ids = {o.branch_id for o in orders if o.branch_id}
     branches = {b.id: b.name for b in Branch.query.filter(Branch.id.in_(branch_ids)).all()}

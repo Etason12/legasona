@@ -21,6 +21,8 @@ const Expenses = ({ user }) => {
   const [showBudgetModal, setShowBudgetModal] = useState(false)
   const [budgetInput, setBudgetInput] = useState('')
   const [budgetSaving, setBudgetSaving] = useState(false)
+  const [expenseUsers, setExpenseUsers] = useState([])
+  const [userFilter, setUserFilter] = useState('')
   const { t } = useLanguage()
   const filteredExpenses = useMemo(() => expenses.filter(e => {
    if (categoryFilter && e.category !== categoryFilter) return false
@@ -31,9 +33,15 @@ const Expenses = ({ user }) => {
 
   const categories = ['Operational', 'Maintenance', 'Inventory Acquisition', 'Utilities', 'Rental', 'Other']
 
- useEffect(() => {
-  Promise.all([fetchExpenses(), fetchBudget()])
- }, [startDate, endDate])
+  useEffect(() => {
+   Promise.all([fetchExpenses(), fetchBudget(), fetchExpenseUsers()])
+  }, [startDate, endDate, userFilter])
+
+  useEffect(() => {
+   if (user?.role?.toLowerCase() !== 'admin') {
+     setUserFilter(String(user?.id || ''))
+   }
+  }, [user])
 
  const fetchBudget = async () => {
   try {
@@ -43,21 +51,29 @@ const Expenses = ({ user }) => {
   } catch { /* ignore */ }
  }
 
- const fetchExpenses = async () => {
-  setLoading(true)
-  try {
-   const branchId = user?.role?.toLowerCase() === 'admin' ? '' : (user?.branch_id || '')
-   let url = `/expenses?branch_id=${branchId}`
-   if (startDate) url += `&start_date=${startDate}`
-   if (endDate) url += `&end_date=${endDate}`
-   const res = await api.get(url)
-   setExpenses(res.data)
-  } catch (error) {
-   toast.error('Failed to fetch expenses')
-  } finally {
-   setLoading(false)
+  const fetchExpenses = async () => {
+   setLoading(true)
+   try {
+    const branchId = user?.role?.toLowerCase() === 'admin' ? '' : (user?.branch_id || '')
+    let url = `/expenses?branch_id=${branchId}`
+    if (startDate) url += `&start_date=${startDate}`
+    if (endDate) url += `&end_date=${endDate}`
+    if (userFilter) url += `&user_id=${userFilter}`
+    const res = await api.get(url)
+    setExpenses(res.data)
+   } catch (error) {
+    toast.error('Failed to fetch expenses')
+   } finally {
+    setLoading(false)
+   }
   }
- }
+
+  const fetchExpenseUsers = async () => {
+   try {
+    const res = await api.get('/expenses/users')
+    setExpenseUsers(res.data)
+   } catch { /* ignore */ }
+  }
 
  const handleDelete = async (id) => {
   if (!window.confirm(t('deleteExpenseConfirm'))) return
@@ -129,95 +145,148 @@ const Expenses = ({ user }) => {
    <div className="glass-card overflow-hidden">
     <div className="p-6 border-b border-slate-200 dark:border-slate-300 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
      <h3 className="text-lg font-bold text-slate-900 dark:text-white">{t('transactionHistory')}</h3>
-      <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
-       <div className="flex items-center gap-2 w-full md:w-auto">
-        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="input-field py-1.5 text-sm" />
-        <span className="text-slate-500">-</span>
-        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="input-field py-1.5 text-sm" />
+       <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+        <div className="flex items-center gap-2 w-full md:w-auto">
+         <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="input-field py-1.5 text-sm" />
+         <span className="text-slate-500">-</span>
+         <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="input-field py-1.5 text-sm" />
+        </div>
+        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="input-field py-1.5 text-sm w-full md:w-44">
+         <option value="">{t('allCategories')}</option>
+         {categories.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        {user?.role?.toLowerCase() === 'admin' && (
+         <select value={userFilter} onChange={e => setUserFilter(e.target.value)} className="input-field py-1.5 text-sm w-full md:w-40">
+          <option value="">{t('allUsers') || 'All Users'}</option>
+          {expenseUsers.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
+         </select>
+        )}
+        <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-300 dark:border-slate-700 px-4 py-2 rounded-xl w-full md:w-64">
+         <Search size={18} className="text-slate-500" />
+         <input 
+          type="text" 
+          placeholder={t('searchExpenses')} 
+          className="bg-transparent border-none outline-none text-sm w-full text-slate-600 dark:text-slate-300"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+         />
+        </div>
        </div>
-       <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="input-field py-1.5 text-sm w-full md:w-44">
-        <option value="">{t('allCategories')}</option>
-        {categories.map(c => <option key={c} value={c}>{c}</option>)}
-       </select>
-       <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-300 dark:border-slate-700 px-4 py-2 rounded-xl w-full md:w-64">
-        <Search size={18} className="text-slate-500" />
-        <input 
-         type="text" 
-         placeholder={t('searchExpenses')} 
-         className="bg-transparent border-none outline-none text-sm w-full text-slate-600 dark:text-slate-300"
-         value={search}
-         onChange={(e) => setSearch(e.target.value)}
-        />
-       </div>
-      </div>
     </div>
     
-    <div className="overflow-x-auto custom-scrollbar">
-     <table className="w-full text-left min-w-[800px]">
-      <thead>
-       <tr className="bg-white dark:bg-slate-800 border-b border-slate-300 dark:border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-500 ">
-        <th className="px-6 py-4">{t('date')}</th>
-        <th className="px-6 py-4">{t('category')}</th>
-        <th className="px-6 py-4">{t('description')}</th>
-        <th className="px-6 py-4">{t('amount')}</th>
-        <th className="px-6 py-4 text-right">Actions</th>
-       </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-800/50">
-       {loading ? (
-        <tr>
-         <td colSpan="5" className="px-6 py-12 text-center">
-          <Loader2 className="animate-spin inline-block text-blue-600 dark:text-blue-400 mb-2" size={32} />
-          <p className="text-slate-500 text-sm">{t('loadingExpenses')}</p>
-         </td>
+     {/* Desktop table */}
+     <div className="hidden md:block overflow-x-auto custom-scrollbar">
+      <table className="w-full text-left">
+       <thead>
+        <tr className="bg-white dark:bg-slate-800 border-b border-slate-300 dark:border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-500 ">
+         <th className="px-6 py-4">{t('date')}</th>
+         <th className="px-6 py-4">{t('category')}</th>
+         <th className="px-6 py-4">{t('description')}</th>
+         <th className="px-6 py-4">Added By</th>
+         <th className="px-6 py-4">{t('amount')}</th>
+         <th className="px-6 py-4 text-right">Actions</th>
         </tr>
-        ) : filteredExpenses.length === 0 ? (
+       </thead>
+       <tbody className="divide-y divide-slate-800/50">
+        {loading ? (
          <tr>
-          <td colSpan="5" className="px-6 py-12 text-center text-slate-500">{t('noExpensesFound')}</td>
+          <td colSpan="6" className="px-6 py-12 text-center">
+           <Loader2 className="animate-spin inline-block text-blue-600 dark:text-blue-400 mb-2" size={32} />
+           <p className="text-slate-500 text-sm">{t('loadingExpenses')}</p>
+          </td>
          </tr>
-        ) : (
-         filteredExpenses.map((expense) => (
-         <tr key={expense.id} className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors group">
-          <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">
-           {formatDate(expense.expense_date)}
-          </td>
-          <td className="px-6 py-4">
-           <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-300 dark:border-slate-700 uppercase tracking-wider">
-            {t(expense.category.toLowerCase().replace(' ', '')) || expense.category}
-           </span>
-          </td>
-          <td className="px-6 py-4 text-slate-700 dark:text-slate-200 font-medium">
-           {expense.description}
-          </td>
-          <td className="px-6 py-4 font-bold text-rose-600 dark:text-rose-400">
-           ETB {expense.amount.toLocaleString()}
-          </td>
-          <td className="px-6 py-4 text-right flex justify-end gap-2">
-            {expense.receipt_attachment && (
+         ) : filteredExpenses.length === 0 ? (
+          <tr>
+           <td colSpan="6" className="px-6 py-12 text-center text-slate-500">{t('noExpensesFound')}</td>
+          </tr>
+         ) : (
+          filteredExpenses.map((expense) => (
+          <tr key={expense.id} className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors group">
+           <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">
+            {formatDate(expense.expense_date)}
+           </td>
+           <td className="px-6 py-4">
+            <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-300 dark:border-slate-700 uppercase tracking-wider">
+             {t(expense.category.toLowerCase().replace(' ', '')) || expense.category}
+            </span>
+           </td>
+           <td className="px-6 py-4 text-slate-700 dark:text-slate-200 font-medium max-w-[200px] truncate">
+            {expense.description}
+           </td>
+           <td className="px-6 py-4 text-sm text-slate-500">{expense.user_name || '—'}</td>
+           <td className="px-6 py-4 font-bold text-rose-600 dark:text-rose-400">
+            ETB {expense.amount.toLocaleString()}
+           </td>
+           <td className="px-6 py-4 text-right flex justify-end gap-2">
+             {expense.receipt_attachment && (
+              <button 
+               onClick={() => setPreviewImage(expense.receipt_attachment)}
+               className="p-2 hover:bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl transition-colors"
+               title="View Receipt"
+              >
+               <ImageIcon size={18} />
+              </button>
+             )}
+            {(user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'manager') && (
              <button 
-              onClick={() => setPreviewImage(expense.receipt_attachment)}
-              className="p-2 hover:bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl transition-colors"
-              title="View Receipt"
+              onClick={() => handleDelete(expense.id)}
+              className="p-2 hover:bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl transition-colors"
+              title="Delete"
              >
-              <ImageIcon size={18} />
+              <Trash2 size={18} />
              </button>
             )}
-           {(user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'manager') && (
-            <button 
-             onClick={() => handleDelete(expense.id)}
-             className="p-2 hover:bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl transition-colors"
-             title="Delete"
-            >
-             <Trash2 size={18} />
-            </button>
-           )}
-          </td>
-         </tr>
-        ))
-       )}
-      </tbody>
-     </table>
-    </div>
+           </td>
+          </tr>
+         ))
+        )}
+       </tbody>
+      </table>
+     </div>
+
+     {/* Mobile cards */}
+     <div className="md:hidden space-y-3 p-4">
+      {loading ? (
+       <div className="py-12 text-center">
+        <Loader2 className="animate-spin inline-block text-blue-600 dark:text-blue-400 mb-2" size={32} />
+        <p className="text-slate-500 text-sm">{t('loadingExpenses')}</p>
+       </div>
+      ) : filteredExpenses.length === 0 ? (
+       <div className="py-12 text-center text-slate-500">{t('noExpensesFound')}</div>
+      ) : (
+       filteredExpenses.map((expense) => (
+        <div key={expense.id} className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-4 space-y-3">
+         <div className="flex items-start justify-between">
+          <div className="space-y-1">
+           <p className="text-sm font-bold text-neutral-900 dark:text-white">{expense.description}</p>
+           <span className="inline-block px-2 py-0.5 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+            {t(expense.category.toLowerCase().replace(' ', '')) || expense.category}
+           </span>
+          </div>
+          <p className="text-lg font-bold text-rose-600 dark:text-rose-400">ETB {expense.amount.toLocaleString()}</p>
+         </div>
+         <div className="flex items-center justify-between text-xs text-slate-500">
+          <span>{formatDate(expense.expense_date)}</span>
+          <span>{expense.user_name || '—'}</span>
+         </div>
+         <div className="flex items-center justify-end gap-2 pt-1 border-t border-neutral-100 dark:border-neutral-800">
+          {expense.receipt_attachment && (
+           <button onClick={() => setPreviewImage(expense.receipt_attachment)}
+             className="p-2 hover:bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl transition-colors">
+            <ImageIcon size={16} />
+           </button>
+          )}
+          {(user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'manager') && (
+           <button onClick={() => handleDelete(expense.id)}
+             className="p-2 hover:bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl transition-colors">
+            <Trash2 size={16} />
+           </button>
+          )}
+         </div>
+        </div>
+       ))
+      )}
+     </div>
    </div>
 
    {showAddModal && (

@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
-from app.models import Customer, Sale, Order, Vehicle, SparePart, db
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.models import Customer, Sale, Order, Vehicle, SparePart, User, db
 from app.utils.auth import admin_required, role_required
 from sqlalchemy import or_
 
@@ -10,12 +10,19 @@ customers_bp = Blueprint('customers', __name__)
 @jwt_required()
 def get_customers():
     search = request.args.get('search', '')
+    branch_id = request.args.get('branch_id')
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
     query  = Customer.query
     if search:
         query = query.filter(or_(
             Customer.full_name.ilike(f"%{search}%"),
             Customer.phone.ilike(f"%{search}%")
         ))
+    if branch_id:
+        query = query.filter(Customer.branch_id == branch_id)
+    elif current_user.role != 'admin':
+        query = query.filter(Customer.branch_id == current_user.branch_id)
     customers = query.order_by(Customer.full_name.asc()).all()
     return jsonify([{
         'id': c.id, 'full_name': c.full_name, 'phone': c.phone,

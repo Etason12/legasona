@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react'
 import {
   Search, Plus, Package, Car, Loader2, Download,
-  Edit3, Trash2, X, Check, ImagePlus, AlertTriangle
+  Edit3, Trash2, X, Check, ImagePlus, AlertTriangle, Camera
 } from 'lucide-react'
 import api from '../services/api'
 import { toast } from 'react-toastify'
 import { exportInventoryToExcel } from '../services/ExportService'
 import { useLanguage } from '../i18n/LanguageContext'
+import { useImagePicker } from '../hooks/useImagePicker'
 import EmptyState from '../components/EmptyState'
 
 const VEHICLE_TYPES = ['2-wheel', '3-wheel', '4-wheel']
@@ -31,9 +32,11 @@ const ImageCell = ({ imageData, onClick }) => {
 }
 
 const ItemModal = ({ mode, item, type, onClose, onSaved, branches }) => {
+  const { pickImage } = useImagePicker()
   const isEdit  = mode === 'edit'
   const fileRef = useRef()
   const [preview, setPreview] = useState(null)
+  const [selectedFile, setSelectedFile] = useState(null)
   const [saving, setSaving]   = useState(false)
   const user = JSON.parse(localStorage.getItem('user'))
   const { t } = useLanguage()
@@ -51,7 +54,18 @@ const ItemModal = ({ mode, item, type, onClose, onSaved, branches }) => {
 
   const handleFile = e => {
     const f = e.target.files[0]
-    if (f) setPreview(URL.createObjectURL(f))
+    if (f) {
+      setPreview(URL.createObjectURL(f))
+      setSelectedFile(f)
+    }
+  }
+
+  const handleCamera = async () => {
+    const result = await pickImage()
+    if (result) {
+      setPreview(result.dataUrl)
+      setSelectedFile(result.blob)
+    }
   }
 
   const handleSubmit = async e => {
@@ -60,7 +74,7 @@ const ItemModal = ({ mode, item, type, onClose, onSaved, branches }) => {
     const fd = new FormData()
     const payload = type === 'vehicles' ? { ...form, chassis_number: form.vin } : form
     Object.entries(payload).forEach(([k, v]) => { if (v !== undefined && v !== null) fd.append(k, v) })
-    if (fileRef.current?.files[0]) fd.append('image', fileRef.current.files[0])
+    if (selectedFile) fd.append('image', selectedFile)
     try {
       if (isEdit) {
         await api.put(`/inventory/${type === 'vehicles' ? 'vehicles' : 'spare-parts'}/${item.id}`, fd)
@@ -99,9 +113,14 @@ const ItemModal = ({ mode, item, type, onClose, onSaved, branches }) => {
               <div className="text-center md:text-left">
                 <h4 className="text-slate-900 dark:text-white font-bold">{preview ? t('changeItemMedia') : t('uploadItemMedia')}</h4>
                 <p className="text-xs text-slate-500 mt-1 max-w-xs leading-relaxed">{t('highResImageInfo')}</p>
-                <label htmlFor="item-img" className="mt-4 inline-block cursor-pointer px-5 py-2.5 bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400 transition-colors">
-                  {preview ? t('selectNewImage') : t('startUpload')}
-                </label>
+                <div className="flex flex-wrap gap-2 mt-4">
+                  <label htmlFor="item-img" className="cursor-pointer px-5 py-2.5 bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400 transition-colors">
+                    {preview ? t('selectNewImage') : t('startUpload')}
+                  </label>
+                  <button type="button" onClick={handleCamera} className="cursor-pointer px-5 py-2.5 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-2">
+                    <Camera size={14}/> {t('captureOrSelect')}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -200,6 +219,12 @@ const Inventory = ({ user }) => {
   const [statusFilter, setStatusFilter] = useState('available')
   const [stats, setStats]               = useState({ available: 0, reserved: 0, sold: 0, 'in-transit': 0 })
 
+  useEffect(() => {
+    if (user?.role?.toLowerCase() !== 'admin') {
+      setBranchFilter(String(user?.branch_id || ''))
+    }
+  }, [user])
+
   useEffect(() => { fetchData() }, [branchFilter, statusFilter])
 
   const fetchData = async () => {
@@ -292,12 +317,14 @@ const Inventory = ({ user }) => {
       {/* Filters */}
       <div className="flex flex-col lg:flex-row items-center gap-4 bg-neutral-50 dark:bg-neutral-900 p-4 rounded-2xl border border-neutral-200 dark:border-neutral-800">
         <div className="flex items-center gap-3 w-full lg:w-auto">
+          {user?.role?.toLowerCase() === 'admin' && (
           <div>
             <select className="input-field text-xs" value={branchFilter} onChange={e => setBranchFilter(e.target.value)}>
               <option value="">{t('allBranches')}</option>
               {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
           </div>
+          )}
           {activeTab === 'vehicles' && (
             <div>
               <select className="input-field text-xs" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>

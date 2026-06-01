@@ -26,6 +26,7 @@ import api from '../services/api'
 import { generateReceipt } from '../services/ReceiptService'
 import { exportSalesToExcel } from '../services/ExportService'
 import { useLanguage } from '../i18n/LanguageContext'
+import { useImagePicker } from '../hooks/useImagePicker'
 import { Package } from 'lucide-react'
 import { formatDate, formatDateTime, capitalizeName } from '../utils/format'
 import { isAdmin } from '../utils/roles'
@@ -44,6 +45,7 @@ const ImageCell = ({ imageData, onClick }) => {
 }
 
 const Sales = ({ user }) => {
+  const { pickImage } = useImagePicker()
   const [form, setForm] = useState({});
   const set = (key, value) => setForm(prev => ({...prev, [key]: value}));
   const [sales, setSales]                         = useState([])
@@ -73,6 +75,8 @@ const Sales = ({ user }) => {
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [customers, setCustomers]                 = useState([])
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
+  const [newCustPhone, setNewCustPhone]           = useState('')
+  const [phoneWarning, setPhoneWarning]           = useState('')
   const [saleType, setSaleType]                   = useState('vehicle')
   const [selectedPartId, setSelectedPartId]       = useState('')
   const [partQuantity, setPartQuantity]           = useState(1)
@@ -95,6 +99,8 @@ const Sales = ({ user }) => {
       setSelectedPartId('')
       setPartQuantity(1)
       setSelectedCustomerId('')
+      setNewCustPhone('')
+      setPhoneWarning('')
       setSaleType('vehicle')
       setPayments([{ id: 1, method: 'cash', amount: '', bank: '', reference: '', accountHolder: '' }])
     }
@@ -384,6 +390,38 @@ const Sales = ({ user }) => {
     } catch {
       toast.error('Failed to delete payment')
     }
+  }
+
+  const handleCameraAddPay = async () => {
+    const result = await pickImage()
+    if (!result) return
+    const file = new File([result.blob], 'receipt.jpg', { type: 'image/jpeg' })
+    const dt = new DataTransfer()
+    dt.items.add(file)
+    const input = document.getElementById('receipt-upload-add')
+    if (input) input.files = dt.files
+    addPayReceiptRef.current = result.dataUrl
+    setAddPayReceipt(result.dataUrl)
+  }
+
+  const handleCameraEditPay = async () => {
+    const result = await pickImage()
+    if (!result) return
+    const file = new File([result.blob], 'receipt.jpg', { type: 'image/jpeg' })
+    const dt = new DataTransfer()
+    dt.items.add(file)
+    if (receiptRef.current) receiptRef.current.files = dt.files
+    setEditingPayment(prev => ({ ...prev, receipt_preview: result.dataUrl }))
+  }
+
+  const handleCameraNewSalePay = async (index) => {
+    const result = await pickImage()
+    if (!result) return
+    const n = [...payments]
+    const file = new File([result.blob], 'receipt.jpg', { type: 'image/jpeg' })
+    n[index].receiptFile = file
+    n[index].receiptPreview = result.dataUrl
+    setPayments(n)
   }
 
   return (
@@ -735,9 +773,14 @@ const Sales = ({ user }) => {
                              <button type="button" onClick={() => { URL.revokeObjectURL(addPayReceipt); addPayReceiptRef.current = null; document.getElementById('receipt-upload-add').value = ''; setAddPayReceipt(null) }} className="text-xs text-red-500 hover:text-red-700 font-medium">{t('remove')}</button>
                             </div>
                           ) : (
-                           <label htmlFor="receipt-upload-add" className="flex items-center justify-center gap-3 w-full py-4 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-blue-500 hover:text-blue-600 transition-colors cursor-pointer">
-                            <Camera size={20} /><span className="text-sm font-medium">{t('selectImageFile')}</span>
-                           </label>
+                            <div className="flex flex-wrap gap-2">
+                              <label htmlFor="receipt-upload-add" className="flex items-center justify-center gap-3 flex-1 py-4 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-blue-500 hover:text-blue-600 transition-colors cursor-pointer min-w-[180px]">
+                               <Upload size={20} /><span className="text-sm font-medium">{t('selectImageFile')}</span>
+                              </label>
+                              <button type="button" onClick={handleCameraAddPay} className="flex items-center justify-center gap-2 py-4 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-blue-500 hover:text-blue-600 transition-colors cursor-pointer">
+                               <Camera size={20} /><span className="text-sm font-medium">{t('captureOrSelect')}</span>
+                              </button>
+                            </div>
                           )}
                          </div>
                        </div>
@@ -808,31 +851,36 @@ const Sales = ({ user }) => {
                     </div>
                   )}
                 </div>
-                <div className="p-6 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-5">
-                  <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('receipt')}</h3>
-                  {editingPayment.receipt_image && (
-                    <div className="flex items-center gap-4">
-                      <img src={editingPayment.receipt_image} alt="Receipt" className="w-24 h-24 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shrink-0" />
-                      <span className="text-xs text-slate-500">{t('existingReceipt')}</span>
-                    </div>
-                  )}
-                  <label className="flex items-center justify-center gap-3 w-full py-4 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-blue-500 hover:text-blue-600 transition-colors cursor-pointer">
-                    <Upload size={20} />
-                    <span className="text-sm font-medium">{t('uploadReceipt') || 'Upload Receipt'}</span>
-                    <input type="file" name="receipt" accept="image/*" className="hidden" ref={receiptRef} onChange={e => {
-                      if (e.target.files?.[0]) {
-                        const reader = new FileReader()
-                        reader.onload = ev => setEditingPayment(prev => ({ ...prev, receipt_preview: ev.target.result }))
-                        reader.readAsDataURL(e.target.files[0])
-                      }
-                    }} />
-                  </label>
-                  {editingPayment.receipt_preview && (
-                    <div className="flex items-center gap-4">
-                      <img src={editingPayment.receipt_preview} alt="Preview" className="w-24 h-24 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shrink-0" />
-                      <button type="button" onClick={() => { setEditingPayment(prev => ({ ...prev, receipt_preview: null })); if (receiptRef.current) receiptRef.current.value = '' }} className="text-xs text-red-500 hover:text-red-700 font-medium">{t('remove')}</button>
-                    </div>
+                  <div className="p-6 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-5">
+                   <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('receipt')}</h3>
+                   {editingPayment.receipt_image && (
+                     <div className="flex items-center gap-4">
+                       <img src={editingPayment.receipt_image} alt="Receipt" className="w-24 h-24 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shrink-0" />
+                       <span className="text-xs text-slate-500">{t('existingReceipt')}</span>
+                     </div>
                    )}
+                   <div className="flex flex-wrap gap-2">
+                     <label className="flex items-center justify-center gap-3 flex-1 py-4 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-blue-500 hover:text-blue-600 transition-colors cursor-pointer min-w-[180px]">
+                       <Upload size={20} />
+                       <span className="text-sm font-medium">{t('uploadReceipt') || 'Upload Receipt'}</span>
+                       <input type="file" name="receipt" accept="image/*" className="hidden" ref={receiptRef} onChange={e => {
+                         if (e.target.files?.[0]) {
+                           const reader = new FileReader()
+                           reader.onload = ev => setEditingPayment(prev => ({ ...prev, receipt_preview: ev.target.result }))
+                           reader.readAsDataURL(e.target.files[0])
+                         }
+                       }} />
+                     </label>
+                     <button type="button" onClick={handleCameraEditPay} className="flex items-center justify-center gap-2 py-4 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-blue-500 hover:text-blue-600 transition-colors cursor-pointer">
+                       <Camera size={20} /><span className="text-sm font-medium">{t('captureOrSelect')}</span>
+                     </button>
+                   </div>
+                   {editingPayment.receipt_preview && (
+                     <div className="flex items-center gap-4">
+                       <img src={editingPayment.receipt_preview} alt="Preview" className="w-24 h-24 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shrink-0" />
+                       <button type="button" onClick={() => { setEditingPayment(prev => ({ ...prev, receipt_preview: null })); if (receiptRef.current) receiptRef.current.value = '' }} className="text-xs text-red-500 hover:text-red-700 font-medium">{t('remove')}</button>
+                     </div>
+                    )}
                  </div>
                  <div className="col-span-full">
                   <div className="p-6 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-4">
@@ -888,12 +936,13 @@ const Sales = ({ user }) => {
                           <label className="label">{t('selectExistingCustomer')}</label>
                           <select className="input-field" value={selectedCustomerId} onChange={e => {
                             setSelectedCustomerId(e.target.value)
+                            setPhoneWarning('')
                             if (e.target.value) {
                               const c = customers.find(c => c.id === parseInt(e.target.value))
                               if (c) {
                                 const f = document.getElementById('sale-form')
                                 f.customer_name.value  = c.full_name
-                                f.customer_phone.value = c.phone
+                                setNewCustPhone(c.phone)
                               }
                             }
                           }}>
@@ -901,10 +950,23 @@ const Sales = ({ user }) => {
                             {customers.map(c => <option key={c.id} value={c.id}>{capitalizeName(c.full_name)} ({c.phone})</option>)}
                           </select>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div><label className="label">{t('fullName')}</label><input type="text" name="customer_name" required className="input-field" placeholder="Abebe Kebede" /></div>
-                          <div><label className="label">{t('phoneNumber')}</label><input type="text" name="customer_phone" className="input-field" placeholder="0911..." /></div>
-                        </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                           <div><label className="label">{t('fullName')}</label><input type="text" name="customer_name" required className="input-field" placeholder="Abebe Kebede" /></div>
+                           <div>
+                            <label className="label">{t('phoneNumber')}</label>
+                            <input type="text" name="customer_phone" className={`input-field ${phoneWarning ? 'border-amber-500 dark:border-amber-500' : ''}`}
+                             placeholder="0911..."
+                             value={newCustPhone}
+                             onChange={e => { setNewCustPhone(e.target.value); setPhoneWarning('') }}
+                             onBlur={() => {
+                              if (!newCustPhone.trim() || selectedCustomerId) { setPhoneWarning(''); return }
+                              const match = customers.find(c => c.phone === newCustPhone.trim())
+                              if (match) setPhoneWarning(`This phone belongs to ${capitalizeName(match.full_name)}. Select them from the dropdown above.`)
+                              else setPhoneWarning('')
+                             }} />
+                            {phoneWarning && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">{phoneWarning}</p>}
+                           </div>
+                          </div>
                       </div>
                     </div>
 
@@ -1006,15 +1068,20 @@ const Sales = ({ user }) => {
                                 </div>
                                 <div className="sm:col-span-2">
                                   <label className="label">{t('bankReceiptImage')}</label>
-                                  <label className="flex items-center justify-center gap-3 w-full py-3 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-brand-500 hover:text-brand-600 transition-colors cursor-pointer">
-                                    <Camera size={18} />
-                                    <span className="text-sm font-medium">{p.receiptFile ? p.receiptFile.name : t('selectImageFile')}</span>
-                                    <input type="file" accept="image/*" className="hidden" onChange={e => {
-                                      const n = [...payments]
-                                      n[index].receiptFile = e.target.files[0] || null
-                                      setPayments(n)
-                                    }} />
-                                  </label>
+                                  <div className="flex flex-wrap gap-2">
+                                    <label className="flex items-center justify-center gap-3 flex-1 py-3 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-brand-500 hover:text-brand-600 transition-colors cursor-pointer min-w-[160px]">
+                                      <Upload size={18} />
+                                      <span className="text-sm font-medium">{p.receiptFile ? p.receiptFile.name : t('selectImageFile')}</span>
+                                      <input type="file" accept="image/*" className="hidden" onChange={e => {
+                                        const n = [...payments]
+                                        n[index].receiptFile = e.target.files[0] || null
+                                        setPayments(n)
+                                      }} />
+                                    </label>
+                                    <button type="button" onClick={() => handleCameraNewSalePay(index)} className="flex items-center justify-center gap-2 py-3 px-4 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl text-slate-500 hover:border-brand-500 hover:text-brand-600 transition-colors cursor-pointer">
+                                      <Camera size={18} /><span className="text-sm font-medium">{t('captureOrSelect')}</span>
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             )}

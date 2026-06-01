@@ -94,3 +94,37 @@ def fulfill_order(id):
     order.status = 'fulfilled'
     db.session.commit()
     return jsonify({'message': 'Order marked as fulfilled'}), 200
+
+@orders_bp.route('/<int:id>', methods=['PUT'])
+@jwt_required()
+@role_required('admin', 'manager', 'cashier')
+def update_order(id):
+    order = Order.query.get_or_404(id)
+    data = request.get_json()
+    if 'customer_name' in data:
+        order.customer_name = (data['customer_name'] or '').strip().title()
+    if 'customer_phone' in data:
+        order.customer_phone = data['customer_phone']
+    if 'vehicle_specs' in data:
+        order.vehicle_specs = data['vehicle_specs']
+    if 'deposit_amount' in data:
+        order.deposit_amount = data['deposit_amount']
+    if 'deposit_method' in data:
+        order.deposit_method = data['deposit_method']
+    if 'remark' in data:
+        order.remark = data['remark']
+    if data.get('deposit_method') == 'bank':
+        order.deposit_bank = data.get('deposit_bank', order.deposit_bank or '').upper()
+        order.deposit_account_holder = data.get('deposit_account_holder', order.deposit_account_holder or '').upper()
+        order.deposit_transaction_reference = data.get('deposit_transaction_reference', order.deposit_transaction_reference or '').upper()
+    db.session.commit()
+    return jsonify({'message': 'Order updated'}), 200
+
+@orders_bp.route('/<int:id>', methods=['DELETE'])
+@jwt_required()
+@role_required('admin', 'manager')
+def delete_order(id):
+    order = Order.query.get_or_404(id)
+    db.session.delete(order)
+    db.session.commit()
+    return jsonify({'message': 'Order deleted'}), 200

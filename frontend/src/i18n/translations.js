@@ -368,6 +368,7 @@ export const translations = {
     changeItemMedia: 'Change Item Media',
     startUpload: 'Start Upload',
     selectNewImage: 'Select New Image',
+    captureOrSelect: 'Capture / Select',
     productConfig: 'Product Configuration System',
 
     // Transfers Modal
@@ -766,6 +767,7 @@ export const translations = {
     changeItemMedia: 'ምስሉን ቀይር',
     startUpload: 'ጫን',
     selectNewImage: 'አዲስ ምስል ምረጥ',
+    captureOrSelect: 'ምስል አንሳ / ምረጥ',
     productConfig: 'የምርት ውቅር ስርዓት',
 
     // Transfers Modal
@@ -1162,6 +1164,7 @@ export const translations = {
     changeItemMedia: 'ስእሊ ቀይር',
     startUpload: 'ጸዓን',
     selectNewImage: 'ሓዱሽ ስእሊ ምረጽ',
+    captureOrSelect: 'ስእሊ ተልዕል / ምረጽ',
     productConfig: 'ስርዓት ምምካን ምርቲ',
 
     // Transfers Modal

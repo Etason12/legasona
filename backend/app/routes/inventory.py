@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required
-from app.models import Vehicle, SparePart, db
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.models import Vehicle, SparePart, User, db
 from app.utils.auth import role_required
 from app.utils.image_utils import compress_to_base64
 
@@ -12,9 +12,13 @@ inventory_bp = Blueprint('inventory', __name__)
 def get_vehicles():
     branch_id = request.args.get('branch_id')
     status = request.args.get('status')
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
     query = Vehicle.query
     if branch_id:
         query = query.filter_by(branch_id=branch_id)
+    elif current_user.role != 'admin':
+        query = query.filter_by(branch_id=current_user.branch_id)
     if status:
         query = query.filter_by(status=status)
     vehicles = query.all()
@@ -93,9 +97,13 @@ def delete_vehicle(id):
 @jwt_required()
 def get_spare_parts():
     branch_id = request.args.get('branch_id')
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
     query = SparePart.query
     if branch_id:
         query = query.filter_by(branch_id=branch_id)
+    elif current_user.role != 'admin':
+        query = query.filter_by(branch_id=current_user.branch_id)
     parts = query.all()
     return jsonify([{
         'id': p.id, 'part_number': p.part_number, 'name': p.name,

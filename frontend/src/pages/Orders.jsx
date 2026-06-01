@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { ClipboardList, Plus, Search, User, Loader2, MoreVertical, Clock, CheckCircle2, X, CreditCard, Landmark, Eye, Phone, Mail, MapPin, Award, CreditCard as CardIcon } from 'lucide-react'
+import { ClipboardList, Plus, Search, User, Loader2, MoreVertical, Clock, CheckCircle2, X, CreditCard, Landmark, Eye, Phone, Mail, MapPin, Award, CreditCard as CardIcon, Edit3, Trash2 } from 'lucide-react'
 import api from '../services/api'
 import { toast } from 'react-toastify'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -11,10 +11,13 @@ const Orders = ({ user }) => {
  const [loading, setLoading] = useState(true)
  const [showAddModal, setShowAddModal] = useState(false)
  const [submitting, setSubmitting] = useState(false)
- const [customers, setCustomers] = useState([])
- const [selectedCustomerId, setSelectedCustomerId] = useState('')
+  const [customers, setCustomers] = useState([])
+  const [selectedCustomerId, setSelectedCustomerId] = useState('')
+  const [newCustPhone, setNewCustPhone] = useState('')
+  const [phoneWarning, setPhoneWarning] = useState('')
   const [search, setSearch] = useState('')
   const [showDepositModal, setShowDepositModal] = useState(false)
+  const [editingOrder, setEditingOrder] = useState(null)
   const [depositOrder, setDepositOrder] = useState(null)
   const [depositAmount, setDepositAmount] = useState('')
   const [depositMethod, setDepositMethod] = useState('cash')
@@ -56,36 +59,43 @@ const Orders = ({ user }) => {
   }
  }
 
- const handleSubmit = async (e) => {
-  e.preventDefault()
-  setSubmitting(true)
-  const formData = new FormData(e.target)
-   const data = {
-    customer_name: formData.get('customer_name'),
-    customer_phone: formData.get('customer_phone'),
-    customer_id: selectedCustomerId || null,
-    vehicle_specs: formData.get('vehicle_specs'),
-     deposit_amount: parseFloat(formData.get('deposit_amount') || 0),
-     deposit_method: orderMethod,
-     deposit_bank: orderBank,
-     deposit_account_holder: orderAccountHolder,
-     deposit_transaction_reference: orderReference,
-     branch_id: user?.branch_id || 1,
-     remark: formData.get('remark')
-    }
+  const handleSubmit = async (e) => {
+   e.preventDefault()
+   setSubmitting(true)
+   const formData = new FormData(e.target)
+    const data = {
+     customer_name: formData.get('customer_name'),
+     customer_phone: formData.get('customer_phone'),
+     customer_id: selectedCustomerId || null,
+     vehicle_specs: formData.get('vehicle_specs'),
+      deposit_amount: parseFloat(formData.get('deposit_amount') || 0),
+      deposit_method: orderMethod,
+      deposit_bank: orderBank,
+      deposit_account_holder: orderAccountHolder,
+      deposit_transaction_reference: orderReference,
+      branch_id: user?.branch_id || 1,
+      remark: formData.get('remark')
+     }
 
-  try {
-    await api.post('/orders', data)
-    toast.success('Order added to waiting list')
-    setShowAddModal(false)
-    setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference('')
-    fetchOrders()
-  } catch (error) {
-   toast.error('Failed to create order')
-  } finally {
-   setSubmitting(false)
+   try {
+     if (editingOrder) {
+       await api.put(`/orders/${editingOrder.id}`, data)
+       toast.success('Order updated')
+     } else {
+       await api.post('/orders', data)
+       toast.success('Order added to waiting list')
+     }
+     setShowAddModal(false)
+     setEditingOrder(null)
+     setSelectedCustomerId(''); setNewCustPhone(''); setPhoneWarning('')
+     setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference('')
+     fetchOrders()
+   } catch (error) {
+    toast.error(error.response?.data?.message || (editingOrder ? 'Failed to update order' : 'Failed to create order'))
+   } finally {
+    setSubmitting(false)
+   }
   }
- }
 
   const handleFulfill = async (orderId) => {
    if (!window.confirm('Mark this order as fulfilled?')) return
@@ -96,6 +106,30 @@ const Orders = ({ user }) => {
    } catch (error) {
     toast.error('Failed to fulfill order')
    }
+  }
+
+  const handleDelete = async (orderId) => {
+   if (!window.confirm('Delete this reservation? This cannot be undone.')) return
+   try {
+    await api.delete(`/orders/${orderId}`)
+    toast.success('Reservation deleted')
+    if (editingOrder?.id === orderId) { setShowAddModal(false); setEditingOrder(null) }
+    fetchOrders()
+   } catch (error) {
+    toast.error(error.response?.data?.message || 'Failed to delete order')
+   }
+  }
+
+  const openEditOrder = (order) => {
+   setEditingOrder(order)
+   setSelectedCustomerId(order.customer_id || '')
+   setNewCustPhone(order.customer_phone || '')
+   setOrderMethod(order.deposit_method || 'cash')
+   setOrderBank(order.deposit_bank || '')
+   setOrderAccountHolder(order.deposit_account_holder || '')
+   setOrderReference(order.deposit_transaction_reference || '')
+   setPhoneWarning('')
+   setShowAddModal(true)
   }
 
   const viewCustomerDetail = async (order) => {
@@ -156,7 +190,7 @@ const Orders = ({ user }) => {
      <p className="text-slate-400 mt-1 font-medium">{t('ordersDesc')}</p>
     </div>
     <button 
-     onClick={() => { setShowAddModal(true); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); }}
+      onClick={() => { setShowAddModal(true); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); setSelectedCustomerId(''); setNewCustPhone(''); setPhoneWarning(''); }}
      className="btn-primary flex items-center gap-2"
     >
      <Plus size={20} />
@@ -268,26 +302,40 @@ const Orders = ({ user }) => {
            <td className="px-6 py-4 hidden md:table-cell text-sm text-slate-600 dark:text-slate-300 max-w-[200px] truncate">
             {order.remark || '-'}
            </td>
-            <td className="px-6 py-4 text-right">
-            <div className="flex items-center justify-end gap-2">
-             {order.status === 'waiting' && (
-              <>
-                <button
-                 onClick={() => { setDepositOrder(order); setDepositAmount(''); setDepositMethod('cash'); setDepositBank(''); setDepositAccountHolder(''); setDepositReference(''); setShowDepositModal(true) }}
-                 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:bg-emerald-900/30 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800 transition-colors flex items-center gap-1"
+             <td className="px-6 py-4 text-right">
+             <div className="flex items-center justify-end gap-2">
+              {order.status === 'waiting' && (
+               <>
+                 <button
+                  onClick={() => { setDepositOrder(order); setDepositAmount(''); setDepositMethod('cash'); setDepositBank(''); setDepositAccountHolder(''); setDepositReference(''); setShowDepositModal(true) }}
+                  className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:bg-emerald-900/30 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800 transition-colors flex items-center gap-1"
+                 >
+                  <CreditCard size={14} />{t('deposit')}
+                </button>
+                <button 
+                 onClick={() => handleFulfill(order.id)}
+                 className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-800 transition-colors"
                 >
-                 <CreditCard size={14} />{t('deposit')}
-               </button>
-               <button 
-                onClick={() => handleFulfill(order.id)}
-                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-800 transition-colors"
+                 {t('fulfill')}
+                </button>
+               </>
+              )}
+               <button
+                onClick={() => openEditOrder(order)}
+                className="p-2 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                title={t('edit')}
                >
-                {t('fulfill')}
+                <Edit3 size={15} />
                </button>
-              </>
-             )}
-            </div>
-           </td>
+               <button
+                onClick={() => handleDelete(order.id)}
+                className="p-2 bg-rose-100 dark:bg-rose-900/30 hover:bg-rose-200 dark:hover:bg-rose-900/50 rounded-lg text-rose-600 transition-colors"
+                title={t('delete')}
+               >
+                <Trash2 size={15} />
+               </button>
+             </div>
+            </td>
          </tr>
         ))
        )}
@@ -302,53 +350,64 @@ const Orders = ({ user }) => {
       <div className="modal-content max-w-xl">
        <div className="modal-header">
         <div>
-          <h2 className="text-xl font-bold text-neutral-900 dark:text-white">{t('newReservation')}</h2>
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white">{editingOrder ? t('edit') : t('newReservation')}</h2>
            <p className="text-xs font-medium text-neutral-500 mt-0.5">{t('reservationQueue')}</p>
          </div>
-          <button onClick={() => { setShowAddModal(false); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); }} className="p-2 bg-neutral-100 dark:bg-neutral-800 rounded-2xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700">
+           <button onClick={() => { setShowAddModal(false); setEditingOrder(null); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); setNewCustPhone(''); setPhoneWarning(''); }} className="p-2 bg-neutral-100 dark:bg-neutral-800 rounded-2xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700">
          <X size={20} />
         </button>
        </div>
 
       <div className="modal-body custom-scrollbar">
-       <form id="order-form" onSubmit={handleSubmit} className="space-y-6">
+       <form key={editingOrder?.id || 'new'} id="order-form" onSubmit={handleSubmit} className="space-y-6">
         <div>
          <label className="label">{t('selectExistingCustomer')}</label>
-         <select 
-          className="input-field" 
-          value={selectedCustomerId}
-          onChange={(e) => {
-           setSelectedCustomerId(e.target.value)
-           if (e.target.value) {
-            const c = customers.find(c => c.id === parseInt(e.target.value))
-            if (c) {
-             const form = e.target.closest('form')
-             form.customer_name.value = c.full_name
-             form.customer_phone.value = c.phone
+          <select 
+           className="input-field" 
+           value={selectedCustomerId}
+           onChange={(e) => {
+            setSelectedCustomerId(e.target.value)
+            setPhoneWarning('')
+            if (e.target.value) {
+             const c = customers.find(c => c.id === parseInt(e.target.value))
+             if (c) {
+              const form = e.target.closest('form')
+              form.customer_name.value = c.full_name
+              setNewCustPhone(c.phone)
+             }
             }
-           }
-          }}
-         >
+           }}
+          >
           <option value="">{t('newCustomer')}</option>
           {customers.map(c => <option key={c.id} value={c.id}>{capitalizeName(c.full_name)} ({c.phone})</option>)}
          </select>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-         <div>
-          <label className="label">{t('fullName')} *</label>
-          <input type="text" name="customer_name" className="input-field" placeholder="e.g. Abebe Kebede" required />
+         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+           <label className="label">{t('fullName')} *</label>
+           <input type="text" name="customer_name" className="input-field" placeholder="e.g. Abebe Kebede" required defaultValue={editingOrder?.customer_name || ''} />
+          </div>
+          <div>
+           <label className="label">{t('phoneNumber')} *</label>
+           <input type="tel" name="customer_phone" className={`input-field ${phoneWarning ? 'border-amber-500 dark:border-amber-500' : ''}`}
+            placeholder="0911..." required
+            value={newCustPhone}
+            onChange={e => { setNewCustPhone(e.target.value); setPhoneWarning('') }}
+            onBlur={() => {
+             if (!newCustPhone.trim() || selectedCustomerId) { setPhoneWarning(''); return }
+             const match = customers.find(c => c.phone === newCustPhone.trim())
+             if (match) setPhoneWarning(`This phone belongs to ${capitalizeName(match.full_name)}. Select them from the dropdown above.`)
+             else setPhoneWarning('')
+            }} />
+           {phoneWarning && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">{phoneWarning}</p>}
+          </div>
          </div>
-         <div>
-          <label className="label">{t('phoneNumber')} *</label>
-          <input type="tel" name="customer_phone" className="input-field" placeholder="0911..." required />
-         </div>
-        </div>
 
          <div className="space-y-4">
           <div>
            <label className="label">{t('initialDeposit')} (ETB)</label>
-           <input type="number" name="deposit_amount" className="input-field" placeholder="0.00" />
+           <input type="number" name="deposit_amount" className="input-field" placeholder="0.00" defaultValue={editingOrder?.deposit_amount || ''} />
           </div>
           <div>
            <label className="label">{t('paymentMethod') || 'Payment Method'}</label>
@@ -396,6 +455,7 @@ const Orders = ({ user }) => {
            className="input-field h-28 resize-none" 
            placeholder="Model, Color, Power type..." 
            required
+           defaultValue={editingOrder?.vehicle_specs || ''}
           />
          </div>
 
@@ -405,28 +465,29 @@ const Orders = ({ user }) => {
            name="remark" 
            className="input-field h-20 resize-none" 
            placeholder="Optional notes..."
+           defaultValue={editingOrder?.remark || ''}
           />
          </div>
         </form>
        </div>
 
-       <div className="modal-footer">
+        <div className="modal-footer">
+         <button 
+          type="button" 
+            onClick={() => { setShowAddModal(false); setEditingOrder(null); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); setNewCustPhone(''); setPhoneWarning(''); }}
+           className="btn-secondary"
+         >
+         {t('cancel')}
+        </button>
         <button 
-         type="button" 
-          onClick={() => { setShowAddModal(false); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); }}
-          className="btn-secondary"
+         form="order-form"
+         type="submit" 
+         disabled={submitting}
+         className="btn-primary px-10"
         >
-        {t('cancel')}
-       </button>
-       <button 
-        form="order-form"
-        type="submit" 
-        disabled={submitting}
-        className="btn-primary px-10"
-       >
-        {submitting ? <Loader2 className="animate-spin" size={18} /> : null}
-        {t('createOrder')}
-       </button>
+         {submitting ? <Loader2 className="animate-spin" size={18} /> : null}
+         {editingOrder ? t('update') : t('createOrder')}
+        </button>
       </div>
      </div>
     </div>

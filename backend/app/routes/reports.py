@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Sale, Payment, Expense, Vehicle, SparePart, Branch, Order, ActivityLog, User, db
 from sqlalchemy import func
 from datetime import datetime, timedelta
@@ -19,6 +19,10 @@ def get_dashboard_stats():
     branch_id = request.args.get('branch_id')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    if not branch_id and current_user.role != 'admin':
+        branch_id = str(current_user.branch_id)
 
     sales_q   = db.session.query(func.sum(Sale.total_amount))
     orders_q  = Order.query.filter(Order.status == 'waiting')
@@ -131,6 +135,10 @@ def get_profit_analysis():
     branch_id = request.args.get('branch_id')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    if not branch_id and current_user.role != 'admin':
+        branch_id = str(current_user.branch_id)
 
     sales_q    = db.session.query(
         func.sum(Sale.total_amount).label('revenue'),
@@ -169,6 +177,10 @@ def get_payment_report():
     branch_id = request.args.get('branch_id')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    if not branch_id and current_user.role != 'admin':
+        branch_id = str(current_user.branch_id)
 
     query = db.session.query(Payment, Sale).join(Sale, Payment.sale_id == Sale.id)
 
@@ -213,6 +225,10 @@ def get_branch_comparison():
     branch_id = request.args.get('branch_id')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    if not branch_id and current_user.role != 'admin':
+        branch_id = str(current_user.branch_id)
     branches = Branch.query.all()
     result = []
     for b in branches:
@@ -240,9 +256,24 @@ def get_branch_comparison():
 @reports_bp.route('/inventory-distribution', methods=['GET'])
 @jwt_required()
 def get_inventory_distribution():
-    vehicle_types = db.session.query(Vehicle.type, func.count(Vehicle.id)).group_by(Vehicle.type).all()
-    vehicle_power = db.session.query(Vehicle.power_type, func.count(Vehicle.id)).group_by(Vehicle.power_type).all()
-    part_categories = db.session.query(SparePart.category, func.count(SparePart.id)).group_by(SparePart.category).all()
+    branch_id = request.args.get('branch_id')
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    if not branch_id and current_user.role != 'admin':
+        branch_id = str(current_user.branch_id)
+
+    vehicle_q = db.session.query(Vehicle.type, func.count(Vehicle.id))
+    vehicle_power_q = db.session.query(Vehicle.power_type, func.count(Vehicle.id))
+    part_q = db.session.query(SparePart.category, func.count(SparePart.id))
+
+    if branch_id:
+        vehicle_q = vehicle_q.filter(Vehicle.branch_id == branch_id)
+        vehicle_power_q = vehicle_power_q.filter(Vehicle.branch_id == branch_id)
+        part_q = part_q.filter(SparePart.branch_id == branch_id)
+
+    vehicle_types = vehicle_q.group_by(Vehicle.type).all()
+    vehicle_power = vehicle_power_q.group_by(Vehicle.power_type).all()
+    part_categories = part_q.group_by(SparePart.category).all()
 
     return jsonify({
         'vehicle_types': [{'name': t or 'Unknown', 'count': c} for t, c in vehicle_types],

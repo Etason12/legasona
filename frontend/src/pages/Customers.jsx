@@ -19,26 +19,50 @@ const Customers = ({ user }) => {
  const [selectedCustomer, setSelectedCustomer] = useState(null)
  const [showDetails, setShowDetails] = useState(null) // customer ID
  const [customerDetails, setCustomerDetails] = useState(null)
- const [saving, setSaving] = useState(false)
- const [form, setForm] = useState({
-  full_name: '', phone: '', email: '', address: '', type: 'individual', credit_limit: 0
- })
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+   full_name: '', phone: '', email: '', address: '', type: 'individual', credit_limit: 0
+  })
+  const [phoneError, setPhoneError] = useState('')
+  const [phoneChecking, setPhoneChecking] = useState(false)
 
  useEffect(() => {
   fetchCustomers()
  }, [search])
 
- const fetchCustomers = async () => {
-  setLoading(true)
-  try {
-   const res = await api.get(`/customers?search=${search}`)
-   setCustomers(res.data)
-  } catch {
-   toast.error('Failed to load customers')
-  } finally {
-   setLoading(false)
+  const fetchCustomers = async () => {
+   setLoading(true)
+   try {
+    const branchId = user?.role?.toLowerCase() === 'admin' ? '' : (user?.branch_id || '')
+    const res = await api.get(`/customers?search=${search}&branch_id=${branchId}`)
+    setCustomers(res.data)
+   } catch {
+    toast.error('Failed to load customers')
+   } finally {
+    setLoading(false)
+   }
   }
- }
+
+  const checkPhoneExists = async (phone) => {
+   if (!phone.trim() || selectedCustomer) return false
+   try {
+    const res = await api.get(`/customers?search=${encodeURIComponent(phone)}`)
+    return res.data.some(c => c.phone === phone.trim())
+   } catch {
+    return false
+   }
+  }
+
+  const handlePhoneBlur = async () => {
+   if (!form.phone.trim() || selectedCustomer) {
+    setPhoneError('')
+    return
+   }
+   setPhoneChecking(true)
+   const exists = await checkPhoneExists(form.phone)
+   setPhoneError(exists ? 'Phone number already registered' : '')
+   setPhoneChecking(false)
+  }
 
  const fetchDetails = async (id) => {
   try {
@@ -62,25 +86,37 @@ const Customers = ({ user }) => {
   }
  }
 
- const handleSubmit = async (e) => {
-  e.preventDefault()
-  setSaving(true)
-  try {
-   if (selectedCustomer) {
-    await api.put(`/customers/${selectedCustomer.id}`, form)
-    toast.success('Customer updated')
-   } else {
-    await api.post('/customers', { ...form, branch_id: user?.branch_id })
-    toast.success('Customer added')
+  const handleSubmit = async (e) => {
+   e.preventDefault()
+   if (!selectedCustomer && phoneError) return
+   setSaving(true)
+   try {
+    if (selectedCustomer) {
+     await api.put(`/customers/${selectedCustomer.id}`, form)
+     toast.success('Customer updated')
+    } else {
+     const exists = await checkPhoneExists(form.phone)
+     if (exists) {
+      setPhoneError('Phone number already registered')
+      setSaving(false)
+      return
+     }
+     await api.post('/customers', { ...form, branch_id: user?.branch_id })
+     toast.success('Customer added')
+    }
+    setShowModal(false)
+    setPhoneError('')
+    fetchCustomers()
+   } catch (err) {
+    if (err.response?.status === 409) {
+     setPhoneError(err.response.data?.message || 'Phone number already registered')
+    } else {
+     toast.error(err.response?.data?.message || 'Failed to save customer')
+    }
+   } finally {
+    setSaving(false)
    }
-   setShowModal(false)
-   fetchCustomers()
-  } catch (err) {
-   toast.error(err.response?.data?.message || 'Failed to save customer')
-  } finally {
-   setSaving(false)
   }
- }
 
  return (
   <div className="space-y-8">
@@ -93,6 +129,7 @@ const Customers = ({ user }) => {
      onClick={() => {
       setSelectedCustomer(null)
       setForm({ full_name: '', phone: '', email: '', address: '', type: 'individual', credit_limit: 0 })
+      setPhoneError('')
       setShowModal(true)
      }}
      className="btn-primary flex items-center gap-2"
@@ -169,8 +206,8 @@ const Customers = ({ user }) => {
            </td>
            <td className="px-6 py-4 text-right">
             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-             <button
-              onClick={() => { setSelectedCustomer(c); setForm({ full_name: c.full_name, phone: c.phone, email: c.email || '', address: c.address || '', type: c.type, credit_limit: c.credit_limit || 0 }); setShowModal(true) }}
+              <button
+               onClick={() => { setSelectedCustomer(c); setForm({ full_name: c.full_name, phone: c.phone, email: c.email || '', address: c.address || '', type: c.type, credit_limit: c.credit_limit || 0 }); setPhoneError(''); setShowModal(true) }}
               className="p-2 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
               title={t('edit')}
              ><Edit3 size={15}/></button>
@@ -278,7 +315,7 @@ const Customers = ({ user }) => {
          <h2 className="text-xl font-bold text-slate-900 dark:text-white er">{selectedCustomer ? t('edit') : t('addCustomer')}</h2>
          <p className="text-xs font-medium text-slate-500 mt-0.5">{t('customersTitle')}</p>
         </div>
-        <button onClick={() => setShowModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20}/></button>
+        <button onClick={() => { setShowModal(false); setPhoneError('') }} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-slate-700"><X size={20}/></button>
        </div>
 
        <div className="modal-body custom-scrollbar">
@@ -290,10 +327,18 @@ const Customers = ({ user }) => {
             <label className="label">{t('fullName')} *</label>
             <input required className="input-field" value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} placeholder="e.g. Abebe Kebede" />
            </div>
-           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div><label className="label">{t('phoneNumber')} *</label><input required className="input-field" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="0911..." /></div>
-             <div><label className="label">{t('emailAddress')}</label><input type="email" className="input-field" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="abebe@example.com" /></div>
-           </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <div>
+              <label className="label">{t('phoneNumber')} *</label>
+              <input required className={`input-field ${phoneError ? 'border-red-500 dark:border-red-500' : ''}`}
+               value={form.phone}
+               onChange={e => { setForm({...form, phone: e.target.value}); setPhoneError('') }}
+               onBlur={handlePhoneBlur}
+               placeholder="0911..." />
+              {phoneError && <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1"><span>⚠</span> {phoneError}</p>}
+             </div>
+              <div><label className="label">{t('emailAddress')}</label><input type="email" className="input-field" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="abebe@example.com" /></div>
+            </div>
           </div>
          </div>
 
@@ -321,7 +366,7 @@ const Customers = ({ user }) => {
        </div>
 
        <div className="modal-footer">
-        <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">{t('cancel')}</button>
+        <button type="button" onClick={() => { setShowModal(false); setPhoneError('') }} className="btn-secondary">{t('cancel')}</button>
         <button form="customer-form" type="submit" disabled={saving} className="btn-primary flex items-center gap-2 px-10">
          {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
          {t('save')}

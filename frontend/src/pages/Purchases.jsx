@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
- Plus, Loader2, Trash2, X, Check, Search,
- ChevronDown, ChevronUp, Package, Truck, Image as ImageIcon
+  Plus, Loader2, Trash2, X, Check, Search,
+  ChevronDown, ChevronUp, Package, Truck, Image as ImageIcon, Camera
 } from 'lucide-react'
 import api from '../services/api'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useLanguage } from '../i18n/LanguageContext'
+import { useImagePicker } from '../hooks/useImagePicker'
 import { formatDate, capitalizeName } from '../utils/format'
+
 
 const ITEM_TYPES = ['vehicle', 'spare_part', 'accessory', 'other']
 const PAYMENT_METHODS = ['cash', 'bank_transfer', 'credit']
@@ -16,13 +18,17 @@ const canCreate = (role) => ['admin', 'manager', 'storekeeper'].includes(role?.t
 const canDelete = (role) => ['admin', 'manager'].includes(role?.toLowerCase())
 
 const Purchases = ({ user }) => {
- const [purchases, setPurchases] = useState([])
- const [loading, setLoading] = useState(true)
- const [showModal, setShowModal] = useState(false)
- const [saving, setSaving] = useState(false)
- const [expanded, setExpanded] = useState(null)
- const [previewImage, setPreviewImage] = useState(null)
- const [inventory, setInventory] = useState({ vehicles: [], spareParts: [] })
+  const { pickImage } = useImagePicker()
+  const [purchases, setPurchases] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [expanded, setExpanded] = useState(null)
+  const [previewImage, setPreviewImage] = useState(null)
+  const [preview, setPreview] = useState(null)
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [inventory, setInventory] = useState({ vehicles: [], spareParts: [] })
+
  const [branches, setBranches] = useState([])
  const [search, setSearch] = useState('')
  const [form, setForm] = useState({
@@ -96,28 +102,44 @@ const Purchases = ({ user }) => {
 
  const lineTotal = form.items.reduce((sum, i) => sum + (parseFloat(i.quantity || 0) * parseFloat(i.unit_cost || 0)), 0)
 
- const handleSubmit = async e => {
-  e.preventDefault()
-  setSaving(true)
-  try {
-   const formData = new FormData()
-   formData.append('data', JSON.stringify({ ...form, user_id: user?.id }))
-   
-   const fileInput = document.getElementById('receipt-upload')
-   if (fileInput && fileInput.files[0]) {
-    formData.append('receipt', fileInput.files[0])
-   }
+  const handleFile = e => {
+    const f = e.target.files[0]
+    if (f) {
+      setPreview(URL.createObjectURL(f))
+      setSelectedFile(f)
+    }
+  }
 
-   await api.post('/purchases', formData)
-   toast.success('Purchase recorded successfully')
-   setShowModal(false)
-   setForm({ supplier_name: '', item_type: 'vehicle', payment_method: 'cash', branch_id: 1, items: [{ description: '', quantity: 1, unit_cost: '', existing_id: null }] })
-   fetchPurchases()
-   fetchInventory()
-  } catch (err) {
-   toast.error(err.response?.data?.message || 'Failed to record purchase')
-  } finally { setSaving(false) }
- }
+  const handleCamera = async () => {
+    const result = await pickImage()
+    if (result) {
+      setPreview(result.dataUrl)
+      setSelectedFile(result.blob)
+    }
+  }
+
+  const handleSubmit = async e => {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const formData = new FormData()
+      formData.append('data', JSON.stringify({ ...form, user_id: user?.id }))
+      
+      if (selectedFile) formData.append('receipt', selectedFile)
+
+      await api.post('/purchases', formData)
+      toast.success('Purchase recorded successfully')
+      setShowModal(false)
+      setForm({ supplier_name: '', item_type: 'vehicle', payment_method: 'cash', branch_id: 1, items: [{ description: '', quantity: 1, unit_cost: '', existing_id: null }] })
+      setPreview(null)
+      setSelectedFile(null)
+      fetchPurchases()
+      fetchInventory()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to record purchase')
+    } finally { setSaving(false) }
+  }
+
 
  const handleDelete = async id => {
   if (!window.confirm(t('deletePurchaseConfirm'))) return
@@ -270,19 +292,24 @@ const Purchases = ({ user }) => {
        <div className="modal-body custom-scrollbar">
         <form id="purchase-form" onSubmit={handleSubmit} className="space-y-10">
          {/* Receipt Upload — matches Add Vehicle modal's image upload style */}
-         <div className="flex flex-col md:flex-row items-center gap-8 p-8 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800">
-          <div className="w-36 h-36 rounded-2xl bg-white dark:bg-neutral-800 border-2 border-dashed border-neutral-300 dark:border-neutral-700 flex items-center justify-center overflow-hidden relative shrink-0">
-           <Package className="text-neutral-400" size={36}/>
-           <input type="file" id="receipt-upload" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*,application/pdf" />
-          </div>
-          <div className="text-center md:text-left">
+          <div className="flex flex-col md:flex-row items-center gap-8 p-8 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800">
+           <div className="w-36 h-36 rounded-2xl bg-white dark:bg-neutral-800 border-2 border-dashed border-neutral-300 dark:border-neutral-700 flex items-center justify-center overflow-hidden relative shrink-0">
+            {preview ? <img src={preview} className="w-full h-full object-cover" /> : <Package className="text-neutral-400" size={36}/>}
+            <input type="file" id="receipt-upload" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*,application/pdf" onChange={handleFile}/>
+           </div>
+           <div className="text-center md:text-left">
             <h4 className="text-neutral-900 dark:text-white font-bold">{t('receiptAttachment')}</h4>
-            <p className="text-xs text-neutral-500 mt-1 max-w-xs leading-relaxed">{t('uploadInvoice')}</p>
-           <label htmlFor="receipt-upload" className="mt-4 inline-block cursor-pointer px-5 py-2.5 bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400 transition-colors">
-            {t('uploadInvoice')}
-           </label>
+            <div className="flex flex-wrap gap-2 mt-4">
+             <label htmlFor="receipt-upload" className="cursor-pointer px-5 py-2.5 bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400 transition-colors">
+              {t('uploadInvoice')}
+             </label>
+             <button type="button" onClick={handleCamera} className="cursor-pointer px-5 py-2.5 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-2">
+              <Camera size={14}/> {t('captureOrSelect')}
+             </button>
+            </div>
+           </div>
           </div>
-         </div>
+
 
          {/* Supplier + Transaction Fields — 2-column grid */}
          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">

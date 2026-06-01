@@ -147,6 +147,9 @@ def update_order(id):
         order.deposit_method = data['deposit_method']
     if 'remark' in data:
         order.remark = data['remark']
+    # Explicitly prevent branch_id update
+    if 'branch_id' in data:
+        return jsonify({'message': 'Branch cannot be updated'}), 400
     if data.get('deposit_method') == 'bank':
         order.deposit_bank = data.get('deposit_bank', order.deposit_bank or '').upper()
         order.deposit_account_holder = data.get('deposit_account_holder', order.deposit_account_holder or '').upper()

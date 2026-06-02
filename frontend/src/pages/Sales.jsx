@@ -1006,7 +1006,46 @@ const Sales = ({ user }) => {
                           </div>
                         </div>
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="p-8 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-6">
+                        <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t('sparePart')}</h3>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="label">{t('sparePart')} *</label>
+                            <select name="part_id" required className="input-field" value={selectedPartId} onChange={e => setSelectedPartId(e.target.value)}>
+                              <option value="">{t('selectItem')}</option>
+                              {sortedParts.map(p => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name.toUpperCase()} — {p.part_number || ''} — ETB {Number(p.unit_price).toLocaleString()} — Stock: {p.quantity}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="label">{t('quantity')}</label>
+                              <input type="number" name="quantity" min="1" required className="input-field" value={partQuantity} onChange={e => setPartQuantity(e.target.value)} />
+                            </div>
+                            <div>
+                              <label className="label">{t('unitPrice')}</label>
+                              <input type="number" readOnly className="input-field bg-neutral-100 dark:bg-neutral-800"
+                                value={selectedPartId ? (availableParts.find(p => p.id === parseInt(selectedPartId, 10))?.unit_price ?? '') : ''} />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="label">{t('totalAmount')}</label>
+                              <input type="number" readOnly className="input-field bg-neutral-100 dark:bg-neutral-800"
+                                value={selectedPartId && partQuantity ? Number(partQuantity) * Number(availableParts.find(p => p.id === parseInt(selectedPartId, 10))?.unit_price || 0) : ''} />
+                            </div>
+                            <div>
+                              <label className="label">{t('date')}</label>
+                              <input type="date" name="sale_date" required className="input-field" defaultValue={`${new Date().getFullYear()}-${pad(new Date().getMonth()+1)}-${pad(new Date().getDate())}`} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Right Column */}

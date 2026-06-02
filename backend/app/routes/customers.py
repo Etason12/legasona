@@ -13,6 +13,8 @@ def get_customers():
     branch_id = request.args.get('branch_id')
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 50))
     query  = Customer.query
     if search:
         query = query.filter(or_(
@@ -23,12 +25,21 @@ def get_customers():
         query = query.filter(Customer.branch_id == branch_id)
     elif current_user.branch_id:
         query = query.filter(Customer.branch_id == current_user.branch_id)
-    customers = query.order_by(Customer.full_name.asc()).all()
-    return jsonify([{
-        'id': c.id, 'full_name': c.full_name, 'phone': c.phone,
-        'email': c.email, 'address': c.address, 'type': c.customer_type,
-        'credit_limit': c.credit_limit, 'points': c.loyalty_points
-    } for c in customers]), 200
+    
+    paginated_customers = query.order_by(Customer.full_name.asc()).paginate(page=page, per_page=per_page, error_out=False)
+    customers = paginated_customers.items
+    
+    return jsonify({
+        'items': [{
+            'id': c.id, 'full_name': c.full_name, 'phone': c.phone,
+            'email': c.email, 'address': c.address, 'type': c.customer_type,
+            'credit_limit': c.credit_limit, 'points': c.loyalty_points
+        } for c in customers],
+        'total': paginated_customers.total,
+        'pages': paginated_customers.pages,
+        'current_page': page
+    }), 200
+
 
 @customers_bp.route('', methods=['POST'])
 @jwt_required()

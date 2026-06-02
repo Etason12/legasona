@@ -1,0 +1,12 @@
+import sqlite3
+conn = sqlite3.connect('backend/instance/dealership.db')
+cur = conn.cursor()
+cur.execute("SELECT id, name FROM branches")
+print('Branches:', cur.fetchall())
+cur.execute("SELECT COUNT(*) FROM customers WHERE branch_id IS NULL")
+print('Customers with NULL branch_id:', cur.fetchone()[0])
+cur.execute("SELECT COUNT(*) FROM customers")
+print('Total customers:', cur.fetchone()[0])
+cur.execute("SELECT id, full_name, branch_id FROM customers WHERE branch_id IS NULL LIMIT 10")
+print('Sample null branch customers:', cur.fetchall())
+conn.close()

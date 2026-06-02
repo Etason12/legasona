@@ -73,24 +73,12 @@ const Sales = ({ user }) => {
   const [editSaleAmount, setEditSaleAmount] = useState('')
   const [editSaleRemark, setEditSaleRemark] = useState('')
   const [editSubmitting, setEditSubmitting] = useState(false)
-  const [customers, setCustomers]                 = useState([])
-  const [selectedCustomerId, setSelectedCustomerId] = useState('')
-  const [newCustPhone, setNewCustPhone]           = useState('')
-  const [phoneWarning, setPhoneWarning]           = useState('')
-  const [saleType, setSaleType]                   = useState('vehicle')
-  const [selectedPartId, setSelectedPartId]       = useState('')
-  const [partQuantity, setPartQuantity]           = useState(1)
-  // Add-payment form state (replaces DOM getElementById hacks)
-  const [addPayMethod, setAddPayMethod]           = useState('cash')
-  const [addPayReceipt, setAddPayReceipt]           = useState(null)
-  const addPayReceiptRef = useRef(null)
-  const { t } = useLanguage()
-  const receiptRef = useRef(null)
-  const sortedVehicles = useMemo(() => [...availableVehicles].sort((a, b) => a.model.localeCompare(b.model)), [availableVehicles])
-  const sortedParts = useMemo(() => [...availableParts].sort((a, b) => a.name.localeCompare(b.name)), [availableParts])
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [perPage, setPerPage] = useState(50)
 
   useEffect(() => { const t = setTimeout(() => setDebouncedSearch(searchQuery), 350); return () => clearTimeout(t) }, [searchQuery])
-  useEffect(() => { fetchData() }, [statusFilter, debouncedSearch, startDate, endDate])
+  useEffect(() => { fetchData() }, [statusFilter, debouncedSearch, startDate, endDate, page])
 
   useEffect(() => {
     if (showNewSale) {
@@ -143,12 +131,22 @@ const Sales = ({ user }) => {
     try {
       const branchId = user?.role?.toLowerCase() === 'admin' ? '' : (user?.branch_id || '')
       const [salesRes, vehRes, partsRes, custRes] = await Promise.all([
-        api.get(`/sales?status=${statusFilter}&search=${searchQuery}&start_date=${startDate}&end_date=${endDate}&branch_id=${branchId}`),
+        api.get(`/sales?status=${statusFilter}&search=${searchQuery}&start_date=${startDate}&end_date=${endDate}&branch_id=${branchId}&page=${page}&per_page=${perPage}`),
         api.get(`/inventory/vehicles?status=available&branch_id=${branchId}`),
         api.get(`/inventory/spare-parts?branch_id=${branchId}`),
         api.get('/customers')
       ])
-      setSales(salesRes.data)
+      
+      // The backend now returns a paginated object: { items: [...], total: 100, pages: 2, ... }
+      // But we need to check if the response is the array or the paginated object.
+      // If the backend returns an array (from the previous version), we handle it.
+      if (Array.isArray(salesRes.data)) {
+        setSales(salesRes.data)
+      } else {
+        setSales(salesRes.data.items || [])
+        setTotalPages(salesRes.data.pages || 1)
+      }
+      
       setAvailableVehicles(vehRes.data)
       setAvailableParts(partsRes.data.filter(p => p.quantity > 0))
       setCustomers(custRes.data)
@@ -675,11 +673,40 @@ const Sales = ({ user }) => {
                             title="Delete Payment"
                           ><Trash2 size={16} /></button>
                         )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+                       </div>
+                     </tr>
+                   ))
+                 )}
+               </tbody>
+             </table>
+             {totalPages > 1 && (
+               <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800">
+                 <span className="text-xs font-bold text-slate-500">
+                   Page {page} of {totalPages}
+                 </span>
+                 <div className="flex gap-2">
+                   <button 
+                     disabled={page === 1}
+                     onClick={() => { setPage(p => p - 1); setLoading(true) }} 
+                     className="px-3 py-1 text-xs font-bold rounded-lg bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-slate-600 dark:text-slate-300 disabled:opacity-50 transition-colors"
+                   >
+                     Previous
+                   </button>
+                   <button 
+                     disabled={page === totalPages}
+                     onClick={() => { setPage(p => p + 1); setLoading(true) }} 
+                     className="px-3 py-1 text-xs font-bold rounded-lg bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-slate-600 dark:text-slate-300 disabled:opacity-50 transition-colors"
+                   >
+                     Next
+                   </button>
+                 </div>
+               </div>
+             )}
+             </div>
+           )
+         )}
+       </div>
+
             </div>
 
             <div className="modal-footer justify-between">

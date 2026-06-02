@@ -14,6 +14,8 @@ def get_vehicles():
     status = request.args.get('status')
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 50))
     query = Vehicle.query
     if branch_id:
         query = query.filter_by(branch_id=branch_id)
@@ -21,14 +23,27 @@ def get_vehicles():
         query = query.filter_by(branch_id=current_user.branch_id)
     if status:
         query = query.filter_by(status=status)
-    vehicles = query.all()
-    return jsonify([{
-        'id': v.id, 'vin': v.vin, 'type': v.type, 'power_type': v.power_type,
-        'model': v.model, 'color': v.color, 'chassis_number': v.vin,
-        'engine_number': v.engine_number, 'cost_price': v.cost_price,
-        'selling_price': v.selling_price, 'branch_id': v.branch_id,
-        'status': v.status, 'image': v.image
-    } for v in vehicles]), 200
+    
+    paginated_vehicles = query.with_entities(
+        Vehicle.id, Vehicle.vin, Vehicle.type, Vehicle.power_type,
+        Vehicle.model, Vehicle.color, Vehicle.engine_number,
+        Vehicle.cost_price, Vehicle.selling_price, Vehicle.branch_id,
+        Vehicle.status, Vehicle.image
+    ).paginate(page=page, per_page=per_page, error_out=False)
+    
+    vehicles = paginated_vehicles.items
+    return jsonify({
+        'items': [{
+            'id': v.id, 'vin': v.vin, 'type': v.type, 'power_type': v.power_type,
+            'model': v.model, 'color': v.color, 'chassis_number': v.vin,
+            'engine_number': v.engine_number, 'cost_price': v.cost_price,
+            'selling_price': v.selling_price, 'branch_id': v.branch_id,
+            'status': v.status, 'image': v.image
+        } for v in vehicles],
+        'total': paginated_vehicles.total,
+        'pages': paginated_vehicles.pages,
+        'current_page': page
+    }), 200
 
 @inventory_bp.route('/vehicles', methods=['POST'])
 @jwt_required()
@@ -99,18 +114,33 @@ def get_spare_parts():
     branch_id = request.args.get('branch_id')
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 50))
     query = SparePart.query
     if branch_id:
         query = query.filter_by(branch_id=branch_id)
     elif current_user.role != 'admin':
         query = query.filter_by(branch_id=current_user.branch_id)
-    parts = query.all()
-    return jsonify([{
-        'id': p.id, 'part_number': p.part_number, 'name': p.name,
-        'category': p.category, 'quantity': p.quantity,
-        'unit_price': p.unit_price, 'cost_price': p.cost_price,
-        'branch_id': p.branch_id, 'image': p.image
-    } for p in parts]), 200
+    
+    paginated_parts = query.with_entities(
+        SparePart.id, SparePart.part_number, SparePart.name,
+        SparePart.category, SparePart.quantity,
+        SparePart.unit_price, SparePart.cost_price,
+        SparePart.branch_id, SparePart.image
+    ).paginate(page=page, per_page=per_page, error_out=False)
+    
+    parts = paginated_parts.items
+    return jsonify({
+        'items': [{
+            'id': p.id, 'part_number': p.part_number, 'name': p.name,
+            'category': p.category, 'quantity': p.quantity,
+            'unit_price': p.unit_price, 'cost_price': p.cost_price,
+            'branch_id': p.branch_id, 'image': p.image
+        } for p in parts],
+        'total': paginated_parts.total,
+        'pages': paginated_parts.pages,
+        'current_page': page
+    }), 200
 
 @inventory_bp.route('/spare-parts', methods=['POST'])
 @jwt_required()

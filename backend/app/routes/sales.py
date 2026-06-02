@@ -444,6 +444,10 @@ def get_sales():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
 
+    # Implement pagination parameters
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 50))
+    
     query = Sale.query
     if branch_id:
         query = query.filter(Sale.branch_id == branch_id)
@@ -461,7 +465,10 @@ def get_sales():
             Sale.sale_number.ilike(f"%{search_query}%")
         ))
 
-    sales = query.order_by(Sale.sale_date.desc()).all()
+    paginated_sales = query.order_by(Sale.sale_date.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    sales = paginated_sales.items
+    total_count = paginated_sales.total
+
     sale_ids = [s.id for s in sales]
 
     # Batch-load payment totals
@@ -473,9 +480,12 @@ def get_sales():
     for p in all_payments:
         payments_by_sale.setdefault(p.sale_id, []).append(p)
 
-    # Batch-load users
-    user_ids = {s.user_id for s in sales if s.user_id}
-    users = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
+    # Batch-load items to avoid N+1 queries inside the loop
+    vehicle_ids = [s.item_id for s in sales if s.sale_type == 'vehicle']
+    part_ids = [s.item_id for s in sales if s.sale_type == 'spare_part']
+    
+    vehicles_map = {v.id: v for v in Vehicle.query.filter(Vehicle.id.in_(vehicle_ids)).all()} if vehicle_ids else {}
+    parts_map = {p.id: p for p in SparePart.query.filter(SparePart.id.in_(part_ids)).all()} if part_ids else {}
 
     result = []
     for s in sales:
@@ -488,7 +498,7 @@ def get_sales():
         chassis_number = s.chassis_number
         motor_number = s.motor_number
         if s.sale_type == 'vehicle':
-            v = Vehicle.query.get(s.item_id)
+            v = vehicles_map.get(s.item_id)
             if v:
                 item_image = v.image
                 item_name = v.model
@@ -497,10 +507,11 @@ def get_sales():
                 chassis_number = chassis_number or vin
                 motor_number = motor_number or v.engine_number
         else:
-            p = SparePart.query.get(s.item_id)
+            p = parts_map.get(s.item_id)
             if p:
                 item_image = p.image
                 item_name = p.name
+
 
         cashier = users.get(s.user_id)
 

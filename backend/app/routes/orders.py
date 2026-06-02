@@ -72,35 +72,44 @@ def get_orders():
     current_user = User.query.get(current_user_id)
     branch_id = request.args.get('branch_id')
     
+  const page = int(request.args.get('page', 1))
+  const per_page = int(request.args.get('per_page', 50))
+    
     query = Order.query
     
-    # If the user is not an admin, enforce filtering by their branch.
-    # Admin can filter by branch_id if provided.
     if current_user.role != 'admin' and current_user.branch_id:
         query = query.filter(Order.branch_id == current_user.branch_id)
     elif branch_id:
         query = query.filter(Order.branch_id == branch_id)
-    # If admin and no branch_id provided, show all orders.
         
-    orders = query.order_by(Order.sequence_number).all()
+    paginated_orders = query.order_by(Order.sequence_number).paginate(page=page, per_page=per_page, error_out=False)
+    orders = paginated_orders.items
+    total = paginated_orders.total
+    pages = paginated_orders.pages
     
     branch_ids = {o.branch_id for o in orders if o.branch_id}
     branches = {b.id: b.name for b in Branch.query.filter(Branch.id.in_(branch_ids)).all()}
     
-    return jsonify([{
-        'id': o.id, 'customer_name': o.customer_name,
-        'customer_phone': o.customer_phone, 'customer_id': o.customer_id,
-        'vehicle_specs': o.vehicle_specs, 'sequence_number': o.sequence_number,
-        'deposit_amount': o.deposit_amount, 'status': o.status,
-        'deposit_method': o.deposit_method,
-        'deposit_bank': o.deposit_bank,
-        'deposit_account_holder': o.deposit_account_holder,
-        'deposit_transaction_reference': o.deposit_transaction_reference,
-        'order_date': o.order_date.isoformat(),
-        'remark': o.remark,
-        'branch_id': o.branch_id,
-        'branch_name': branches.get(o.branch_id)
-    } for o in orders]), 200
+    return jsonify({
+        'items': [{
+            'id': o.id, 'customer_name': o.customer_name,
+            'customer_phone': o.customer_phone, 'customer_id': o.customer_id,
+            'vehicle_specs': o.vehicle_specs, 'sequence_number': o.sequence_number,
+            'deposit_amount': o.deposit_amount, 'status': o.status,
+            'deposit_method': o.deposit_method,
+            'deposit_bank': o.deposit_bank,
+            'deposit_account_holder': o.deposit_account_holder,
+            'deposit_transaction_reference': o.deposit_transaction_reference,
+            'order_date': o.order_date.isoformat(),
+            'remark': o.remark,
+            'branch_id': o.branch_id,
+            'branch_name': branches.get(o.branch_id)
+        } for o in orders],
+        'total': total,
+        'pages': pages,
+        'current_page': page
+    }), 200
+
 
 @orders_bp.route('/<int:id>/deposit', methods=['POST'])
 @jwt_required()

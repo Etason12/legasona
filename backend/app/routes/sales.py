@@ -12,13 +12,14 @@ from app.utils.logging import log_activity
 sales_bp = Blueprint('sales', __name__)
 logger = logging.getLogger(__name__)
 
-def _ensure_customer(data):
+def _ensure_customer(data, item_branch_id=None):
     """Create a Customer record if one doesn't exist for this phone number.
+       Uses item_branch_id (inventory location) when creating a new customer.
        Returns the customer_id to link to the sale."""
     customer_id = data.get('customer_id')
     name = (data.get('customer_name') or '').strip().title()
     phone = (data.get('customer_phone') or '').strip()
-    branch_id = data.get('branch_id')
+    branch_id = item_branch_id or data.get('branch_id')
     if not customer_id and name and phone:
         existing = Customer.query.filter_by(phone=phone).first()
         if existing:
@@ -60,7 +61,7 @@ def record_vehicle_sale():
     sale_date_str = data.get('sale_date')
     sale_date = datetime.fromisoformat(sale_date_str) if sale_date_str else datetime.utcnow()
 
-    customer_id = _ensure_customer(data) or data.get('customer_id') or None
+    customer_id = _ensure_customer(data, item_branch_id=vehicle.branch_id) or data.get('customer_id') or None
 
     new_sale = Sale(
         sale_number=sale_number, sale_type='vehicle', item_id=vehicle_id,
@@ -139,7 +140,7 @@ def record_spare_part_sale():
     sale_date_str = data.get('sale_date')
     sale_date = datetime.fromisoformat(sale_date_str) if sale_date_str else datetime.utcnow()
 
-    customer_id = _ensure_customer(data) or data.get('customer_id') or None
+    customer_id = _ensure_customer(data, item_branch_id=part.branch_id) or data.get('customer_id') or None
 
     new_sale = Sale(
         sale_number=sale_number, sale_type='spare_part', item_id=part_id,

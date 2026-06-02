@@ -196,14 +196,15 @@ const Orders = ({ user }) => {
    }
   }
 
- return (
-  <div className="space-y-8">
-   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-    <div>
-     <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{t('ordersTitle')}</h1>
-     <p className="text-slate-400 mt-1 font-medium">{t('ordersDesc')}</p>
-    </div>
-    const defaultBranchId = branches?.[0]?.id || user?.branch_id || ''
+  const defaultBranchId = branches?.[0]?.id || user?.branch_id || ''
+
+  return (
+   <div className="space-y-8">
+     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+     <div>
+      <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{t('ordersTitle')}</h1>
+      <p className="text-slate-400 mt-1 font-medium">{t('ordersDesc')}</p>
+     </div>
 
      <button 
        onClick={() => { setShowAddModal(true); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); setSelectedCustomerId(''); setNewCustPhone(''); setPhoneWarning(''); setSelectedBranchId(defaultBranchId); }}

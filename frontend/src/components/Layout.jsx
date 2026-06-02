@@ -270,6 +270,11 @@ const Layout = ({ user, onLogout }) => {
             <Outlet />
           </div>
         </main>
+
+        {/* Footer */}
+        <footer className="flex-shrink-0 px-4 sm:px-6 py-2 text-center text-xs" style={{ color: c.muted, borderTop: `1px solid ${c.sidebarBorder}`, background: c.header }}>
+          Powered by <span className="font-medium" style={{ color: '#e11d48' }}>Etacom Technologies</span>
+        </footer>
       </div>
     </div>
   )

@@ -617,6 +617,30 @@ const Sales = ({ user }) => {
                   )}
                 </div>
 
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800">
+          <span className="text-xs font-bold text-slate-500">
+            Page {page} of {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button 
+              disabled={page === 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))} 
+              className="px-4 py-2 text-xs font-bold rounded-xl bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+            >
+              Previous
+            </button>
+            <button 
+              disabled={page === totalPages}
+              onClick={() => setPage(p => p + 1)} 
+              className="px-4 py-2 text-xs font-bold rounded-xl bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Payment History Modal — uses standard modal-backdrop */}
       {showPaymentHistory && selectedSale && (
         <div className="modal-backdrop">
@@ -674,42 +698,13 @@ const Sales = ({ user }) => {
                           ><Trash2 size={16} /></button>
                         )}
                        </div>
-                     </tr>
+                     </div>
                    ))
                  )}
-               </tbody>
-             </table>
-             {totalPages > 1 && (
-               <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800">
-                 <span className="text-xs font-bold text-slate-500">
-                   Page {page} of {totalPages}
-                 </span>
-                 <div className="flex gap-2">
-                   <button 
-                     disabled={page === 1}
-                     onClick={() => { setPage(p => p - 1); setLoading(true) }} 
-                     className="px-3 py-1 text-xs font-bold rounded-lg bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-slate-600 dark:text-slate-300 disabled:opacity-50 transition-colors"
-                   >
-                     Previous
-                   </button>
-                   <button 
-                     disabled={page === totalPages}
-                     onClick={() => { setPage(p => p + 1); setLoading(true) }} 
-                     className="px-3 py-1 text-xs font-bold rounded-lg bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-slate-600 dark:text-slate-300 disabled:opacity-50 transition-colors"
-                   >
-                     Next
-                   </button>
-                 </div>
                </div>
-             )}
              </div>
-           )
-         )}
-       </div>
 
-            </div>
-
-            <div className="modal-footer justify-between">
+             <div className="modal-footer justify-between">
               <div>
                 <p className="text-xs font-medium text-slate-500">{t('totalCollected')}</p>
                 <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">

@@ -4,7 +4,7 @@
 
 Legasona Importer is a full-featured ERP system built for a family-run vehicle and spare parts import business in Ethiopia. It handles everything from inventory and sales to customer relationships, branch transfers, and financial reporting — all in one place.
 
-> Built with love by **Etason12** 🇪🇹
+> Developed by **Ataklti** 🇪🇹 · Powered by **Etacom Technologies**
 
 ---
 

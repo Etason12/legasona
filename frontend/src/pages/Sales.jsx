@@ -613,9 +613,9 @@ const Sales = ({ user }) => {
                 )}
               </tbody>
             </table>
-                    </div>
-                  )}
-                </div>
+            </div>
+          )}
+        </div>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800">

@@ -35,7 +35,7 @@ const Customers = ({ user }) => {
    try {
     const branchId = user?.role?.toLowerCase() === 'admin' ? '' : (user?.branch_id || '')
     const res = await api.get(`/customers?search=${search}&branch_id=${branchId}`)
-    setCustomers(res.data)
+    setCustomers(res.data.items || [])
    } catch {
     toast.error('Failed to load customers')
    } finally {
@@ -47,7 +47,8 @@ const Customers = ({ user }) => {
    if (!phone.trim() || selectedCustomer) return false
    try {
     const res = await api.get(`/customers?search=${encodeURIComponent(phone)}`)
-    return res.data.some(c => c.phone === phone.trim())
+    const list = res.data.items || res.data || []
+    return Array.isArray(list) && list.some(c => c.phone === phone.trim())
    } catch {
     return false
    }

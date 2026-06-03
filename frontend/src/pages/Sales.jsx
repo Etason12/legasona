@@ -147,9 +147,9 @@ const Sales = ({ user }) => {
         setTotalPages(salesRes.data.pages || 1)
       }
       
-      setAvailableVehicles(vehRes.data)
-      setAvailableParts(partsRes.data.filter(p => p.quantity > 0))
-      setCustomers(custRes.data)
+      setAvailableVehicles(vehRes.data.items || vehRes.data || [])
+      setAvailableParts((partsRes.data.items || partsRes.data || []).filter(p => p.quantity > 0))
+      setCustomers(custRes.data.items || custRes.data || [])
     } catch {
       toast.error('Failed to fetch data')
     } finally {

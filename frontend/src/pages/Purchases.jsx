@@ -74,7 +74,7 @@ const Purchases = ({ user }) => {
     api.get('/inventory/spare-parts'),
     api.get('/branches')
    ])
-   setInventory({ vehicles: vRes.data, spareParts: sRes.data })
+    setInventory({ vehicles: vRes.data.items || vRes.data || [], spareParts: sRes.data.items || sRes.data || [] })
    setBranches(bRes.data)
     if (bRes.data.length > 0 && !form.branch_id) {
       const defaultId = user?.branch_id || bRes.data[0].id

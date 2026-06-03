@@ -40,8 +40,8 @@ const Transfers = ({ user }) => {
     api.get('/inventory/spare-parts'),
     api.get('/branches')
    ])
-   setVehicles(vRes.data)
-   setSpareParts(sRes.data)
+    setVehicles(vRes.data.items || vRes.data || [])
+    setSpareParts(sRes.data.items || sRes.data || [])
    setBranches(bRes.data)
   } catch (error) {
    console.error('Failed to fetch inventory/branches')

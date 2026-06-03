@@ -53,7 +53,7 @@ const Orders = ({ user }) => {
   const fetchOrders = async () => {
    try {
     const res = await api.get('/orders')
-    setOrders(res.data)
+    setOrders(res.data.items || [])
    } catch (error) {
     toast.error('Failed to fetch orders')
    } finally {
@@ -64,7 +64,7 @@ const Orders = ({ user }) => {
   const fetchCustomers = async () => {
    try {
     const res = await api.get('/customers')
-    setCustomers(res.data)
+    setCustomers(res.data.items || [])
    } catch (err) {
     console.error('Failed to fetch customers')
    }

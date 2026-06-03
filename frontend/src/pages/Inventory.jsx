@@ -239,10 +239,10 @@ const Inventory = ({ user }) => {
         api.get('/branches'),
         api.get(`/inventory/vehicles?branch_id=${bId}&status=`),
       ])
-      setVehicles(vRes.data)
-      setSpareParts(sRes.data)
+      setVehicles(vRes.data.items || [])
+      setSpareParts(sRes.data.items || [])
       setBranches(bRes.data)
-      const all = statsRes.data
+      const all = statsRes.data.items || []
       setStats({
         available:  all.filter(v => v.status === 'available').length,
         reserved:   all.filter(v => v.status === 'reserved').length,

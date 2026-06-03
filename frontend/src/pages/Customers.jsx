@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { 
  Users, Search, Plus, Mail, Phone, MapPin, 
  History, CreditCard, Award, Loader2, X, Check,
@@ -10,38 +10,42 @@ import { useLanguage } from '../i18n/LanguageContext'
 import { isAdmin } from '../utils/roles'
 import { formatDate, capitalizeName } from '../utils/format'
 
-const Customers = ({ user }) => {
- const { t } = useLanguage()
- const [customers, setCustomers] = useState([])
- const [loading, setLoading] = useState(true)
- const [search, setSearch] = useState('')
- const [showModal, setShowModal] = useState(false)
- const [selectedCustomer, setSelectedCustomer] = useState(null)
- const [showDetails, setShowDetails] = useState(null) // customer ID
- const [customerDetails, setCustomerDetails] = useState(null)
-  const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({
-   full_name: '', phone: '', email: '', address: '', type: 'individual', credit_limit: 0
-  })
-  const [phoneError, setPhoneError] = useState('')
-  const [phoneChecking, setPhoneChecking] = useState(false)
+ const Customers = ({ user }) => {
+  const { t } = useLanguage()
+  const [customers, setCustomers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [perPage] = useState(50)
+  const [showModal, setShowModal] = useState(false)
+  const [selectedCustomer, setSelectedCustomer] = useState(null)
+  const [showDetails, setShowDetails] = useState(null) // customer ID
+  const [customerDetails, setCustomerDetails] = useState(null)
+   const [saving, setSaving] = useState(false)
+   const [form, setForm] = useState({
+    full_name: '', phone: '', email: '', address: '', type: 'individual', credit_limit: 0
+   })
+   const [phoneError, setPhoneError] = useState('')
+   const [phoneChecking, setPhoneChecking] = useState(false)
 
- useEffect(() => {
-  fetchCustomers()
- }, [search])
+  useEffect(() => {
+   fetchCustomers()
+  }, [search, page])
 
-  const fetchCustomers = async () => {
-   setLoading(true)
-   try {
-    const branchId = user?.role?.toLowerCase() === 'admin' ? '' : (user?.branch_id || '')
-    const res = await api.get(`/customers?search=${search}&branch_id=${branchId}`)
-    setCustomers(res.data.items || [])
-   } catch {
-    toast.error('Failed to load customers')
-   } finally {
-    setLoading(false)
+   const fetchCustomers = async () => {
+    setLoading(true)
+    try {
+     const branchId = user?.role?.toLowerCase() === 'admin' ? '' : (user?.branch_id || '')
+     const res = await api.get(`/customers?search=${search}&branch_id=${branchId}&page=${page}&per_page=${perPage}`)
+     setCustomers(res.data.items || [])
+     setTotalPages(res.data.pages || 1)
+    } catch {
+     toast.error('Failed to load customers')
+    } finally {
+     setLoading(false)
+    }
    }
-  }
 
   const checkPhoneExists = async (phone) => {
    if (!phone.trim() || selectedCustomer) return false
@@ -147,7 +151,7 @@ const Customers = ({ user }) => {
      placeholder={t('searchCustomer')} 
      className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-300 dark:border-slate-700 rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-900 dark:text-white focus:border-primary-500 outline-none transition-colors"
      value={search}
-     onChange={(e) => setSearch(e.target.value)}
+      onChange={(e) => { setSearch(e.target.value); setPage(1) }}
     />
    </div>
 
@@ -223,10 +227,33 @@ const Customers = ({ user }) => {
         </tbody>
        </table>
       </div>
-     )}
-    </div>
+      )}
+      {totalPages > 1 && !loading && (
+        <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800">
+          <span className="text-xs font-bold text-slate-500">
+            Page {page} of {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button
+              disabled={page === 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              disabled={page === totalPages}
+              onClick={() => setPage(p => p + 1)}
+              className="px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+     </div>
 
-   {/* Customer Details Modal */}
+    {/* Customer Details Modal */}
     {showDetails && customerDetails && (
      <div className="modal-backdrop">
       <div className="modal-content max-w-2xl">

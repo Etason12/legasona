@@ -1,6 +1,8 @@
 import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
 import { capitalizeName } from '../utils/format';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 const buildItemDescription = (saleData) => {
   const lines = [];
@@ -138,5 +140,13 @@ export const generateReceipt = async (saleData) => {
   doc.text("Thank you for choosing Legasona Motors!", centerX, y, { align: "center" });
   doc.text("Computer-generated receipt.", centerX, y + 4, { align: "center" });
 
-  doc.save(`Receipt-${saleData.receiptNumber}.pdf`);
+  const fileName = `Receipt-${saleData.receiptNumber}.pdf`;
+  if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform()) {
+    const pdfBase64 = doc.output('datauristring').split(',')[1];
+    await Filesystem.writeFile({ path: fileName, data: pdfBase64, directory: Directory.Cache });
+    const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache }).then(r => r.uri);
+    await Share.share({ title: fileName, url: uri });
+  } else {
+    doc.save(fileName);
+  }
 };

@@ -486,6 +486,8 @@ def get_sales():
     
     vehicles_map = {v.id: v for v in Vehicle.query.filter(Vehicle.id.in_(vehicle_ids)).all()} if vehicle_ids else {}
     parts_map = {p.id: p for p in SparePart.query.filter(SparePart.id.in_(part_ids)).all()} if part_ids else {}
+    user_ids = list(set(s.user_id for s in sales if s.user_id))
+    users_map = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
 
     result = []
     for s in sales:
@@ -513,7 +515,7 @@ def get_sales():
                 item_name = p.name
 
 
-        cashier = users.get(s.user_id)
+        cashier = users_map.get(s.user_id)
 
         sale_payments = payments_by_sale.get(s.id, [])
         payments_list = [{
@@ -540,4 +542,9 @@ def get_sales():
             'balance': float(s.total_amount) - float(total_paid),
             'remark': s.remark,
         })
-    return jsonify(result), 200
+    return jsonify({
+        'items': result,
+        'total': total_count,
+        'pages': paginated_sales.pages,
+        'current_page': page
+    }), 200

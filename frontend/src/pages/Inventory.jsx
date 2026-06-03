@@ -237,7 +237,7 @@ const Inventory = ({ user }) => {
         api.get(`/inventory/vehicles?branch_id=${bId}&status=${sId}`),
         api.get(`/inventory/spare-parts?branch_id=${bId}`),
         api.get('/branches'),
-        api.get(`/inventory/vehicles?branch_id=${bId}&status=`),
+        api.get(`/inventory/vehicles?branch_id=${bId}&status=&per_page=10000`),
       ])
       setVehicles(vRes.data.items || [])
       setSpareParts(sRes.data.items || [])

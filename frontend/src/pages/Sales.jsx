@@ -76,6 +76,7 @@ const Sales = ({ user }) => {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [perPage, setPerPage] = useState(50)
+  const { t } = useLanguage()
 
   useEffect(() => { const t = setTimeout(() => setDebouncedSearch(searchQuery), 350); return () => clearTimeout(t) }, [searchQuery])
   useEffect(() => { fetchData() }, [statusFilter, debouncedSearch, startDate, endDate, page])

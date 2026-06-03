@@ -87,6 +87,14 @@ const Sales = ({ user }) => {
   const [saleType, setSaleType] = useState('vehicle')
   const addPayReceiptRef = useRef(null)
   const receiptRef = useRef(null)
+  const sortedVehicles = useMemo(() => 
+    [...availableVehicles].sort((a, b) => (a.model || '').localeCompare(b.model || '')),
+    [availableVehicles]
+  )
+  const sortedParts = useMemo(() =>
+    [...availableParts].sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+    [availableParts]
+  )
   const { t } = useLanguage()
 
   useEffect(() => { const t = setTimeout(() => setDebouncedSearch(searchQuery), 350); return () => clearTimeout(t) }, [searchQuery])

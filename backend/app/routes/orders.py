@@ -72,8 +72,8 @@ def get_orders():
     current_user = User.query.get(current_user_id)
     branch_id = request.args.get('branch_id')
     
-  const page = int(request.args.get('page', 1))
-  const per_page = int(request.args.get('per_page', 50))
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 50))
     
     query = Order.query
     

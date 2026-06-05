@@ -1,7 +1,9 @@
+from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Order, Customer, User, Branch, db
 from app.utils.auth import role_required
+from app.utils.logging import log_activity
 
 orders_bp = Blueprint('orders', __name__)
 
@@ -103,7 +105,14 @@ def get_orders():
             'order_date': o.order_date.isoformat(),
             'remark': o.remark,
             'branch_id': o.branch_id,
-            'branch_name': branches.get(o.branch_id)
+            'branch_name': branches.get(o.branch_id),
+            'cancelled_at': o.cancelled_at.isoformat() if o.cancelled_at else None,
+            'cancellation_reason': o.cancellation_reason,
+            'refund_amount': o.refund_amount,
+            'refund_method': o.refund_method,
+            'refund_bank': o.refund_bank,
+            'refund_transaction_reference': o.refund_transaction_reference,
+            'refund_date': o.refund_date.isoformat() if o.refund_date else None,
         } for o in orders],
         'total': total,
         'pages': pages,
@@ -138,6 +147,55 @@ def fulfill_order(id):
     order.status = 'fulfilled'
     db.session.commit()
     return jsonify({'message': 'Order marked as fulfilled'}), 200
+
+@orders_bp.route('/<int:id>/cancel', methods=['POST'])
+@jwt_required()
+@role_required('admin', 'manager')
+def cancel_order(id):
+    order = Order.query.get_or_404(id)
+    if order.status == 'cancelled':
+        return jsonify({'message': 'Order is already cancelled'}), 400
+    if order.status == 'fulfilled':
+        return jsonify({'message': 'Cannot cancel a fulfilled order. Reverse via sales instead.'}), 400
+
+    data = request.get_json() or {}
+    current_user_id = int(get_jwt_identity())
+
+    order.status = 'cancelled'
+    order.cancelled_at = datetime.utcnow()
+    order.cancelled_by = current_user_id
+    order.cancellation_reason = data.get('reason', '').strip()[:200]
+    order.refund_amount = float(data.get('refund_amount', order.deposit_amount or 0))
+    order.refund_date = datetime.utcnow()
+
+    refund_method = data.get('refund_method', 'cash')
+    order.refund_method = refund_method
+    if refund_method == 'bank':
+        order.refund_bank = data.get('refund_bank', '').upper()
+        order.refund_transaction_reference = data.get('refund_transaction_reference', '').upper()
+    else:
+        order.refund_bank = None
+        order.refund_transaction_reference = None
+
+    # Re-sequence remaining waiting orders in the same branch
+    remaining = Order.query.filter(
+        Order.branch_id == order.branch_id,
+        Order.status == 'waiting',
+        Order.id != order.id
+    ).order_by(Order.sequence_number).all()
+    for i, o in enumerate(remaining, 1):
+        o.sequence_number = i
+
+    log_activity(current_user_id, 'CANCEL_ORDER',
+        f"Cancelled order #{order.sequence_number} for {order.customer_name}, "
+        f"refund ETB {order.refund_amount} via {refund_method}")
+
+    db.session.commit()
+    return jsonify({
+        'message': 'Order cancelled',
+        'refund_amount': order.refund_amount,
+        'refund_method': refund_method
+    }), 200
 
 @orders_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required()

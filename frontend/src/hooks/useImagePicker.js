@@ -5,7 +5,7 @@ export const useImagePicker = () => {
     try {
       const image = await Camera.getPhoto({
         quality: 90,
-        allowEditing: true,
+        allowEditing: false,
         resultType: CameraResultType.DataUrl,
         source: source
       });

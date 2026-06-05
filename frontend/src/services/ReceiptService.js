@@ -1,8 +1,6 @@
 import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
 import { capitalizeName } from '../utils/format';
-import { Filesystem, Directory } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
 
 const buildItemDescription = (saleData) => {
   const lines = [];
@@ -141,11 +139,12 @@ export const generateReceipt = async (saleData) => {
   doc.text("Computer-generated receipt.", centerX, y + 4, { align: "center" });
 
   const fileName = `Receipt-${saleData.receiptNumber}.pdf`;
-  if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform()) {
-    const pdfBase64 = doc.output('datauristring').split(',')[1];
-    await Filesystem.writeFile({ path: fileName, data: pdfBase64, directory: Directory.Cache });
-    const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache }).then(r => r.uri);
-    await Share.share({ title: fileName, url: uri });
+  const isNative = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform();
+  if (isNative) {
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   } else {
     doc.save(fileName);
   }

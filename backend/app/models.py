@@ -124,6 +124,15 @@ class Order(db.Model):
     status = db.Column(db.String(20), default='waiting')  # waiting, fulfilled, cancelled
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))
     remark = db.Column(db.Text)
+    # Cancellation / refund tracking
+    cancelled_at = db.Column(db.DateTime)
+    cancelled_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    cancellation_reason = db.Column(db.String(200))
+    refund_amount = db.Column(db.Float, default=0.0)
+    refund_method = db.Column(db.String(20))
+    refund_bank = db.Column(db.String(50))
+    refund_transaction_reference = db.Column(db.String(100))
+    refund_date = db.Column(db.DateTime)
 
 class Transfer(db.Model):
     __tablename__ = 'transfers'

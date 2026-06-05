@@ -1,27 +1,22 @@
 import * as XLSX from 'xlsx';
 import { capitalizeName } from '../utils/format';
-import { Filesystem, Directory } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
 
-const saveBlob = async (blob, fileName) => {
-  if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform()) {
-    const reader = new FileReader();
-    reader.readAsDataURL(blob);
-    reader.onloadend = async () => {
-      const base64 = reader.result.split(',')[1];
-      await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
-      const uri = await Filesystem.getUri({ path: fileName, directory: Directory.Cache }).then(r => r.uri);
-      await Share.share({ title: fileName, url: uri });
-    };
+const isNative = () => typeof window !== 'undefined' && window.Capacitor?.isNativePlatform()
+
+const saveFile = async (blob, fileName) => {
+  if (isNative()) {
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 10000)
   } else {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    a.click()
+    URL.revokeObjectURL(url)
   }
-};
+}
 
 const COL_WIDTHS = {
   sales: [
@@ -84,7 +79,7 @@ export const exportToExcel = (data, fileName) => {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
   const out = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-  saveBlob(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${fileName}.xlsx`);
+  saveFile(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${fileName}.xlsx`);
 };
 
 export const exportSalesToExcel = (sales, t = (k) => k) => {
@@ -183,7 +178,7 @@ export const exportSalesToExcel = (sales, t = (k) => k) => {
   XLSX.utils.book_append_sheet(wb, wsPayments, 'Payments');
 
   const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  saveBlob(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Legasona_Sales_Report_${dateStr}.xlsx`);
+  saveFile(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Legasona_Sales_Report_${dateStr}.xlsx`);
 };
 
 const INVENTORY_COL_WIDTHS = {
@@ -261,7 +256,7 @@ export const exportInventoryToExcel = (items, type, t = (k) => k) => {
   }
 
   const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  saveBlob(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Legasona_${S('inventoryTitle', 'Inventory')}_${dateStr}.xlsx`);
+  saveFile(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Legasona_${S('inventoryTitle', 'Inventory')}_${dateStr}.xlsx`);
 };
 
 const REPORT_COL_WIDTHS = {
@@ -338,5 +333,5 @@ export const exportReportsToExcel = (payments, stats, profit, t = (k) => k) => {
   }
 
   const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  saveBlob(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Legasona_${S('reportsTitle', 'Report')}_${dateStr}.xlsx`);
+  saveFile(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Legasona_${S('reportsTitle', 'Report')}_${dateStr}.xlsx`);
 };

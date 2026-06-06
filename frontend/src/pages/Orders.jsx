@@ -426,27 +426,30 @@ const Orders = ({ user }) => {
             {order.remark || '-'}
            </td>
              <td className="px-6 py-4 text-right">
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex items-center justify-end gap-1.5">
                {order.status === 'waiting' && (
                 <>
-                  <button
-                   onClick={() => { setDepositOrder(order); setDepositAmount(''); setDepositMethod('cash'); setDepositBank(''); setDepositAccountHolder(''); setDepositReference(''); setShowDepositModal(true) }}
-                   className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:bg-emerald-900/30 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800 transition-colors flex items-center gap-1"
-                  >
-                   <CreditCard size={14} />{t('deposit')}
-                 </button>
-                 <button 
-                  onClick={() => handleFulfill(order.id)}
-                  className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-800 transition-colors"
+                 <button
+                  onClick={() => { setDepositOrder(order); setDepositAmount(''); setDepositMethod('cash'); setDepositBank(''); setDepositAccountHolder(''); setDepositReference(''); setShowDepositModal(true) }}
+                  className="p-2.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl border border-amber-200 dark:border-amber-800 transition-colors"
+                  title={t('deposit')}
                  >
-                  {t('fulfill')}
+                  <CreditCard size={16} />
+                 </button>
+                 <button
+                  onClick={() => handleFulfill(order.id)}
+                  className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl border border-emerald-200 dark:border-emerald-800 transition-colors"
+                  title={t('fulfill')}
+                 >
+                  <CheckCircle2 size={16} />
                  </button>
                  {(user?.role === 'admin' || user?.role === 'manager') && (
                   <button
                    onClick={() => { setCancellingOrder(order); setCancelReason(''); setRefundAmount(order.deposit_amount || ''); setRefundMethod('cash'); setRefundBank(''); setRefundReference(''); setShowCancelModal(true) }}
-                   className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:bg-rose-900/30 px-3 py-1.5 rounded-lg border border-rose-100 dark:border-rose-800 transition-colors flex items-center gap-1"
+                   className="p-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl border border-rose-200 dark:border-rose-800 transition-colors"
+                   title={t('cancel') || 'Cancel'}
                   >
-                   <XCircle size={14} />{t('cancel') || 'Cancel'}
+                   <XCircle size={16} />
                   </button>
                  )}
                 </>
@@ -454,18 +457,18 @@ const Orders = ({ user }) => {
                {order.status !== 'cancelled' && (
                 <button
                  onClick={() => openEditOrder(order)}
-                 className="p-2 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                 className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-200 dark:border-indigo-800 transition-colors"
                  title={t('edit')}
                 >
-                 <Edit3 size={15} />
+                 <Edit3 size={16} />
                 </button>
                )}
                 <button
                  onClick={() => handleDelete(order.id)}
-                 className="p-2 bg-rose-100 dark:bg-rose-900/30 hover:bg-rose-200 dark:hover:bg-rose-900/50 rounded-lg text-rose-600 transition-colors"
+                 className="p-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl border border-rose-200 dark:border-rose-800 transition-colors"
                  title={t('delete')}
                 >
-                 <Trash2 size={15} />
+                 <Trash2 size={16} />
                 </button>
               </div>
             </td>

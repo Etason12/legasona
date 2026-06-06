@@ -394,11 +394,9 @@ const Orders = ({ user }) => {
             <td className="px-6 py-4 hidden lg:table-cell whitespace-nowrap">
              <p className="text-emerald-600 dark:text-emerald-400 font-bold">ETB {(order.deposit_amount || 0).toLocaleString()}</p>
              {order.deposit_method === 'bank' && (order.deposit_bank || order.deposit_account_holder || order.deposit_transaction_reference) && (
-              <div className="mt-2 text-[11px] text-slate-500 space-y-0.5">
-               {order.deposit_bank && <p>{order.deposit_bank}</p>}
-               {order.deposit_account_holder && <p>{order.deposit_account_holder}</p>}
-               {order.deposit_transaction_reference && <p className="text-blue-500 font-mono">Ref: {order.deposit_transaction_reference}</p>}
-              </div>
+              <p className="mt-2 text-[11px] text-slate-500 truncate">
+               {[order.deposit_bank, order.deposit_account_holder && `-> ${order.deposit_account_holder}`, order.deposit_transaction_reference && `ref: ${order.deposit_transaction_reference}`].filter(Boolean).join(' ')}
+              </p>
              )}
              {order.status === 'cancelled' && (
               <div className="mt-2 text-[11px] text-rose-500 space-y-0.5">

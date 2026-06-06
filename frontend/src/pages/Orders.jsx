@@ -15,6 +15,8 @@ const Orders = ({ user }) => {
   const [branches, setBranches] = useState([])
   const [selectedBranchId, setSelectedBranchId] = useState('')
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
   const [showDepositModal, setShowDepositModal] = useState(false)
   const [editingOrder, setEditingOrder] = useState(null)
   const [depositOrder, setDepositOrder] = useState(null)
@@ -47,7 +49,9 @@ const Orders = ({ user }) => {
 
   useEffect(() => {
    Promise.all([fetchOrders(), fetchCustomers(), fetchBranches()])
-  }, [])
+  }, [page])
+
+  useEffect(() => { setPage(1) }, [search])
 
   const fetchBranches = async () => {
     try {
@@ -60,8 +64,9 @@ const Orders = ({ user }) => {
 
   const fetchOrders = async () => {
    try {
-    const res = await api.get('/orders')
+    const res = await api.get(`/orders?page=${page}&per_page=20`)
     setOrders(res.data.items || [])
+    setTotalPages(res.data.pages || 1)
    } catch (error) {
     toast.error('Failed to fetch orders')
    } finally {
@@ -342,38 +347,34 @@ const Orders = ({ user }) => {
              </div>
              {(user?.role === 'admin' || user?.role === 'manager') && order.status === 'waiting' && (
               <div className="flex flex-col gap-0.5">
-               <button
-                onClick={async () => {
-                 if (idx === 0) return
-                 const reordered = filteredOrders.map(o => o.id)
-                 ;[reordered[idx - 1], reordered[idx]] = [reordered[idx], reordered[idx - 1]]
-                 try {
-                  await api.post('/orders/reorder', { order_ids: reordered, branch_id: order.branch_id })
-                  fetchOrders()
-                 } catch { toast.error('Failed to reorder') }
-                }}
-                disabled={idx === 0}
-                className={`p-0.5 leading-none rounded ${idx === 0 ? 'text-slate-300' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'}`}
-                title="Move up"
-               >
-                <ChevronUp size={12} />
-               </button>
-               <button
-                onClick={async () => {
-                 if (idx === filteredOrders.length - 1) return
-                 const reordered = filteredOrders.map(o => o.id)
-                 ;[reordered[idx], reordered[idx + 1]] = [reordered[idx + 1], reordered[idx]]
-                 try {
-                  await api.post('/orders/reorder', { order_ids: reordered, branch_id: order.branch_id })
-                  fetchOrders()
-                 } catch { toast.error('Failed to reorder') }
-                }}
-                disabled={idx === filteredOrders.length - 1}
-                className={`p-0.5 leading-none rounded ${idx === filteredOrders.length - 1 ? 'text-slate-300' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'}`}
-                title="Move down"
-               >
-                <ChevronDown size={12} />
-               </button>
+                <button
+                 onClick={async () => {
+                  if (idx === 0) return
+                  try {
+                   await api.post('/orders/reorder', { id: order.id, direction: 'up' })
+                   fetchOrders()
+                  } catch { toast.error('Failed to reorder') }
+                 }}
+                 disabled={idx === 0}
+                 className={`p-0.5 leading-none rounded ${idx === 0 ? 'text-slate-300' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'}`}
+                 title="Move up"
+                >
+                 <ChevronUp size={12} />
+                </button>
+                <button
+                 onClick={async () => {
+                  if (idx === filteredOrders.length - 1) return
+                  try {
+                   await api.post('/orders/reorder', { id: order.id, direction: 'down' })
+                   fetchOrders()
+                  } catch { toast.error('Failed to reorder') }
+                 }}
+                 disabled={idx === filteredOrders.length - 1}
+                 className={`p-0.5 leading-none rounded ${idx === filteredOrders.length - 1 ? 'text-slate-300' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'}`}
+                 title="Move down"
+                >
+                 <ChevronDown size={12} />
+                </button>
               </div>
              )}
             </div>
@@ -390,8 +391,8 @@ const Orders = ({ user }) => {
           <td className="px-6 py-4 text-slate-600 dark:text-slate-300 text-sm hidden md:table-cell">
            {order.vehicle_specs}
           </td>
-           <td className="px-6 py-4 hidden lg:table-cell">
-            <p className="text-emerald-600 dark:text-emerald-400 font-bold">ETB {(order.deposit_amount || 0).toLocaleString()}</p>
+            <td className="px-6 py-4 hidden lg:table-cell whitespace-nowrap">
+             <p className="text-emerald-600 dark:text-emerald-400 font-bold">ETB {(order.deposit_amount || 0).toLocaleString()}</p>
             {order.deposit_method && (
              <span className={`mt-1 inline-block text-xs font-bold px-2 py-0.5 rounded-full ${
               order.deposit_method === 'bank'
@@ -476,8 +477,32 @@ const Orders = ({ user }) => {
        )}
       </tbody>
      </table>
+     </div>
     </div>
-   </div>
+
+    {totalPages > 1 && (
+     <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800">
+      <span className="text-xs font-bold text-slate-500">
+       {t('page') || 'Page'} {page} {t('of') || 'of'} {totalPages}
+      </span>
+      <div className="flex gap-2">
+       <button
+        disabled={page === 1}
+        onClick={() => setPage(p => Math.max(1, p - 1))}
+        className="px-4 py-2 text-xs font-bold rounded-xl bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+       >
+        {t('previous') || 'Previous'}
+       </button>
+       <button
+        disabled={page === totalPages}
+        onClick={() => setPage(p => p + 1)}
+        className="px-4 py-2 text-xs font-bold rounded-xl bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+       >
+        {t('next') || 'Next'}
+       </button>
+      </div>
+     </div>
+    )}
 
    {/* Add Order Modal */}
    {showAddModal && (

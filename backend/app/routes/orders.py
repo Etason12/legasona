@@ -75,7 +75,7 @@ def get_orders():
     branch_id = request.args.get('branch_id')
     
     page = int(request.args.get('page', 1))
-    per_page = int(request.args.get('per_page', 50))
+    per_page = int(request.args.get('per_page', 20))
     
     query = Order.query
     
@@ -202,22 +202,30 @@ def cancel_order(id):
 @role_required('admin', 'manager')
 def reorder_orders():
     data = request.get_json()
-    order_ids = data.get('order_ids', [])
-    branch_id = data.get('branch_id')
-    if not order_ids:
-        return jsonify({'message': 'order_ids list is required'}), 400
+    order_id = data.get('id')
+    direction = data.get('direction')  # 'up' or 'down'
+    if not order_id or direction not in ('up', 'down'):
+        return jsonify({'message': 'id and direction (up/down) are required'}), 400
 
-    query = Order.query.filter(Order.id.in_(order_ids))
-    if branch_id:
-        query = query.filter(Order.branch_id == branch_id)
+    order = Order.query.get_or_404(order_id)
+    branch_id = order.branch_id
 
-    orders = {o.id: o for o in query.all()}
-    for seq, oid in enumerate(order_ids, 1):
-        if oid in orders:
-            orders[oid].sequence_number = seq
+    adjacent = Order.query.filter(
+        Order.branch_id == branch_id,
+        Order.status == 'waiting',
+        Order.id != order_id
+    )
+    if direction == 'up':
+        adjacent = adjacent.filter(Order.sequence_number < order.sequence_number).order_by(Order.sequence_number.desc()).first()
+    else:
+        adjacent = adjacent.filter(Order.sequence_number > order.sequence_number).order_by(Order.sequence_number.asc()).first()
 
+    if not adjacent:
+        return jsonify({'message': 'Cannot move further'}), 400
+
+    order.sequence_number, adjacent.sequence_number = adjacent.sequence_number, order.sequence_number
     db.session.commit()
-    return jsonify({'message': 'Orders reordered'}), 200
+    return jsonify({'message': 'Order reordered'}), 200
 
 @orders_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required()

@@ -249,6 +249,16 @@ const Orders = ({ user }) => {
     }
   }
 
+  const uniqueCustomers = (status) => {
+    const seen = new Set()
+    return orders.filter(o => o.status === status).filter(o => {
+      const key = o.customer_id || `${o.customer_name}|${o.customer_phone}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    }).length
+  }
+
   const defaultBranchId = branches?.[0]?.id || user?.branch_id || ''
 
   return (
@@ -278,24 +288,24 @@ const Orders = ({ user }) => {
 
    </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-     <div className="glass-card p-6 border-l-4 border-amber-500">
-      <p className="text-xs text-slate-500 uppercase font-bold ">{t('activeWaitingList')}</p>
-      <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{orders.filter(o => o.status === 'waiting').length}</p>
+     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="glass-card p-6 border-l-4 border-amber-500">
+       <p className="text-xs text-slate-500 uppercase font-bold ">{t('activeWaitingList')}</p>
+       <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{uniqueCustomers('waiting')}</p>
+      </div>
+      <div className="glass-card p-6 border-l-4 border-primary-500">
+       <p className="text-xs text-slate-500 uppercase font-bold ">{t('totalDeposits')}</p>
+       <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">ETB {orders.reduce((acc, curr) => acc + (curr.deposit_amount || 0), 0).toLocaleString()}</p>
+      </div>
+      <div className="glass-card p-6 border-l-4 border-emerald-500">
+       <p className="text-xs text-slate-500 uppercase font-bold ">{t('fulfilledAllTime')}</p>
+       <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{uniqueCustomers('fulfilled')}</p>
+      </div>
+      <div className="glass-card p-6 border-l-4 border-rose-500">
+       <p className="text-xs text-slate-500 uppercase font-bold ">{t('cancelled') || 'Cancelled'}</p>
+       <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{uniqueCustomers('cancelled')}</p>
+      </div>
      </div>
-     <div className="glass-card p-6 border-l-4 border-primary-500">
-      <p className="text-xs text-slate-500 uppercase font-bold ">{t('totalDeposits')}</p>
-      <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">ETB {orders.reduce((acc, curr) => acc + (curr.deposit_amount || 0), 0).toLocaleString()}</p>
-     </div>
-     <div className="glass-card p-6 border-l-4 border-emerald-500">
-      <p className="text-xs text-slate-500 uppercase font-bold ">{t('fulfilledAllTime')}</p>
-      <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{orders.filter(o => o.status === 'fulfilled').length}</p>
-     </div>
-     <div className="glass-card p-6 border-l-4 border-rose-500">
-      <p className="text-xs text-slate-500 uppercase font-bold ">{t('cancelled') || 'Cancelled'}</p>
-      <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{orders.filter(o => o.status === 'cancelled').length}</p>
-     </div>
-    </div>
 
    <div className="glass-card overflow-hidden">
     <div className="p-6 border-b border-slate-200 dark:border-slate-300 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">

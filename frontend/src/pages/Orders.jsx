@@ -393,16 +393,7 @@ const Orders = ({ user }) => {
           </td>
             <td className="px-6 py-4 hidden lg:table-cell whitespace-nowrap">
              <p className="text-emerald-600 dark:text-emerald-400 font-bold">ETB {(order.deposit_amount || 0).toLocaleString()}</p>
-            {order.deposit_method && (
-             <span className={`mt-1 inline-block text-xs font-bold px-2 py-0.5 rounded-full ${
-              order.deposit_method === 'bank'
-               ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-               : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
-             }`}>
-              {order.deposit_method.toUpperCase()}
-             </span>
-            )}
-             {order.deposit_method === 'bank' && (
+             {order.deposit_method === 'bank' && (order.deposit_bank || order.deposit_account_holder || order.deposit_transaction_reference) && (
               <div className="mt-2 text-[11px] text-slate-500 space-y-0.5">
                {order.deposit_bank && <p>{order.deposit_bank}</p>}
                {order.deposit_account_holder && <p>{order.deposit_account_holder}</p>}

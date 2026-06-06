@@ -267,6 +267,80 @@ const REPORT_COL_WIDTHS = {
   ],
 };
 
+export const exportOrdersToExcel = (orders, t = (k) => k) => {
+  const dateStr = new Date().toISOString().split('T')[0];
+  const totalDeposits = orders.reduce((a, o) => a + fmtMoney(o.deposit_amount), 0);
+  const totalRefunds = orders.reduce((a, o) => a + fmtMoney(o.refund_amount), 0);
+
+  const wb = XLSX.utils.book_new();
+  const S = (k, fallback) => { const v = t(k); return v !== k ? v : fallback; };
+
+  // ── Summary sheet ──
+  const summaryRows = [
+    ['LEGASONA MOTORS'],
+    [S('ordersTitle', 'Orders') + ' ' + S('reports', 'Report')],
+    [],
+    [S('date', 'Date'), dateStr],
+    ['Generated', new Date().toLocaleString()],
+    [],
+    ['Metric', 'Value'],
+    ['Total ' + S('ordersTitle', 'Orders'), orders.length],
+    ['Waiting', orders.filter((o) => o.status === 'waiting').length],
+    ['Fulfilled', orders.filter((o) => o.status === 'fulfilled').length],
+    ['Cancelled', orders.filter((o) => o.status === 'cancelled').length],
+    [S('totalDeposits', 'Total Deposits') + ' (ETB)', totalDeposits],
+    ['Total Refunds (ETB)', totalRefunds],
+  ];
+  const wsSummary = sheetFromRows(summaryRows);
+  wsSummary['!cols'] = [{ wch: 28 }, { wch: 22 }];
+  applyNumFormat(wsSummary, [1]);
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+  // ── Orders detail sheet ──
+  const orderHeader = [
+    S('seqNo', 'Seq #'), S('customerDetails', 'Customer'), S('phoneNumber', 'Phone'),
+    S('vehicleSpecs', 'Vehicle Specs'), S('deposit', 'Deposit (ETB)'), S('paymentMethod', 'Deposit Method'),
+    'Bank', 'Account Holder', 'Transaction Ref',
+    S('statusHeader', 'Status'), S('date', 'Order Date'), S('branch', 'Branch'),
+    S('notes', 'Remark'),
+    'Cancelled At', S('reason', 'Cancellation Reason'), 'Refund (ETB)', 'Refund Method',
+    'Refund Bank', 'Refund Transaction Ref',
+  ];
+  const orderRows = orders.map((o) => [
+    o.sequence_number,
+    o.customer_name || '',
+    o.customer_phone || '',
+    o.vehicle_specs || '',
+    fmtMoney(o.deposit_amount),
+    (o.deposit_method || '').toUpperCase(),
+    o.deposit_bank || '',
+    o.deposit_account_holder || '',
+    o.deposit_transaction_reference || '',
+    (o.status || '').toUpperCase(),
+    fmtDate(o.order_date),
+    o.branch_name || o.branch_id || '',
+    o.remark || '',
+    fmtDate(o.cancelled_at),
+    o.cancellation_reason || '',
+    fmtMoney(o.refund_amount),
+    (o.refund_method || '').toUpperCase(),
+    o.refund_bank || '',
+    o.refund_transaction_reference || '',
+  ]);
+  const wsOrders = sheetFromRows([orderHeader, ...orderRows]);
+  const ORDER_COL_WIDTHS = [
+    { wch: 8 }, { wch: 20 }, { wch: 14 }, { wch: 28 }, { wch: 14 }, { wch: 14 },
+    { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 14 },
+    { wch: 20 }, { wch: 12 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 18 },
+  ];
+  applySheetLayout(wsOrders, ORDER_COL_WIDTHS, 1);
+  applyNumFormat(wsOrders, [4, 15]);
+  XLSX.utils.book_append_sheet(wb, wsOrders, S('ordersTitle', 'Orders'));
+
+  const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  saveFile(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Legasona_Orders_Report_${dateStr}.xlsx`);
+};
+
 export const exportReportsToExcel = (payments, stats, profit, t = (k) => k) => {
   const dateStr = new Date().toISOString().split('T')[0];
   const wb = XLSX.utils.book_new();

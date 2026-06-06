@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { ClipboardList, Plus, Search, User, Loader2, MoreVertical, Clock, CheckCircle2, X, CreditCard, Landmark, Eye, Phone, Mail, MapPin, Award, CreditCard as CardIcon, Edit3, Trash2 } from 'lucide-react'
+import { ClipboardList, Plus, Search, User, Loader2, MoreVertical, Clock, CheckCircle2, X, CreditCard, Landmark, Eye, Phone, Mail, MapPin, Award, CreditCard as CardIcon, Edit3, Trash2, Download, XCircle, AlertTriangle } from 'lucide-react'
 import api from '../services/api'
 import { toast } from 'react-toastify'
 import { useLanguage } from '../i18n/LanguageContext'
 import { capitalizeName } from '../utils/format'
+import { exportOrdersToExcel } from '../services/ExportService'
 
 const Orders = ({ user }) => {
  const { t } = useLanguage()
@@ -28,6 +29,13 @@ const Orders = ({ user }) => {
   const [orderBank, setOrderBank] = useState('')
   const [orderAccountHolder, setOrderAccountHolder] = useState('')
   const [orderReference, setOrderReference] = useState('')
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [cancellingOrder, setCancellingOrder] = useState(null)
+  const [cancelReason, setCancelReason] = useState('')
+  const [refundAmount, setRefundAmount] = useState('')
+  const [refundMethod, setRefundMethod] = useState('cash')
+  const [refundBank, setRefundBank] = useState('')
+  const [refundReference, setRefundReference] = useState('')
   const [customers, setCustomers] = useState([])
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
   const [newCustPhone, setNewCustPhone] = useState('')
@@ -196,6 +204,46 @@ const Orders = ({ user }) => {
    }
   }
 
+  const handleCancelOrder = async (e) => {
+    e.preventDefault()
+    if (!cancelReason?.trim()) {
+      toast.error('Cancellation reason is required'); return
+    }
+    if (!refundAmount || parseFloat(refundAmount) < 0) {
+      toast.error('Enter a valid refund amount'); return
+    }
+    if (refundMethod === 'bank') {
+      if (!refundBank) { toast.error('Bank name is required for bank refunds'); return }
+      if (!refundReference) { toast.error('Transaction reference is required for bank refunds'); return }
+    }
+    setSubmitting(true)
+    try {
+      const data = {
+        reason: cancelReason,
+        refund_amount: parseFloat(refundAmount),
+        refund_method: refundMethod,
+      }
+      if (refundMethod === 'bank') {
+        data.refund_bank = refundBank
+        data.refund_transaction_reference = refundReference
+      }
+      await api.post(`/orders/${cancellingOrder.id}/cancel`, data)
+      toast.success('Order cancelled')
+      setShowCancelModal(false)
+      setCancellingOrder(null)
+      setCancelReason('')
+      setRefundAmount('')
+      setRefundMethod('cash')
+      setRefundBank('')
+      setRefundReference('')
+      fetchOrders()
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to cancel order')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const defaultBranchId = branches?.[0]?.id || user?.branch_id || ''
 
   return (
@@ -206,30 +254,43 @@ const Orders = ({ user }) => {
       <p className="text-slate-400 mt-1 font-medium">{t('ordersDesc')}</p>
      </div>
 
-     <button 
-       onClick={() => { setShowAddModal(true); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); setSelectedCustomerId(''); setNewCustPhone(''); setPhoneWarning(''); setSelectedBranchId(defaultBranchId); }}
-      className="btn-primary flex items-center gap-2"
-     >
-      <Plus size={20} />
-      {t('newReservation')}
-     </button>
+      <div className="flex items-center gap-3">
+       <button
+        onClick={() => exportOrdersToExcel(orders, t)}
+        className="px-4 py-2.5 bg-slate-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-2 hover:bg-slate-200 dark:hover:bg-neutral-700"
+       >
+        <Download size={18} />
+        {t('exportReport')}
+       </button>
+       <button 
+        onClick={() => { setShowAddModal(true); setOrderMethod('cash'); setOrderBank(''); setOrderAccountHolder(''); setOrderReference(''); setSelectedCustomerId(''); setNewCustPhone(''); setPhoneWarning(''); setSelectedBranchId(defaultBranchId); }}
+        className="btn-primary flex items-center gap-2"
+       >
+        <Plus size={20} />
+        {t('newReservation')}
+       </button>
+      </div>
 
    </div>
 
-   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-    <div className="glass-card p-6 border-l-4 border-amber-500">
-     <p className="text-xs text-slate-500 uppercase font-bold ">{t('activeWaitingList')}</p>
-     <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{orders.filter(o => o.status === 'waiting').length}</p>
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+     <div className="glass-card p-6 border-l-4 border-amber-500">
+      <p className="text-xs text-slate-500 uppercase font-bold ">{t('activeWaitingList')}</p>
+      <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{orders.filter(o => o.status === 'waiting').length}</p>
+     </div>
+     <div className="glass-card p-6 border-l-4 border-primary-500">
+      <p className="text-xs text-slate-500 uppercase font-bold ">{t('totalDeposits')}</p>
+      <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">ETB {orders.reduce((acc, curr) => acc + (curr.deposit_amount || 0), 0).toLocaleString()}</p>
+     </div>
+     <div className="glass-card p-6 border-l-4 border-emerald-500">
+      <p className="text-xs text-slate-500 uppercase font-bold ">{t('fulfilledAllTime')}</p>
+      <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{orders.filter(o => o.status === 'fulfilled').length}</p>
+     </div>
+     <div className="glass-card p-6 border-l-4 border-rose-500">
+      <p className="text-xs text-slate-500 uppercase font-bold ">{t('cancelled') || 'Cancelled'}</p>
+      <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{orders.filter(o => o.status === 'cancelled').length}</p>
+     </div>
     </div>
-    <div className="glass-card p-6 border-l-4 border-primary-500">
-     <p className="text-xs text-slate-500 uppercase font-bold ">{t('totalDeposits')}</p>
-     <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">ETB {orders.reduce((acc, curr) => acc + (curr.deposit_amount || 0), 0).toLocaleString()}</p>
-    </div>
-    <div className="glass-card p-6 border-l-4 border-emerald-500">
-     <p className="text-xs text-slate-500 uppercase font-bold ">{t('fulfilledAllTime')}</p>
-     <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{orders.filter(o => o.status === 'fulfilled').length}</p>
-    </div>
-   </div>
 
    <div className="glass-card overflow-hidden">
     <div className="p-6 border-b border-slate-200 dark:border-slate-300 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -302,57 +363,75 @@ const Orders = ({ user }) => {
               {order.deposit_method.toUpperCase()}
              </span>
             )}
-            {order.deposit_method === 'bank' && (
-             <div className="mt-2 text-[11px] text-slate-500 space-y-0.5">
-              {order.deposit_bank && <p>{order.deposit_bank}</p>}
-              {order.deposit_account_holder && <p>{order.deposit_account_holder}</p>}
-              {order.deposit_transaction_reference && <p className="text-blue-500 font-mono">Ref: {order.deposit_transaction_reference}</p>}
-             </div>
-            )}
+             {order.deposit_method === 'bank' && (
+              <div className="mt-2 text-[11px] text-slate-500 space-y-0.5">
+               {order.deposit_bank && <p>{order.deposit_bank}</p>}
+               {order.deposit_account_holder && <p>{order.deposit_account_holder}</p>}
+               {order.deposit_transaction_reference && <p className="text-blue-500 font-mono">Ref: {order.deposit_transaction_reference}</p>}
+              </div>
+             )}
+             {order.status === 'cancelled' && (
+              <div className="mt-2 text-[11px] text-rose-500 space-y-0.5">
+               {order.cancellation_reason && <p className="font-semibold">{order.cancellation_reason}</p>}
+               {order.cancelled_at && <p>{new Date(order.cancelled_at).toLocaleDateString()}</p>}
+               {order.refund_amount > 0 && <p>Refund: ETB {order.refund_amount.toLocaleString()} ({order.refund_method?.toUpperCase()})</p>}
+               {order.refund_method === 'BANK' && order.refund_bank && <p>{order.refund_bank} {order.refund_transaction_reference ? `Ref: ${order.refund_transaction_reference}` : ''}</p>}
+              </div>
+             )}
            </td>
            <td className="px-6 py-4">
-            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
-             order.status === 'waiting' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-            }`}>
-             {order.status}
-            </span>
+             <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
+              order.status === 'waiting' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800' : order.status === 'cancelled' ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+             }`}>
+              {order.status}
+             </span>
            </td>
            <td className="px-6 py-4 hidden md:table-cell text-sm text-slate-600 dark:text-slate-300 max-w-[200px] truncate">
             {order.remark || '-'}
            </td>
              <td className="px-6 py-4 text-right">
-             <div className="flex items-center justify-end gap-2">
-              {order.status === 'waiting' && (
-               <>
-                 <button
-                  onClick={() => { setDepositOrder(order); setDepositAmount(''); setDepositMethod('cash'); setDepositBank(''); setDepositAccountHolder(''); setDepositReference(''); setShowDepositModal(true) }}
-                  className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:bg-emerald-900/30 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800 transition-colors flex items-center gap-1"
+              <div className="flex items-center justify-end gap-2">
+               {order.status === 'waiting' && (
+                <>
+                  <button
+                   onClick={() => { setDepositOrder(order); setDepositAmount(''); setDepositMethod('cash'); setDepositBank(''); setDepositAccountHolder(''); setDepositReference(''); setShowDepositModal(true) }}
+                   className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:bg-emerald-900/30 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800 transition-colors flex items-center gap-1"
+                  >
+                   <CreditCard size={14} />{t('deposit')}
+                 </button>
+                 <button 
+                  onClick={() => handleFulfill(order.id)}
+                  className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-800 transition-colors"
                  >
-                  <CreditCard size={14} />{t('deposit')}
-                </button>
-                <button 
-                 onClick={() => handleFulfill(order.id)}
-                 className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-800 transition-colors"
+                  {t('fulfill')}
+                 </button>
+                 {(user?.role === 'admin' || user?.role === 'manager') && (
+                  <button
+                   onClick={() => { setCancellingOrder(order); setCancelReason(''); setRefundAmount(order.deposit_amount || ''); setRefundMethod('cash'); setRefundBank(''); setRefundReference(''); setShowCancelModal(true) }}
+                   className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:bg-rose-900/30 px-3 py-1.5 rounded-lg border border-rose-100 dark:border-rose-800 transition-colors flex items-center gap-1"
+                  >
+                   <XCircle size={14} />{t('cancel') || 'Cancel'}
+                  </button>
+                 )}
+                </>
+               )}
+               {order.status !== 'cancelled' && (
+                <button
+                 onClick={() => openEditOrder(order)}
+                 className="p-2 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                 title={t('edit')}
                 >
-                 {t('fulfill')}
+                 <Edit3 size={15} />
                 </button>
-               </>
-              )}
-               <button
-                onClick={() => openEditOrder(order)}
-                className="p-2 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                title={t('edit')}
-               >
-                <Edit3 size={15} />
-               </button>
-               <button
-                onClick={() => handleDelete(order.id)}
-                className="p-2 bg-rose-100 dark:bg-rose-900/30 hover:bg-rose-200 dark:hover:bg-rose-900/50 rounded-lg text-rose-600 transition-colors"
-                title={t('delete')}
-               >
-                <Trash2 size={15} />
-               </button>
-             </div>
+               )}
+                <button
+                 onClick={() => handleDelete(order.id)}
+                 className="p-2 bg-rose-100 dark:bg-rose-900/30 hover:bg-rose-200 dark:hover:bg-rose-900/50 rounded-lg text-rose-600 transition-colors"
+                 title={t('delete')}
+                >
+                 <Trash2 size={15} />
+                </button>
+              </div>
             </td>
          </tr>
         ))
@@ -632,6 +711,89 @@ const Orders = ({ user }) => {
        <button form="deposit-form" type="submit" disabled={submitting} className="btn-primary flex items-center gap-2">
         {submitting ? <Loader2 className="animate-spin" size={16} /> : <CreditCard size={16} />}
         {t('addDeposit') || 'Add Deposit'}
+       </button>
+      </div>
+     </div>
+    </div>
+   )}
+
+   {/* Cancel Order Modal */}
+   {showCancelModal && cancellingOrder && (
+     <div className="modal-backdrop">
+      <div className="modal-content max-w-lg">
+       <div className="modal-header">
+        <div>
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white">{t('cancelOrder') || 'Cancel Order'}</h2>
+          <p className="text-xs font-medium text-neutral-500 mt-0.5">#{cancellingOrder.sequence_number} — {capitalizeName(cancellingOrder.customer_name)}</p>
+         </div>
+         <button onClick={() => setShowCancelModal(false)} className="p-2 bg-neutral-100 dark:bg-neutral-800 rounded-2xl text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors border border-neutral-200 dark:border-neutral-700">
+          <X size={20} />
+         </button>
+       </div>
+      <div className="modal-body">
+       <form id="cancel-form" onSubmit={handleCancelOrder} className="space-y-6">
+        <div className="p-4 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-200 dark:border-rose-800 flex items-start gap-3">
+         <AlertTriangle size={20} className="text-rose-500 mt-0.5 shrink-0" />
+         <div>
+          <p className="text-sm font-bold text-rose-700 dark:text-rose-300">{t('cancelWarning') || 'This will cancel the reservation and trigger re-sequencing.'}</p>
+          <p className="text-xs text-rose-500 mt-1">{t('currentDeposit') || 'Current Deposit'}: ETB {(cancellingOrder.deposit_amount || 0).toLocaleString()}</p>
+         </div>
+        </div>
+
+        <div>
+         <label className="label">{t('reason') || 'Cancellation Reason'} *</label>
+         <textarea className="input-field h-24 resize-none" value={cancelReason} onChange={e => setCancelReason(e.target.value)} placeholder="Why is this order being cancelled?" required />
+        </div>
+
+        <div>
+         <label className="label">{t('refundAmount') || 'Refund Amount'} (ETB) *</label>
+         <input type="number" className="input-field" value={refundAmount} onChange={e => setRefundAmount(e.target.value)} placeholder="0.00" required min="0" />
+        </div>
+
+        <div>
+         <label className="label">{t('refundMethod') || 'Refund Method'}</label>
+         <div className="grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => setRefundMethod('cash')}
+            className={`p-3 rounded-xl border-2 text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+              refundMethod === 'cash'
+                ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:border-neutral-300'
+             }`}>
+            <CreditCard size={18} /> {t('cash') || 'Cash'}
+           </button>
+           <button type="button" onClick={() => setRefundMethod('bank')}
+             className={`p-3 rounded-xl border-2 text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+               refundMethod === 'bank'
+                 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                 : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:border-neutral-300'
+             }`}>
+            <Landmark size={18} /> {t('bankTransfer') || 'Bank Transfer'}
+           </button>
+         </div>
+        </div>
+
+        {refundMethod === 'bank' && (
+         <div className="space-y-4 p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800">
+          <div>
+           <label className="label">{t('bankName') || 'Bank Name'} *</label>
+           <input type="text" className="input-field uppercase" list="bank-list-cancel" value={refundBank} onChange={e => setRefundBank(e.target.value.toUpperCase())} placeholder="e.g. CBE" />
+           <datalist id="bank-list-cancel">
+            {['CBE','Awash','Abyssinia','Dashen','BOA','Hibret'].map(b => <option key={b} value={b} />)}
+           </datalist>
+          </div>
+          <div>
+           <label className="label">{t('transactionRef') || 'Transaction Reference'} *</label>
+           <input type="text" className="input-field uppercase" value={refundReference} onChange={e => setRefundReference(e.target.value.toUpperCase())} placeholder="TX-123456789" />
+          </div>
+         </div>
+        )}
+       </form>
+      </div>
+      <div className="modal-footer">
+       <button type="button" onClick={() => setShowCancelModal(false)} className="btn-secondary">{t('close') || 'Close'}</button>
+       <button form="cancel-form" type="submit" disabled={submitting} className="btn-danger flex items-center gap-2">
+        {submitting ? <Loader2 className="animate-spin" size={16} /> : <XCircle size={16} />}
+        {t('confirmCancel') || 'Confirm Cancellation'}
        </button>
       </div>
      </div>

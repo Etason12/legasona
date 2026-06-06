@@ -17,6 +17,10 @@ const Orders = ({ user }) => {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [allWaitingCount, setAllWaitingCount] = useState(0)
+  const [allFulfilledCount, setAllFulfilledCount] = useState(0)
+  const [allCancelledCount, setAllCancelledCount] = useState(0)
+  const [allDepositsSum, setAllDepositsSum] = useState(0)
   const [showDepositModal, setShowDepositModal] = useState(false)
   const [editingOrder, setEditingOrder] = useState(null)
   const [depositOrder, setDepositOrder] = useState(null)
@@ -67,6 +71,10 @@ const Orders = ({ user }) => {
     const res = await api.get(`/orders?page=${page}&per_page=20`)
     setOrders(res.data.items || [])
     setTotalPages(res.data.pages || 1)
+    setAllWaitingCount(res.data.all_waiting_count ?? 0)
+    setAllFulfilledCount(res.data.all_fulfilled_count ?? 0)
+    setAllCancelledCount(res.data.all_cancelled_count ?? 0)
+    setAllDepositsSum(res.data.all_deposits_sum ?? 0)
    } catch (error) {
     toast.error('Failed to fetch orders')
    } finally {
@@ -249,16 +257,6 @@ const Orders = ({ user }) => {
     }
   }
 
-  const uniqueCustomers = (status) => {
-    const seen = new Set()
-    return orders.filter(o => o.status === status).filter(o => {
-      const key = o.customer_id || `${o.customer_name}|${o.customer_phone}`
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    }).length
-  }
-
   const defaultBranchId = branches?.[0]?.id || user?.branch_id || ''
 
   return (
@@ -291,19 +289,19 @@ const Orders = ({ user }) => {
      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
       <div className="glass-card p-6 border-l-4 border-amber-500">
        <p className="text-xs text-slate-500 uppercase font-bold ">{t('activeWaitingList')}</p>
-       <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{uniqueCustomers('waiting')}</p>
+       <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{allWaitingCount}</p>
       </div>
       <div className="glass-card p-6 border-l-4 border-primary-500">
        <p className="text-xs text-slate-500 uppercase font-bold ">{t('totalDeposits')}</p>
-       <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">ETB {orders.reduce((acc, curr) => acc + (curr.deposit_amount || 0), 0).toLocaleString()}</p>
+       <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">ETB {allDepositsSum.toLocaleString()}</p>
       </div>
       <div className="glass-card p-6 border-l-4 border-emerald-500">
        <p className="text-xs text-slate-500 uppercase font-bold ">{t('fulfilledAllTime')}</p>
-       <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{uniqueCustomers('fulfilled')}</p>
+       <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{allFulfilledCount}</p>
       </div>
       <div className="glass-card p-6 border-l-4 border-rose-500">
        <p className="text-xs text-slate-500 uppercase font-bold ">{t('cancelled') || 'Cancelled'}</p>
-       <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{uniqueCustomers('cancelled')}</p>
+       <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{allCancelledCount}</p>
       </div>
      </div>
 

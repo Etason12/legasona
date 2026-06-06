@@ -91,7 +91,16 @@ def get_orders():
     
     branch_ids = {o.branch_id for o in orders if o.branch_id}
     branches = {b.id: b.name for b in Branch.query.filter(Branch.id.in_(branch_ids)).all()}
-    
+
+    from sqlalchemy import func
+    base = query
+    agg = base.with_entities(
+        func.count(Order.id).filter(Order.status == 'waiting').label('waiting_count'),
+        func.count(Order.id).filter(Order.status == 'fulfilled').label('fulfilled_count'),
+        func.count(Order.id).filter(Order.status == 'cancelled').label('cancelled_count'),
+        func.coalesce(func.sum(Order.deposit_amount), 0).label('deposits_sum')
+    ).first()
+
     return jsonify({
         'items': [{
             'id': o.id, 'customer_name': o.customer_name,
@@ -116,7 +125,11 @@ def get_orders():
         } for o in orders],
         'total': total,
         'pages': pages,
-        'current_page': page
+        'current_page': page,
+        'all_waiting_count': agg.waiting_count if agg else 0,
+        'all_fulfilled_count': agg.fulfilled_count if agg else 0,
+        'all_cancelled_count': agg.cancelled_count if agg else 0,
+        'all_deposits_sum': agg.deposits_sum if agg else 0
     }), 200
 
 

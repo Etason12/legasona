@@ -466,21 +466,27 @@ const Orders = ({ user }) => {
            </div>
           </div>
           {orderMethod === 'bank' && (
-           <div className="space-y-4 p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800">
-            <div>
-             <label className="label">{t('bankName') || 'Bank Name'} *</label>
-             <input type="text" className="input-field" value={orderBank} onChange={e => setOrderBank(e.target.value)} placeholder="e.g. CBE" />
+            <div className="space-y-4 p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800">
+             <div>
+              <label className="label">{t('bankName') || 'Bank Name'} *</label>
+              <input type="text" className="input-field uppercase" list="bank-list-order" value={orderBank} onChange={e => setOrderBank(e.target.value.toUpperCase())} placeholder="e.g. CBE" />
+              <datalist id="bank-list-order">
+               {['CBE','Awash','Abyssinia','Dashen','BOA','Hibret'].map(b => <option key={b} value={b} />)}
+              </datalist>
+             </div>
+             <div>
+              <label className="label">{t('accountHolder') || 'Account Holder'} *</label>
+              <input type="text" className="input-field uppercase" list="account-list-order" value={orderAccountHolder} onChange={e => setOrderAccountHolder(e.target.value.toUpperCase())} placeholder="Full name on account" />
+              <datalist id="account-list-order">
+               <option value="TEWELDE" /><option value="BERIHU" /><option value="MULUGETA" />
+              </datalist>
+             </div>
+             <div>
+              <label className="label">{t('transactionRef') || 'Transaction Reference'} *</label>
+              <input type="text" className="input-field uppercase" value={orderReference} onChange={e => setOrderReference(e.target.value.toUpperCase())} placeholder="TX-123456789" />
+             </div>
             </div>
-            <div>
-             <label className="label">{t('accountHolder') || 'Account Holder'} *</label>
-             <input type="text" className="input-field" value={orderAccountHolder} onChange={e => setOrderAccountHolder(e.target.value)} placeholder="Full name on account" />
-            </div>
-            <div>
-             <label className="label">{t('transactionRef') || 'Transaction Reference'} *</label>
-             <input type="text" className="input-field" value={orderReference} onChange={e => setOrderReference(e.target.value)} placeholder="Transaction ID" />
-            </div>
-           </div>
-          )}
+           )}
          </div>
 
          <div>
@@ -598,21 +604,27 @@ const Orders = ({ user }) => {
 
         {/* Bank Fields */}
         {depositMethod === 'bank' && (
-         <div className="space-y-4 p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800">
-          <div>
-           <label className="label">{t('bankName') || 'Bank Name'} *</label>
-           <input type="text" className="input-field" value={depositBank} onChange={e => setDepositBank(e.target.value)} placeholder="e.g. CBE" />
+          <div className="space-y-4 p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800">
+           <div>
+            <label className="label">{t('bankName') || 'Bank Name'} *</label>
+            <input type="text" className="input-field uppercase" list="bank-list-deposit" value={depositBank} onChange={e => setDepositBank(e.target.value.toUpperCase())} placeholder="e.g. CBE" />
+            <datalist id="bank-list-deposit">
+             {['CBE','Awash','Abyssinia','Dashen','BOA','Hibret'].map(b => <option key={b} value={b} />)}
+            </datalist>
+           </div>
+           <div>
+            <label className="label">{t('accountHolder') || 'Account Holder'} *</label>
+            <input type="text" className="input-field uppercase" list="account-list-deposit" value={depositAccountHolder} onChange={e => setDepositAccountHolder(e.target.value.toUpperCase())} placeholder="Full name on account" />
+            <datalist id="account-list-deposit">
+             <option value="TEWELDE" /><option value="BERIHU" /><option value="MULUGETA" />
+            </datalist>
+           </div>
+           <div>
+            <label className="label">{t('transactionRef') || 'Transaction Reference'} *</label>
+            <input type="text" className="input-field uppercase" value={depositReference} onChange={e => setDepositReference(e.target.value.toUpperCase())} placeholder="TX-123456789" />
+           </div>
           </div>
-          <div>
-           <label className="label">{t('accountHolder') || 'Account Holder'} *</label>
-           <input type="text" className="input-field" value={depositAccountHolder} onChange={e => setDepositAccountHolder(e.target.value)} placeholder="Full name on account" />
-          </div>
-          <div>
-           <label className="label">{t('transactionRef') || 'Transaction Reference'} *</label>
-           <input type="text" className="input-field" value={depositReference} onChange={e => setDepositReference(e.target.value)} placeholder="Transaction ID" />
-          </div>
-         </div>
-        )}
+         )}
        </form>
       </div>
       <div className="modal-footer">

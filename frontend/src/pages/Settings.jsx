@@ -277,9 +277,12 @@ const Settings = ({ user }) => {
       {activeTab === 'users' && (
        <div className="space-y-4 flex-1">
         <div className="flex justify-end">
-         <button
-          onClick={() => setShowAddUser(true)}
-          className="btn-primary flex items-center gap-2 text-sm"
+          <button
+           onClick={() => {
+             setNewUser({ username: '', password: '', role: 'cashier', branch_id: null });
+             setShowAddUser(true);
+           }}
+           className="btn-primary flex items-center gap-2 text-sm"
          >
           <Plus size={18} />
           {t('addUser')}
@@ -324,7 +327,7 @@ const Settings = ({ user }) => {
            </div>
           </div>
           <div className="flex gap-3 justify-end">
-           <button type="button" onClick={() => setShowAddUser(false)} className="text-sm text-slate-400 hover:text-slate-900 dark:text-white px-4 py-2">{t('cancel')}</button>
+           <button type="button" onClick={() => { setNewUser({ username: '', password: '', role: 'cashier', branch_id: null }); setShowAddUser(false); }} className="text-sm text-slate-400 hover:text-slate-900 dark:text-white px-4 py-2">{t('cancel')}</button>
            <button type="submit" className="btn-primary text-sm px-5 py-2 flex items-center gap-2"><Check size={16} /> {t('createAccount')}</button>
           </div>
          </form>

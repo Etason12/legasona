@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { ClipboardList, Plus, Search, User, Loader2, MoreVertical, Clock, CheckCircle2, X, CreditCard, Landmark, Eye, Phone, Mail, MapPin, Award, CreditCard as CardIcon, Edit3, Trash2, Download, XCircle, AlertTriangle } from 'lucide-react'
+import { ClipboardList, Plus, Search, User, Loader2, MoreVertical, Clock, CheckCircle2, X, CreditCard, Landmark, Eye, Phone, Mail, MapPin, Award, CreditCard as CardIcon, Edit3, Trash2, Download, XCircle, AlertTriangle, ChevronUp, ChevronDown } from 'lucide-react'
 import api from '../services/api'
 import { toast } from 'react-toastify'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -332,14 +332,52 @@ const Orders = ({ user }) => {
          <tr>
            <td colSpan="7" className="px-6 py-12 text-center text-slate-500">{t('noOrdersFound')}</td>
          </tr>
-       ) : (
-        filteredOrders.map((order) => (
-         <tr key={order.id} className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors group">
-          <td className="px-6 py-4 hidden sm:table-cell">
-           <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-300 dark:border-slate-700 flex items-center justify-center font-mono font-bold text-blue-600 dark:text-blue-400">
-            #{order.sequence_number}
-           </div>
-          </td>
+        ) : (
+         filteredOrders.map((order, idx) => (
+          <tr key={order.id} className="hover:bg-slate-100 dark:bg-slate-800/50 transition-colors group">
+           <td className="px-6 py-4 hidden sm:table-cell">
+            <div className="flex items-center gap-1">
+             <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-300 dark:border-slate-700 flex items-center justify-center font-mono font-bold text-blue-600 dark:text-blue-400">
+              #{order.sequence_number}
+             </div>
+             {(user?.role === 'admin' || user?.role === 'manager') && order.status === 'waiting' && (
+              <div className="flex flex-col gap-0.5">
+               <button
+                onClick={async () => {
+                 if (idx === 0) return
+                 const reordered = filteredOrders.map(o => o.id)
+                 ;[reordered[idx - 1], reordered[idx]] = [reordered[idx], reordered[idx - 1]]
+                 try {
+                  await api.post('/orders/reorder', { order_ids: reordered, branch_id: order.branch_id })
+                  fetchOrders()
+                 } catch { toast.error('Failed to reorder') }
+                }}
+                disabled={idx === 0}
+                className={`p-0.5 leading-none rounded ${idx === 0 ? 'text-slate-300' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'}`}
+                title="Move up"
+               >
+                <ChevronUp size={12} />
+               </button>
+               <button
+                onClick={async () => {
+                 if (idx === filteredOrders.length - 1) return
+                 const reordered = filteredOrders.map(o => o.id)
+                 ;[reordered[idx], reordered[idx + 1]] = [reordered[idx + 1], reordered[idx]]
+                 try {
+                  await api.post('/orders/reorder', { order_ids: reordered, branch_id: order.branch_id })
+                  fetchOrders()
+                 } catch { toast.error('Failed to reorder') }
+                }}
+                disabled={idx === filteredOrders.length - 1}
+                className={`p-0.5 leading-none rounded ${idx === filteredOrders.length - 1 ? 'text-slate-300' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'}`}
+                title="Move down"
+               >
+                <ChevronDown size={12} />
+               </button>
+              </div>
+             )}
+            </div>
+           </td>
            <td className="px-6 py-4">
             <button onClick={() => viewCustomerDetail(order)} className="text-left group">
               <p className="text-slate-700 dark:text-slate-200 font-bold group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-1.5">

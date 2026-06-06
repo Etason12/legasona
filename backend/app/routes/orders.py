@@ -197,6 +197,28 @@ def cancel_order(id):
         'refund_method': refund_method
     }), 200
 
+@orders_bp.route('/reorder', methods=['POST'])
+@jwt_required()
+@role_required('admin', 'manager')
+def reorder_orders():
+    data = request.get_json()
+    order_ids = data.get('order_ids', [])
+    branch_id = data.get('branch_id')
+    if not order_ids:
+        return jsonify({'message': 'order_ids list is required'}), 400
+
+    query = Order.query.filter(Order.id.in_(order_ids))
+    if branch_id:
+        query = query.filter(Order.branch_id == branch_id)
+
+    orders = {o.id: o for o in query.all()}
+    for seq, oid in enumerate(order_ids, 1):
+        if oid in orders:
+            orders[oid].sequence_number = seq
+
+    db.session.commit()
+    return jsonify({'message': 'Orders reordered'}), 200
+
 @orders_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required()
 @role_required('admin', 'manager', 'cashier')

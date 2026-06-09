@@ -15,12 +15,13 @@ const Orders = ({ user }) => {
   const [branches, setBranches] = useState([])
   const [selectedBranchId, setSelectedBranchId] = useState('')
   const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [allWaitingCount, setAllWaitingCount] = useState(0)
   const [allFulfilledCount, setAllFulfilledCount] = useState(0)
   const [allCancelledCount, setAllCancelledCount] = useState(0)
   const [allDepositsSum, setAllDepositsSum] = useState(0)
+  const [allRefundsSum, setAllRefundsSum] = useState(0)
+  const [statusFilter, setStatusFilter] = useState('all')
   const [showDepositModal, setShowDepositModal] = useState(false)
   const [editingOrder, setEditingOrder] = useState(null)
   const [depositOrder, setDepositOrder] = useState(null)
@@ -47,15 +48,14 @@ const Orders = ({ user }) => {
   const [newCustPhone, setNewCustPhone] = useState('')
   const [phoneWarning, setPhoneWarning] = useState('')
   const filteredOrders = useMemo(() => orders.filter(o =>
-    o.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
-    o.vehicle_specs?.toLowerCase().includes(search.toLowerCase())
-  ), [orders, search])
+    (statusFilter === 'all' || o.status === statusFilter) &&
+    (o.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
+     o.vehicle_specs?.toLowerCase().includes(search.toLowerCase()))
+  ), [orders, search, statusFilter])
 
   useEffect(() => {
    Promise.all([fetchOrders(), fetchCustomers(), fetchBranches()])
-  }, [page])
-
-  useEffect(() => { setPage(1) }, [search])
+  }, [])
 
   const fetchBranches = async () => {
     try {
@@ -68,13 +68,14 @@ const Orders = ({ user }) => {
 
   const fetchOrders = async () => {
    try {
-    const res = await api.get(`/orders?page=${page}&per_page=20`)
+    const res = await api.get('/orders?per_page=10000')
     setOrders(res.data.items || [])
     setTotalPages(res.data.pages || 1)
     setAllWaitingCount(res.data.all_waiting_count ?? 0)
     setAllFulfilledCount(res.data.all_fulfilled_count ?? 0)
     setAllCancelledCount(res.data.all_cancelled_count ?? 0)
     setAllDepositsSum(res.data.all_deposits_sum ?? 0)
+    setAllRefundsSum(res.data.all_refunds_sum ?? 0)
    } catch (error) {
     toast.error('Failed to fetch orders')
    } finally {
@@ -286,7 +287,7 @@ const Orders = ({ user }) => {
 
    </div>
 
-     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
       <div className="glass-card p-6 border-l-4 border-amber-500">
        <p className="text-xs text-slate-500 uppercase font-bold ">{t('activeWaitingList')}</p>
        <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{allWaitingCount}</p>
@@ -303,7 +304,29 @@ const Orders = ({ user }) => {
        <p className="text-xs text-slate-500 uppercase font-bold ">{t('cancelled') || 'Cancelled'}</p>
        <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{allCancelledCount}</p>
       </div>
+      <div className="glass-card p-6 border-l-4 border-purple-500">
+       <p className="text-xs text-slate-500 uppercase font-bold ">{t('totalRefunded') || 'Total Refunded'}</p>
+       <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">ETB {allRefundsSum.toLocaleString()}</p>
+      </div>
      </div>
+
+   {/* Status Filter */}
+   <div className="flex flex-wrap items-center gap-2 px-1">
+    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1">Filter:</span>
+    {['all', 'waiting', 'fulfilled', 'cancelled'].map(s => (
+     <button key={s} onClick={() => setStatusFilter(s)}
+      className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border ${
+       statusFilter === s
+        ? s === 'all' ? 'bg-slate-800 text-white border-slate-800 dark:bg-white dark:text-slate-900 dark:border-white'
+        : s === 'waiting' ? 'bg-amber-500 text-white border-amber-500'
+        : s === 'fulfilled' ? 'bg-emerald-500 text-white border-emerald-500'
+        : 'bg-rose-500 text-white border-rose-500'
+        : 'bg-transparent text-slate-500 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+      }`}>
+      {s === 'all' ? t('all') : t(s) || s}
+     </button>
+    ))}
+   </div>
 
    <div className="glass-card overflow-hidden">
     <div className="p-6 border-b border-slate-200 dark:border-slate-300 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -480,29 +503,7 @@ const Orders = ({ user }) => {
      </div>
     </div>
 
-    {totalPages > 1 && (
-     <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800">
-      <span className="text-xs font-bold text-slate-500">
-       {t('page') || 'Page'} {page} {t('of') || 'of'} {totalPages}
-      </span>
-      <div className="flex gap-2">
-       <button
-        disabled={page === 1}
-        onClick={() => setPage(p => Math.max(1, p - 1))}
-        className="px-4 py-2 text-xs font-bold rounded-xl bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-       >
-        {t('previous') || 'Previous'}
-       </button>
-       <button
-        disabled={page === totalPages}
-        onClick={() => setPage(p => p + 1)}
-        className="px-4 py-2 text-xs font-bold rounded-xl bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-       >
-        {t('next') || 'Next'}
-       </button>
-      </div>
-     </div>
-    )}
+
 
    {/* Add Order Modal */}
    {showAddModal && (

@@ -98,7 +98,8 @@ def get_orders():
         func.count(Order.id).filter(Order.status == 'waiting').label('waiting_count'),
         func.count(Order.id).filter(Order.status == 'fulfilled').label('fulfilled_count'),
         func.count(Order.id).filter(Order.status == 'cancelled').label('cancelled_count'),
-        func.coalesce(func.sum(Order.deposit_amount), 0).label('deposits_sum')
+        func.coalesce(func.sum(Order.deposit_amount).filter(Order.status == 'waiting'), 0).label('waiting_deposits_sum'),
+        func.coalesce(func.sum(Order.refund_amount).filter(Order.status == 'cancelled'), 0).label('refunds_sum')
     ).first()
 
     return jsonify({
@@ -129,7 +130,8 @@ def get_orders():
         'all_waiting_count': agg.waiting_count if agg else 0,
         'all_fulfilled_count': agg.fulfilled_count if agg else 0,
         'all_cancelled_count': agg.cancelled_count if agg else 0,
-        'all_deposits_sum': agg.deposits_sum if agg else 0
+        'all_deposits_sum': agg.waiting_deposits_sum if agg else 0,
+        'all_refunds_sum': agg.refunds_sum if agg else 0
     }), 200
 
 

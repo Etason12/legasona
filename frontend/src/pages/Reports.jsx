@@ -4,7 +4,7 @@ import {
   PieChart as PieChartIcon,
   TrendingUp,
   Download,
-
+  MapPin,
   ArrowUpRight,
   ArrowDownRight,
   Loader2,
@@ -36,6 +36,7 @@ const Reports = ({ user }) => {
   const [payments, setPayments] = useState([])
   const [branchComparison, setBranchComparison] = useState([])
   const [inventoryDist, setInventoryDist] = useState(null)
+  const [branches, setBranches] = useState([])
   const today = new Date()
   const pad = n => String(n).padStart(2, '0')
   const monthStart = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-01`
@@ -43,17 +44,36 @@ const Reports = ({ user }) => {
   const [endDate, setEndDate] = useState(`${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`)
   const [loading, setLoading] = useState(true)
   const [saleTypeFilter, setSaleTypeFilter] = useState('')
+  const [selectedBranchId, setSelectedBranchId] = useState('')
+
+  const isAdmin = user?.role?.toLowerCase() === 'admin'
+
+  useEffect(() => {
+    setSelectedBranchId(isAdmin ? '' : (user?.branch_id ? String(user.branch_id) : ''))
+  }, [])
+
+  useEffect(() => {
+    fetchBranches()
+  }, [])
 
   useEffect(() => {
     fetchReportData()
-  }, [startDate, endDate])
+  }, [startDate, endDate, selectedBranchId])
+
+  const fetchBranches = async () => {
+    try {
+      const res = await api.get('/branches')
+      setBranches(res.data)
+    } catch {
+      console.error('Failed to fetch branches')
+    }
+  }
 
   const fetchReportData = async (sd, ed) => {
     try {
-      const branchId = user?.role?.toLowerCase() === 'admin' ? '' : (user?.branch_id || '')
       const s = sd !== undefined ? sd : startDate
       const e = ed !== undefined ? ed : endDate
-      const params = new URLSearchParams({ branch_id: branchId })
+      const params = new URLSearchParams({ branch_id: selectedBranchId })
       if (s) params.append('start_date', s)
       if (e) params.append('end_date', e)
       params.append('_t', Date.now())
@@ -108,7 +128,20 @@ const Reports = ({ user }) => {
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{t('reportsTitle')}</h1>
           <p className="text-slate-400 mt-1 font-medium">{t('reportsDesc')}</p>
         </div>
-         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+           <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5">
+             <MapPin size={16} className="text-slate-500" />
+             <select
+               value={selectedBranchId}
+               onChange={e => setSelectedBranchId(e.target.value)}
+               className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none"
+             >
+               <option value="">{t('allBranches')}</option>
+               {branches.map(b => (
+                 <option key={b.id} value={b.id}>{b.name}</option>
+               ))}
+             </select>
+           </div>
            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5">
              <input type="date" value={startDate} onKeyDown={e => e.preventDefault()} onChange={e => setStartDate(e.target.value)}
                className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-32" />

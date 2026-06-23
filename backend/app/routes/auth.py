@@ -58,3 +58,25 @@ def get_user():
             'branch_id': user.branch_id
         }), 200
     return jsonify({'message': 'User not found'}), 404
+
+@auth_bp.route('/change-password', methods=['POST'])
+@jwt_required()
+def change_password():
+    user_id = get_jwt_identity()
+    user = User.query.get_or_404(user_id)
+    data = request.get_json()
+    current_password = data.get('current_password', '')
+    new_password = data.get('new_password', '')
+
+    if not current_password or not new_password:
+        return jsonify({'message': 'Current password and new password are required'}), 400
+
+    if not user.check_password(current_password):
+        return jsonify({'message': 'Current password is incorrect'}), 401
+
+    if len(new_password) < 4:
+        return jsonify({'message': 'New password must be at least 4 characters'}), 400
+
+    user.set_password(new_password)
+    db.session.commit()
+    return jsonify({'message': 'Password changed successfully'}), 200

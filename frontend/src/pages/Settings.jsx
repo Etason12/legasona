@@ -47,6 +47,11 @@ const Settings = ({ user }) => {
  const [showAddBranch, setShowAddBranch] = useState(false)
  const [editingBranch, setEditingBranch] = useState(null)
   const [newBranch, setNewBranch] = useState({ name: '', location: '', address: '', phone: '' })
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [changingPassword, setChangingPassword] = useState(false)
+
   const [backupFile, setBackupFile] = useState(null)
   const [importing, setImporting] = useState(false)
   const backupFileRef = useRef(null)
@@ -127,13 +132,31 @@ const Settings = ({ user }) => {
   }
  }
 
- const handleSave = () => {
-  setSaving(true)
-  setTimeout(() => {
-   setSaving(false)
-   toast.success(t('saveChanges') + ' ✓')
-  }, 800)
- }
+  const handleSave = async () => {
+   if (activeTab === 'security') {
+    if (!currentPassword || !newPassword) {
+     toast.error('Both current and new password are required')
+     return
+    }
+    setChangingPassword(true)
+    try {
+     await api.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword })
+     toast.success('Password changed successfully')
+     setCurrentPassword('')
+     setNewPassword('')
+    } catch (err) {
+     toast.error(err.response?.data?.message || 'Failed to change password')
+    } finally {
+     setChangingPassword(false)
+    }
+    return
+   }
+   setSaving(true)
+   setTimeout(() => {
+    setSaving(false)
+    toast.success(t('saveChanges') + ' ✓')
+   }, 800)
+  }
 
  const handleLanguageChange = (code) => {
   changeLanguage(code)
@@ -215,16 +238,16 @@ const Settings = ({ user }) => {
         <h2 className="text-xl font-bold text-slate-900 dark:text-white">{activeSection.name}</h2>
         <p className="text-sm text-slate-400 mt-1">{activeSection.desc}</p>
        </div>
-       {activeTab !== 'users' && activeTab !== 'language' && (
-        <button 
-         onClick={handleSave}
-         disabled={saving}
-         className="btn-primary flex items-center gap-2 px-6"
-        >
-         {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-         {t('saveChanges')}
-        </button>
-       )}
+        {activeTab !== 'users' && activeTab !== 'language' && (
+         <button 
+          onClick={handleSave}
+          disabled={saving || changingPassword}
+          className="btn-primary flex items-center gap-2 px-6"
+         >
+          {(saving || changingPassword) ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+          {t('saveChanges')}
+         </button>
+        )}
       </div>
 
       {/* ── Profile Tab ── */}
@@ -245,21 +268,21 @@ const Settings = ({ user }) => {
        </div>
       )}
 
-      {/* ── Security Tab ── */}
+       {/* ── Security Tab ── */}
       {activeTab === 'security' && (
        <div className="space-y-5 max-w-md">
         <div>
          <label className="block text-xs font-bold text-slate-500 mb-2">{t('currentPassword')}</label>
          <div className="relative">
           <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-          <input type="password" className="input-field pl-10" placeholder="••••••••" />
+          <input type="password" className="input-field pl-10" placeholder="••••••••" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
          </div>
         </div>
         <div>
          <label className="block text-xs font-bold text-slate-500 mb-2">{t('newPassword')}</label>
          <div className="relative">
           <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-          <input type="password" className="input-field pl-10" placeholder="••••••••" />
+          <input type="password" className="input-field pl-10" placeholder="••••••••" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
          </div>
         </div>
         <div className="pt-4 p-4 rounded-xl bg-primary-500/5 border border-blue-100 dark:border-blue-800 flex gap-4">

@@ -1,4 +1,7 @@
 import os
+import time
+import logging
+from sqlalchemy import exc as sa_exc
 from flask import Flask, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -6,6 +9,8 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from config import Config
 from app.routes.health import health_bp
+
+logger = logging.getLogger(__name__)
 
 # Extensions
 db = SQLAlchemy()

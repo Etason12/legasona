@@ -205,6 +205,18 @@ const Sales = ({ user }) => {
     }
   }
 
+  const handleHardDeleteSale = async (sale) => {
+    if (!window.confirm(`Permanently delete sale ${sale.sale_number}? This cannot be undone.`)) return
+    if (!window.confirm(`FINAL WARNING: All records for ${sale.sale_number} will be erased. Continue?`)) return
+    try {
+      await api.delete(`/sales/${sale.id}/hard-delete`)
+      toast.success('Sale permanently deleted')
+      fetchData()
+    } catch {
+      toast.error('Failed to delete sale')
+    }
+  }
+
   const handleUpdateSale = async (e) => {
     e.preventDefault()
     setEditSubmitting(true)
@@ -583,24 +595,36 @@ const Sales = ({ user }) => {
                               <CreditCard size={18} />
                             </button>
                           )}
-                          {isAdmin(user) && sale.status !== 'cancelled' && (
+                          {isAdmin(user) && (
                             <>
-                              {sale.status === 'pending' && (
+                              {sale.status !== 'cancelled' ? (
+                                <>
+                                  {sale.status === 'pending' && (
+                                    <button
+                                      onClick={() => { setSelectedSale(sale); setEditSaleAmount(String(sale.total_amount)); setEditSaleRemark(sale.remark || ''); setShowEditSale(true) }}
+                                      className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-200 dark:border-indigo-800 transition-colors"
+                                      title={t('editSale')}
+                                    >
+                                      <Pencil size={18} />
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => handleCancelSale(sale)}
+                                    className="p-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl border border-rose-200 dark:border-rose-800 transition-colors"
+                                    title="Cancel Sale"
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                </>
+                              ) : (
                                 <button
-                                  onClick={() => { setSelectedSale(sale); setEditSaleAmount(String(sale.total_amount)); setEditSaleRemark(sale.remark || ''); setShowEditSale(true) }}
-                                  className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-200 dark:border-indigo-800 transition-colors"
-                                  title={t('editSale')}
+                                  onClick={() => handleHardDeleteSale(sale)}
+                                  className="p-2.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl border border-red-200 dark:border-red-800 transition-colors"
+                                  title="Delete Permanently"
                                 >
-                                  <Pencil size={18} />
+                                  <Trash2 size={18} />
                                 </button>
                               )}
-                              <button
-                                onClick={() => handleCancelSale(sale)}
-                                className="p-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl border border-rose-200 dark:border-rose-800 transition-colors"
-                                title="Cancel Sale"
-                              >
-                                <Trash2 size={18} />
-                              </button>
                             </>
                           )}
                           <button

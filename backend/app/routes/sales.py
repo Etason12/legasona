@@ -448,6 +448,18 @@ def cancel_sale(id):
     db.session.commit()
     return jsonify({'message': 'Sale cancelled'}), 200
 
+@sales_bp.route('/<int:id>/hard-delete', methods=['DELETE'])
+@jwt_required()
+@admin_required
+def hard_delete_sale(id):
+    sale = Sale.query.get_or_404(id)
+    if sale.status != 'cancelled':
+        return jsonify({'message': 'Only cancelled sales can be permanently deleted'}), 400
+    Payment.query.filter_by(sale_id=sale.id).delete()
+    db.session.delete(sale)
+    db.session.commit()
+    return jsonify({'message': 'Sale permanently deleted'}), 200
+
 # ── List / Filter Sales ──────────────────────────────────────────────
 @sales_bp.route('', methods=['GET'])
 @jwt_required()

@@ -11,3 +11,4 @@ psycopg2-binary
 passlib
 gunicorn
 openpyxl
+requests

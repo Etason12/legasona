@@ -75,7 +75,7 @@ const Layout = ({ user, onLogout }) => {
     { name: t('expenses'),   href: '/expenses',   icon: FileText,        roles: ['admin','manager','accountant','storekeeper'] },
     { name: t('reports'),    href: '/reports',    icon: BarChart2,       roles: ['admin','manager','accountant'] },
     { name: t('customers'),  href: '/customers',  icon: Users,           roles: ['admin','manager','cashier'] },
-    { name: t('settings'),   href: '/settings',   icon: Settings,        roles: ['admin','manager'] },
+    { name: t('settings'),   href: '/settings',   icon: Settings,        roles: ['admin','manager','cashier','storekeeper','accountant'] },
   ]
 
   const filteredNav = navigation.filter(item =>

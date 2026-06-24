@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Order, Customer, User, Branch, db
 from app.utils.auth import role_required
 from app.utils.logging import log_activity
+from app.utils.notifications import send_notification
 
 orders_bp = Blueprint('orders', __name__)
 
@@ -64,7 +65,15 @@ def create_order():
         new_order.deposit_account_holder = data.get('deposit_account_holder', '').upper()
         new_order.deposit_transaction_reference = data.get('deposit_transaction_reference', '').upper()
     db.session.add(new_order)
+    db.session.flush()
+    user_id = get_jwt_identity()
+    log_activity(user_id, 'CREATE_ORDER', f"Order #{next_seq} created for {data.get('customer_name')}")
     db.session.commit()
+    send_notification(
+        'New Order Created',
+        f'Order #{next_seq} for {data.get("customer_name")} — deposit ETB {data.get("deposit_amount", 0):,.0f}',
+        {'type': 'order', 'sequence_number': next_seq}
+    )
     return jsonify({'message': 'Order created', 'sequence_number': next_seq}), 201
 
 @orders_bp.route('', methods=['GET'])

@@ -1,13 +1,31 @@
 import * as XLSX from 'xlsx';
 import { capitalizeName } from '../utils/format';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 const isNative = () => typeof window !== 'undefined' && window.Capacitor?.isNativePlatform()
 
 const saveFile = async (blob, fileName) => {
   if (isNative()) {
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 10000)
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result.split(',')[1];
+        const saved = await Filesystem.writeFile({
+          path: fileName,
+          data: base64,
+          directory: Directory.Cache
+        });
+        await Share.share({
+          title: fileName,
+          url: saved.uri,
+          dialogTitle: 'Save or share file'
+        });
+      };
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      console.error('Failed to save file on device', err);
+    }
   } else {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')

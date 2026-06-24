@@ -3,6 +3,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Vehicle, SparePart, User, db
 from app.utils.auth import role_required
 from app.utils.image_utils import compress_to_base64
+from app.utils.logging import log_activity
+from app.utils.notifications import send_notification
 
 inventory_bp = Blueprint('inventory', __name__)
 
@@ -64,7 +66,15 @@ def add_vehicle():
         branch_id=request.form.get('branch_id'), status='available', image=image_data
     )
     db.session.add(v)
+    db.session.flush()
+    user_id = get_jwt_identity()
+    log_activity(user_id, 'ADD_VEHICLE', f"Added vehicle {vin} - {v.model}")
     db.session.commit()
+    send_notification(
+        'New Vehicle Added',
+        f'Vehicle {v.model} ({vin}) has been added to inventory',
+        {'type': 'inventory', 'item': 'vehicle', 'id': v.id}
+    )
     return jsonify({'message': 'Vehicle added', 'id': v.id}), 201
 
 @inventory_bp.route('/vehicles/<int:id>', methods=['PUT'])
@@ -156,7 +166,15 @@ def add_spare_part():
         branch_id=request.form.get('branch_id'), image=image_data
     )
     db.session.add(p)
+    db.session.flush()
+    user_id = get_jwt_identity()
+    log_activity(user_id, 'ADD_SPARE_PART', f"Added spare part {p.name} ({p.part_number})")
     db.session.commit()
+    send_notification(
+        'New Spare Part Added',
+        f'Spare part {p.name} ({p.part_number}) has been added to inventory',
+        {'type': 'inventory', 'item': 'spare_part', 'id': p.id}
+    )
     return jsonify({'message': 'Spare part added', 'id': p.id}), 201
 
 @inventory_bp.route('/spare-parts/<int:id>', methods=['PUT'])

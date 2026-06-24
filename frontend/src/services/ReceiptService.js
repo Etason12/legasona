@@ -1,6 +1,8 @@
 import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
 import { capitalizeName } from '../utils/format';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 const buildItemDescription = (saleData) => {
   const lines = [];
@@ -141,10 +143,27 @@ export const generateReceipt = async (saleData) => {
   const fileName = `Receipt-${saleData.receiptNumber}.pdf`;
   const isNative = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform();
   if (isNative) {
-    const blob = doc.output('blob');
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    try {
+      const blob = doc.output('blob');
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result.split(',')[1];
+        const saved = await Filesystem.writeFile({
+          path: fileName,
+          data: base64,
+          directory: Directory.Cache
+        });
+        await Share.share({
+          title: 'Receipt',
+          text: `Receipt ${saleData.receiptNumber}`,
+          url: saved.uri,
+          dialogTitle: 'Save or share receipt'
+        });
+      };
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      console.error('Failed to save receipt on device', err);
+    }
   } else {
     doc.save(fileName);
   }

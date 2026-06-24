@@ -187,3 +187,10 @@ class ActivityLog(db.Model):
     action = db.Column(db.String(100))
     description = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+class OneSignalConfig(db.Model):
+    __tablename__ = 'onesignal_config'
+    id = db.Column(db.Integer, primary_key=True)
+    app_id = db.Column(db.String(100), nullable=False)
+    api_key = db.Column(db.String(200), nullable=False)
+    channel_id = db.Column(db.String(100))

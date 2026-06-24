@@ -8,6 +8,7 @@ from datetime import datetime
 from sqlalchemy import func, or_
 from app.models import Sale, Payment, Vehicle, SparePart, User, Customer, db
 from app.utils.logging import log_activity
+from app.utils.notifications import send_notification
 
 sales_bp = Blueprint('sales', __name__)
 logger = logging.getLogger(__name__)
@@ -112,6 +113,11 @@ def record_vehicle_sale():
     log_activity(data.get('user_id'), 'VEHICLE_SALE', f"Recorded sale {sale_number} for {data.get('customer_name')} - ETB {total_amount}")
 
     db.session.commit()
+    send_notification(
+        'Vehicle Sale Completed',
+        f'{data.get("customer_name")} purchased {vehicle.model} — ETB {total_amount:,.0f}',
+        {'type': 'sale', 'sale_type': 'vehicle', 'sale_number': sale_number}
+    )
     return jsonify({
         'message': f'Sale recorded as {status}',
         'sale_id': new_sale.id, 'sale_number': sale_number, 'status': status
@@ -182,6 +188,11 @@ def record_spare_part_sale():
     log_activity(data.get('user_id'), 'SPARE_PART_SALE', f"Recorded sale {sale_number} for {data.get('customer_name')} - ETB {total_amount}")
 
     db.session.commit()
+    send_notification(
+        'Spare Part Sale Completed',
+        f'{data.get("customer_name")} purchased {part.name} — ETB {total_amount:,.0f}',
+        {'type': 'sale', 'sale_type': 'spare_part', 'sale_number': sale_number}
+    )
     return jsonify({'message': f'Sale recorded as {status}', 'sale_number': sale_number}), 201
 
 # ── Get Payment History for a Sale ──────────────────────────────────
@@ -378,6 +389,11 @@ def add_payment(id):
         log_activity(user_id, 'ADD_PAYMENT', f"Added ETB {amount} to sale {sale.sale_number}")
 
         db.session.commit()
+        send_notification(
+            'Payment Received',
+            f'ETB {amount:,.0f} added to sale {sale.sale_number} ({sale.customer_name})',
+            {'type': 'payment', 'sale_number': sale.sale_number, 'amount': amount}
+        )
         return jsonify({'message': 'Payment added', 'status': sale.status}), 200
     except Exception as e:
         db.session.rollback()

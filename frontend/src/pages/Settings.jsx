@@ -16,7 +16,8 @@ import {
  Edit3,
  X,
  Check,
- Users
+ Users,
+ Bell
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import api from '../services/api'
@@ -52,6 +53,11 @@ const Settings = ({ user }) => {
   const [newPassword, setNewPassword] = useState('')
   const [changingPassword, setChangingPassword] = useState(false)
 
+  // Push notification config
+  const [onesignalConfig, setOnesignalConfig] = useState({ app_id: '', api_key: '', channel_id: '' })
+  const [savingOnesignal, setSavingOnesignal] = useState(false)
+  const [testingOnesignal, setTestingOnesignal] = useState(false)
+
   const [backupFile, setBackupFile] = useState(null)
   const [importing, setImporting] = useState(false)
   const backupFileRef = useRef(null)
@@ -66,12 +72,14 @@ const Settings = ({ user }) => {
   { id: 'language', name: t('language'), icon: Globe, desc: t('languageDesc') },
   ...(isAdmin ? [{ id: 'backup', name: 'Backup', icon: Download, desc: 'Export database backup' }] : []),
   ...(isAdmin ? [{ id: 'database', name: 'Database', icon: Database, desc: 'Reset database to factory defaults' }] : []),
+  ...(isAdmin ? [{ id: 'notifications', name: 'Push Notifications', icon: Bell, desc: 'Configure OneSignal push alerts' }] : []),
  ]
 
- useEffect(() => {
-  if (activeTab === 'users') fetchUsers()
-  if (activeTab === 'branches' || activeTab === 'users') fetchBranches()
- }, [activeTab])
+  useEffect(() => {
+   if (activeTab === 'users') fetchUsers()
+   if (activeTab === 'branches' || activeTab === 'users') fetchBranches()
+   if (activeTab === 'notifications') fetchOnesignalConfig()
+  }, [activeTab])
 
  const fetchBranches = async () => {
   setLoadingBranches(true)
@@ -158,15 +166,52 @@ const Settings = ({ user }) => {
    }, 800)
   }
 
- const handleLanguageChange = (code) => {
-  changeLanguage(code)
-  let msg = 'Language set to English ✓'
-  if (code === 'am') msg = 'ቋንቋ ወደ አማርኛ ተቀናብሯል ✓'
-  if (code === 'ti') msg = 'ቁንቋ ናብ ትግርኛ ተቐይሩ ✓'
-  toast.success(msg)
- }
+  const fetchOnesignalConfig = async () => {
+   try {
+    const res = await api.get('/onesignal-config')
+    setOnesignalConfig(res.data)
+   } catch {
+    toast.error('Failed to load push notification config')
+   }
+  }
 
- const handleCreateBranch = async (e) => {
+  const handleSaveOnesignal = async () => {
+   if (!onesignalConfig.app_id || !onesignalConfig.api_key) {
+    toast.error('App ID and API Key are required')
+    return
+   }
+   setSavingOnesignal(true)
+   try {
+    await api.put('/onesignal-config', onesignalConfig)
+    toast.success('Push notification config saved')
+   } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to save config')
+   } finally {
+    setSavingOnesignal(false)
+   }
+  }
+
+  const handleTestNotification = async () => {
+   setTestingOnesignal(true)
+   try {
+    await api.post('/onesignal-config/test')
+    toast.success('Test notification sent! Check your device.')
+   } catch (err) {
+    toast.error(err.response?.data?.message || 'Test failed')
+   } finally {
+    setTestingOnesignal(false)
+   }
+  }
+
+  const handleLanguageChange = (code) => {
+   changeLanguage(code)
+   let msg = 'Language set to English ✓'
+   if (code === 'am') msg = 'ቋንቋ ወደ አማርኛ ተቀናብሯል ✓'
+   if (code === 'ti') msg = 'ቁንቋ ናብ ትግርኛ ተቐይሩ ✓'
+   toast.success(msg)
+  }
+
+  const handleCreateBranch = async (e) => {
   e.preventDefault()
   try {
    await api.post('/branches', newBranch)
@@ -238,7 +283,7 @@ const Settings = ({ user }) => {
         <h2 className="text-xl font-bold text-slate-900 dark:text-white">{activeSection.name}</h2>
         <p className="text-sm text-slate-400 mt-1">{activeSection.desc}</p>
        </div>
-        {activeTab !== 'users' && activeTab !== 'language' && (
+        {activeTab !== 'users' && activeTab !== 'language' && activeTab !== 'notifications' && (
          <button 
           onClick={handleSave}
           disabled={saving || changingPassword}
@@ -634,7 +679,57 @@ const Settings = ({ user }) => {
        </div>
       )}
 
-      {/* ── Language Tab ── */}
+       {/* ── Notifications Tab ── */}
+      {activeTab === 'notifications' && (
+       <div className="space-y-6 max-w-xl">
+        <div className="p-6 rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/10">
+         <div className="flex items-start gap-4">
+          <Bell className="text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" size={24} />
+          <div>
+           <h3 className="text-lg font-bold text-blue-600 dark:text-blue-400">OneSignal Push Notifications</h3>
+           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+            Send push alerts to all devices when sales, inventory additions, payments, or new orders occur.
+            Create a free account at <a href="https://onesignal.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">onesignal.com</a>, then enter your App ID and REST API Key below.
+           </p>
+          </div>
+         </div>
+         <div className="mt-6 space-y-4">
+          <div>
+           <label className="block text-xs font-bold text-slate-500 mb-2">OneSignal App ID</label>
+           <input type="text" className="input-field" placeholder="e.g. 12345678-aaaa-bbbb-cccc-ddddeeeeffff"
+            value={onesignalConfig.app_id}
+            onChange={e => setOnesignalConfig({ ...onesignalConfig, app_id: e.target.value })} />
+          </div>
+          <div>
+           <label className="block text-xs font-bold text-slate-500 mb-2">REST API Key</label>
+           <input type="password" className="input-field" placeholder="Your OneSignal REST API Key"
+            value={onesignalConfig.api_key}
+            onChange={e => setOnesignalConfig({ ...onesignalConfig, api_key: e.target.value })} />
+          </div>
+          <div>
+           <label className="block text-xs font-bold text-slate-500 mb-2">Android Channel ID <span className="text-slate-400 font-normal">(optional)</span></label>
+           <input type="text" className="input-field" placeholder="Leave blank for default"
+            value={onesignalConfig.channel_id}
+            onChange={e => setOnesignalConfig({ ...onesignalConfig, channel_id: e.target.value })} />
+          </div>
+          <div className="flex items-center gap-3 pt-2">
+           <button onClick={handleSaveOnesignal} disabled={savingOnesignal}
+            className="btn-primary flex items-center gap-2 px-6 text-sm">
+            {savingOnesignal ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            Save Config
+           </button>
+           <button onClick={handleTestNotification} disabled={testingOnesignal || !onesignalConfig.app_id}
+            className="px-5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-800 transition-colors flex items-center gap-2">
+            {testingOnesignal ? <Loader2 size={16} className="animate-spin" /> : <Bell size={16} />}
+            Send Test
+           </button>
+          </div>
+         </div>
+        </div>
+       </div>
+      )}
+
+       {/* ── Language Tab ── */}
       {activeTab === 'language' && (
        <div className="space-y-4">
         <p className="text-sm text-slate-400">Select your preferred display language. Changes apply immediately across the entire application.</p>

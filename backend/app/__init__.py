@@ -41,6 +41,7 @@ def create_app(config_class=Config):
     from app.routes.parts import parts_bp
     from app.routes.system import system_bp
     from app.routes.backup import backup_bp
+    from app.routes.notifications import notifications_bp
 
     app.register_blueprint(parts_bp, url_prefix='/api')
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -57,6 +58,7 @@ def create_app(config_class=Config):
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(system_bp, url_prefix='/api')
     app.register_blueprint(backup_bp, url_prefix='/api')
+    app.register_blueprint(notifications_bp, url_prefix='/api')
 
     # Seed database on first startup
     with app.app_context():

@@ -19,8 +19,7 @@ import {
   Truck,
   Wrench,
   Pencil,
-  Upload,
-  MapPin
+  Upload
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import api from '../services/api'
@@ -97,30 +96,9 @@ const Sales = ({ user }) => {
     [availableParts]
   )
   const { t } = useLanguage()
-  const [branches, setBranches] = useState([])
-  const [selectedBranchId, setSelectedBranchId] = useState('')
-
-  const isAdminUser = user?.role?.toLowerCase() === 'admin'
-
-  useEffect(() => {
-    setSelectedBranchId(isAdminUser ? '' : (user?.branch_id ? String(user.branch_id) : ''))
-  }, [])
-
-  useEffect(() => {
-    fetchBranches()
-  }, [])
 
   useEffect(() => { const t = setTimeout(() => setDebouncedSearch(searchQuery), 350); return () => clearTimeout(t) }, [searchQuery])
-  useEffect(() => { fetchData() }, [statusFilter, debouncedSearch, startDate, endDate, selectedBranchId, page])
-
-  const fetchBranches = async () => {
-    try {
-      const res = await api.get('/branches')
-      setBranches(res.data)
-    } catch {
-      console.error('Failed to fetch branches')
-    }
-  }
+  useEffect(() => { fetchData() }, [statusFilter, debouncedSearch, startDate, endDate, page])
 
   useEffect(() => {
     if (showNewSale) {
@@ -171,10 +149,11 @@ const Sales = ({ user }) => {
   const fetchData = async () => {
     setLoading(true)
     try {
+      const branchId = user?.role?.toLowerCase() === 'admin' ? '' : (user?.branch_id || '')
       const [salesRes, vehRes, partsRes, custRes] = await Promise.all([
-        api.get(`/sales?status=${statusFilter}&search=${searchQuery}&start_date=${startDate}&end_date=${endDate}&branch_id=${selectedBranchId}&page=${page}&per_page=${perPage}`),
-        api.get(`/inventory/vehicles?status=available&branch_id=${selectedBranchId}`),
-        api.get(`/inventory/spare-parts?branch_id=${selectedBranchId}`),
+        api.get(`/sales?status=${statusFilter}&search=${searchQuery}&start_date=${startDate}&end_date=${endDate}&branch_id=${branchId}&page=${page}&per_page=${perPage}`),
+        api.get(`/inventory/vehicles?status=available&branch_id=${branchId}`),
+        api.get(`/inventory/spare-parts?branch_id=${branchId}`),
         api.get('/customers')
       ])
       
@@ -507,19 +486,6 @@ const Sales = ({ user }) => {
           ))}
         </div>
 
-        <div className="flex items-center gap-2 bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-xl px-3 py-1.5 w-full lg:w-auto">
-          <MapPin size={16} className="text-slate-500 shrink-0" />
-          <select
-            value={selectedBranchId}
-            onChange={e => setSelectedBranchId(e.target.value)}
-            className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-full"
-          >
-            <option value="">{t('allBranches')}</option>
-            {branches.map(b => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-        </div>
         <div className="flex items-center gap-2 w-full lg:w-auto">
           <input type="date" className="input-field w-auto" value={startDate} onChange={e => setStartDate(e.target.value)} />
           <span className="text-slate-500 text-xs font-bold">TO</span>

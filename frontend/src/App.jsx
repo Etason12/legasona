@@ -20,6 +20,7 @@ const Activity = lazy(() => import('./pages/Activity'))
 import Layout from './components/Layout';
 import ErrorBoundary from './components/ErrorBoundary'
 import api from './services/api'
+import { initOneSignal } from './services/OneSignalService'
 
 // ── Defined outside App so React doesn't treat it as a new type each render ──
 const ProtectedRoute = ({ user, allowedRoles, children }) => {
@@ -47,6 +48,7 @@ function App() {
         const fresh = res.data
         localStorage.setItem('user', JSON.stringify(fresh))
         setUser(fresh)
+        initOneSignal()
       })
       .catch(() => {
         // Token invalid or expired — clear session

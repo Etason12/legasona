@@ -12,21 +12,22 @@ def login():
     password = data.get('password')
 
     user = User.query.filter_by(username=username).first()
-    if user and user.check_password(password):
-        access_token = create_access_token(identity=str(user.id))
-        branch_name = user.branch.name if user.branch else "All"
-        return jsonify({
-            'token': access_token,
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'role': user.role,
-                'branch_id': user.branch_id,
-                'branch_name': branch_name
-            }
-        }), 200
-
-    return jsonify({'message': 'Invalid credentials'}), 401
+    if user:
+        if user.check_password(password):
+            access_token = create_access_token(identity=str(user.id))
+            branch_name = user.branch.name if user.branch else "All"
+            return jsonify({
+                'token': access_token,
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'role': user.role,
+                    'branch_id': user.branch_id,
+                    'branch_name': branch_name
+                }
+            }), 200
+        return jsonify({'message': 'Invalid credentials', 'debug': 'wrong password'}), 401
+    return jsonify({'message': 'Invalid credentials', 'debug': 'user not found'}), 401
 
 @auth_bp.route('/me', methods=['GET'])
 @jwt_required()

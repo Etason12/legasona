@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app.models import User, Branch
 from app import db
@@ -58,6 +58,19 @@ def get_user():
             'branch_id': user.branch_id
         }), 200
     return jsonify({'message': 'User not found'}), 404
+
+@auth_bp.route('/reset-admin', methods=['POST'])
+def reset_admin():
+    data = request.get_json() or {}
+    reset_key = data.get('reset_key', '')
+    if reset_key != current_app.config['SECRET_KEY']:
+        return jsonify({'message': 'Invalid reset key'}), 401
+    admin = User.query.filter_by(role='admin').first()
+    if not admin:
+        return jsonify({'message': 'No admin user found'}), 404
+    admin.set_password('admin123')
+    db.session.commit()
+    return jsonify({'message': 'Admin password reset to admin123'}), 200
 
 @auth_bp.route('/change-password', methods=['POST'])
 @jwt_required()

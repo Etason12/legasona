@@ -22,7 +22,7 @@ def get_dashboard_stats():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     if not branch_id and current_user.role != 'admin':
-        branch_id = str(current_user.branch_id)
+        branch_id = current_user.branch_id
 
     sales_q   = db.session.query(func.sum(Sale.total_amount))
     orders_q  = Order.query.filter(Order.status == 'waiting')
@@ -138,7 +138,7 @@ def get_profit_analysis():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     if not branch_id and current_user.role != 'admin':
-        branch_id = str(current_user.branch_id)
+        branch_id = current_user.branch_id
 
     sales_q    = db.session.query(
         func.sum(Sale.total_amount).label('revenue'),
@@ -180,7 +180,7 @@ def get_payment_report():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     if not branch_id and current_user.role != 'admin':
-        branch_id = str(current_user.branch_id)
+        branch_id = current_user.branch_id
 
     query = db.session.query(Payment, Sale).join(Sale, Payment.sale_id == Sale.id)
 
@@ -228,7 +228,7 @@ def get_branch_comparison():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     if not branch_id and current_user.role != 'admin':
-        branch_id = str(current_user.branch_id)
+        branch_id = current_user.branch_id
     branches = Branch.query.all()
     result = []
     for b in branches:
@@ -260,7 +260,7 @@ def get_inventory_distribution():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     if not branch_id and current_user.role != 'admin':
-        branch_id = str(current_user.branch_id)
+        branch_id = current_user.branch_id
 
     vehicle_q = db.session.query(Vehicle.type, func.count(Vehicle.id))
     vehicle_power_q = db.session.query(Vehicle.power_type, func.count(Vehicle.id))

@@ -21,7 +21,7 @@ def get_vehicles():
     query = Vehicle.query
     if branch_id:
         query = query.filter_by(branch_id=branch_id)
-    elif current_user.role != 'admin':
+    elif current_user.branch_id:
         query = query.filter_by(branch_id=current_user.branch_id)
     if status:
         query = query.filter_by(status=status)
@@ -129,7 +129,7 @@ def get_spare_parts():
     query = SparePart.query
     if branch_id:
         query = query.filter_by(branch_id=branch_id)
-    elif current_user.role != 'admin':
+    elif current_user.branch_id:
         query = query.filter_by(branch_id=current_user.branch_id)
     
     paginated_parts = query.with_entities(

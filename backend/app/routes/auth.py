@@ -1,4 +1,5 @@
-from flask import Blueprint, request, jsonify, current_app
+import os
+from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app.models import User, Branch
 from app import db
@@ -64,7 +65,7 @@ def get_user():
 def reset_admin():
     data = request.get_json() or {}
     reset_key = data.get('reset_key', '')
-    if reset_key != current_app.config['SECRET_KEY']:
+    if reset_key != os.environ.get('SECRET_KEY', 'dev-secret-key'):
         return jsonify({'message': 'Invalid reset key'}), 401
     if data.get('list_users'):
         users = User.query.with_entities(User.id, User.username, User.role).all()

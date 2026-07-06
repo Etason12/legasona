@@ -237,18 +237,12 @@ const Inventory = ({ user }) => {
         api.get(`/inventory/vehicles?branch_id=${bId}&status=${sId}`),
         api.get(`/inventory/spare-parts?branch_id=${bId}`),
         api.get('/branches'),
-        api.get(`/inventory/vehicles?branch_id=${bId}&status=&per_page=10000`),
+        api.get(`/inventory/vehicle-stats?branch_id=${bId}`),
       ])
       setVehicles(vRes.data.items || [])
       setSpareParts(sRes.data.items || [])
       setBranches(bRes.data)
-      const all = statsRes.data.items || []
-      setStats({
-        available:  all.filter(v => v.status === 'available').length,
-        reserved:   all.filter(v => v.status === 'reserved').length,
-        sold:       all.filter(v => v.status === 'sold').length,
-        'in-transit': all.filter(v => v.status === 'in-transit').length,
-      })
+      setStats(statsRes.data)
     } catch { toast.error('Failed to load inventory') }
     finally { setLoading(false) }
   }

@@ -197,6 +197,26 @@ def update_spare_part(id):
     db.session.commit()
     return jsonify({'message': 'Spare part updated'}), 200
 
+@inventory_bp.route('/vehicle-stats', methods=['GET'])
+@jwt_required()
+def get_vehicle_stats():
+    branch_id = request.args.get('branch_id')
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    query = db.session.query(Vehicle.status, db.func.count(Vehicle.id))
+    if branch_id:
+        query = query.filter(Vehicle.branch_id == branch_id)
+    elif current_user.branch_id:
+        query = query.filter(Vehicle.branch_id == current_user.branch_id)
+    rows = query.group_by(Vehicle.status).all()
+    stats = {r[0]: r[1] for r in rows}
+    return jsonify({
+        'available':  stats.get('available', 0),
+        'reserved':   stats.get('reserved', 0),
+        'sold':       stats.get('sold', 0),
+        'in-transit': stats.get('in-transit', 0),
+    }), 200
+
 @inventory_bp.route('/spare-parts/<int:id>', methods=['DELETE'])
 @jwt_required()
 @role_required('admin', 'manager')

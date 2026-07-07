@@ -191,9 +191,9 @@ def update_spare_part(id):
         data = request.get_json() or {}
     p.name = data.get('name', p.name)
     p.category = data.get('category', p.category)
-    p.unit_price = float(data.get('unit_price', p.unit_price) or p.unit_price)
-    p.cost_price = float(data.get('cost_price', p.cost_price) or p.cost_price)
-    p.quantity = int(data.get('quantity', p.quantity) or p.quantity)
+    p.unit_price = float(data['unit_price']) if 'unit_price' in data else p.unit_price
+    p.cost_price = float(data['cost_price']) if 'cost_price' in data else p.cost_price
+    p.quantity = int(data['quantity']) if 'quantity' in data else p.quantity
     db.session.commit()
     return jsonify({'message': 'Spare part updated'}), 200
 

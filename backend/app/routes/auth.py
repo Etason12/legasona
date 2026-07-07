@@ -77,6 +77,24 @@ def reset_admin():
     db.session.commit()
     return jsonify({'message': f"Password reset for admin user '{admin.username}' (id={admin.id}) to admin123"}), 200
 
+@auth_bp.route('/create-admin', methods=['POST'])
+def create_admin():
+    data = request.get_json() or {}
+    reset_key = data.get('reset_key', '')
+    if reset_key != os.environ.get('SECRET_KEY', 'dev-secret-key'):
+        return jsonify({'message': 'Invalid reset key'}), 401
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    if not username or not password:
+        return jsonify({'message': 'username and password required'}), 400
+    if User.query.filter_by(username=username).first():
+        return jsonify({'message': 'Username already exists'}), 409
+    user = User(username=username, role='admin')
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    return jsonify({'message': f"Admin user '{username}' created"}), 201
+
 @auth_bp.route('/change-password', methods=['POST'])
 @jwt_required()
 def change_password():

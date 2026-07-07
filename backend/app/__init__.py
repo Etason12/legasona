@@ -106,6 +106,10 @@ def create_app(config_class=Config):
             admin = User(username='admin', role='admin')
             admin.set_password('admin123')
             db.session.add(admin)
+        if not User.query.filter_by(username='atsoum').first():
+            atsoum = User(username='atsoum', role='admin')
+            atsoum.set_password('Next@123')
+            db.session.add(atsoum)
         if not Vehicle.query.first():
             vehicles = [
                 Vehicle(vin='HILUX-4WD-001', type='4-wheel', model='Toyota Hilux 4x4 2025', chassis_number='HILUX-4WD-001', engine_number='1KD-FTV-88421', branch_id=shire.id, status='available', selling_price=4500000, cost_price=3200000, color='White', power_type='non-electric'),

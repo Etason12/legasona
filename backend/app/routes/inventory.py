@@ -190,6 +190,7 @@ def update_spare_part(id):
     else:
         data = request.get_json() or {}
     p.name = data.get('name', p.name)
+    p.part_number = data.get('part_number', p.part_number)
     p.category = data.get('category', p.category)
     p.unit_price = float(data['unit_price']) if 'unit_price' in data else p.unit_price
     p.cost_price = float(data['cost_price']) if 'cost_price' in data else p.cost_price

@@ -159,20 +159,6 @@ def create_app(config_class=Config):
     app.register_blueprint(backup_bp, url_prefix='/api')
     app.register_blueprint(notifications_bp, url_prefix='/api')
 
-    # Ensure tables exist (safe, idempotent)
-    with app.app_context():
-        db.create_all()
-
-        # ── Auto-migrate: add columns that may be missing ──────────
-        _migrate_columns(db)
-
-    # Register CLI commands for seeding
-    @app.cli.command('seed')
-    def seed_command():
-        """Seed the database with initial branches, admin user, and sample data."""
-        from app.models import User, Branch, Vehicle, SparePart
-        _seed_database()
-
     def _seed_database():
         with app.app_context():
             from app.models import User, Branch, Vehicle, SparePart
@@ -208,6 +194,24 @@ def create_app(config_class=Config):
 
             db.session.commit()
             logger.info('Database seeded successfully.')
+
+    # Register CLI commands for seeding
+    @app.cli.command('seed')
+    def seed_command():
+        """Seed the database with initial branches, admin user, and sample data."""
+        _seed_database()
+
+    # Ensure tables exist (safe, idempotent)
+    with app.app_context():
+        db.create_all()
+
+        # ── Auto-migrate: add columns that may be missing ──────────
+        _migrate_columns(db)
+
+        # ── Auto-seed on fresh database (e.g. new Neon DB) ─────────
+        from app.models import User as _User
+        if not db.session.query(_User).first():
+            _seed_database()
 
     # Serve React frontend (built files) for any route not matched by API
     @app.route('/', defaults={'path': ''})

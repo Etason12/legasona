@@ -108,22 +108,40 @@ def import_backup():
         for model in DELETE_ORDER:
             model.query.delete()
 
+        # First pass: strip circular FKs and insert
+        order_sale_ids = {}  # order_id -> sale_id mapping for deferred update
         for model in INSERT_ORDER:
             records_data = tables.get(model.__tablename__, [])
             if not records_data:
                 continue
             for data in records_data:
                 parsed = {k: parse_value(model, k, v) for k, v in data.items()}
+                # Strip circular FKs to avoid constraint violations
+                if model.__tablename__ == 'orders':
+                    sale_id_val = parsed.pop('sale_id', None)
+                    if sale_id_val is not None:
+                        order_sale_ids[parsed.get('id')] = sale_id_val
                 db.session.add(model(**parsed))
             db.session.flush()
+
+        # Second pass: restore circular FKs
+        if order_sale_ids:
+            for order_id, sale_id in order_sale_ids.items():
+                db.session.execute(
+                    text('UPDATE orders SET sale_id = :sale_id WHERE id = :order_id'),
+                    {'sale_id': sale_id, 'order_id': order_id}
+                )
 
         for model in INSERT_ORDER:
             table_name = model.__tablename__
             dialect = db.engine.dialect.name
             if dialect == 'sqlite':
-                db.session.execute(text(
-                    f"UPDATE sqlite_sequence SET seq = (SELECT MAX(id) FROM {table_name}) WHERE name = '{table_name}'"
-                ))
+                try:
+                    db.session.execute(text(
+                        f"UPDATE sqlite_sequence SET seq = (SELECT MAX(id) FROM {table_name}) WHERE name = '{table_name}'"
+                    ))
+                except Exception:
+                    pass  # sqlite_sequence may not exist in-memory
             else:
                 db.session.execute(text(
                     f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), "
@@ -134,4 +152,4 @@ def import_backup():
         return jsonify({'message': 'Backup restored successfully'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'message': f'Import failed'}), 500
+        return jsonify({'message': 'Import failed'}), 500

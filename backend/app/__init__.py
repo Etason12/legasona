@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask, send_from_directory, jsonify
+from flask import Flask, send_from_directory, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
@@ -17,11 +17,19 @@ jwt = JWTManager()
 def _migrate_columns(database):
     """Add columns that may be missing from existing tables."""
     from sqlalchemy import text, inspect
-    from app.models import Sale, Order
+    from app.models import (Sale, Order, Vehicle, SparePart, Customer,
+                            Branch, Payment, Transfer, Purchase, PurchaseItem,
+                            Expense, ActivityLog, User, OneSignalConfig)
     engine = database.engine
     insp = inspect(engine)
 
-    TABLE_MODELS = {'sales': Sale, 'orders': Order}
+    TABLE_MODELS = {
+        'sales': Sale, 'orders': Order, 'vehicles': Vehicle,
+        'spare_parts': SparePart, 'customers': Customer,
+        'branches': Branch, 'payments': Payment, 'transfers': Transfer,
+        'purchases': Purchase, 'purchase_items': PurchaseItem,
+        'expenses': Expense, 'activity_logs': ActivityLog, 'users': User,
+    }
 
     for table_name, model in TABLE_MODELS.items():
         try:
@@ -68,11 +76,16 @@ def create_app(config_class=Config):
     jwt.init_app(app)
 
     allowed_origins = os.environ.get('CORS_ORIGINS', '*').split(',')
-    CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
+    CORS(app, resources={r"/api/*": {"origins": allowed_origins}}, supports_credentials=True)
 
     # ── Security Headers ──────────────────────────────────────────────
     @app.after_request
     def set_security_headers(response):
+        origin = request.headers.get('Origin', '*')
+        if '*' in allowed_origins or origin in allowed_origins:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['X-XSS-Protection'] = '1; mode=block'

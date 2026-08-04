@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react'
+import React, { useState, useEffect, lazy, Suspense, useRef, useCallback } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
@@ -72,11 +72,42 @@ function App() {
     localStorage.setItem('user', JSON.stringify(userData))
   }
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null)
     localStorage.removeItem('user')
     localStorage.removeItem('token')
-  }
+  }, [])
+
+  // ── Inactivity Timeout (30 min) ─────────────────────────────────
+  const timeoutRef = useRef(null)
+  const warningTimeoutRef = useRef(null)
+
+  const resetTimer = useCallback(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current)
+    if (user) {
+      // Warn at 25 min, logout at 30 min
+      warningTimeoutRef.current = setTimeout(() => {
+        // Could show a toast warning here in the future
+      }, 25 * 60 * 1000)
+      timeoutRef.current = setTimeout(() => {
+        logout()
+        window.location.href = '/login'
+      }, 30 * 60 * 1000)
+    }
+  }, [user, logout])
+
+  useEffect(() => {
+    if (!user) return
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart']
+    events.forEach(e => document.addEventListener(e, resetTimer, { passive: true }))
+    resetTimer()
+    return () => {
+      events.forEach(e => document.removeEventListener(e, resetTimer))
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current)
+    }
+  }, [user, resetTimer])
 
   // Show nothing while we validate the token (avoids flash of login page)
   if (checking) return null

@@ -5,6 +5,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.auth import admin_required, role_required, effective_branch_id
 from app.utils.image_utils import compress_to_base64
 from app.utils.validation import safe_int
+from app.utils.sanitization import sanitize_search
 from datetime import datetime, timezone
 from sqlalchemy import func, or_
 from app.models import Sale, Payment, Vehicle, SparePart, User, Customer, db
@@ -412,7 +413,7 @@ def add_payment(id):
     except Exception as e:
         db.session.rollback()
         logger.error(f"add_payment failed for sale {id}: {e}", exc_info=True)
-        return jsonify({'message': f'Server error: {str(e)}'}), 500
+        return jsonify({'message': f'Server error'}), 500
 
 # ── Cancel / Delete Sale ─────────────────────────────────────────────
 @sales_bp.route('/<int:id>', methods=['PATCH'])
@@ -507,9 +508,10 @@ def get_sales():
     if end_date:
         query = query.filter(Sale.sale_date <= datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59))
     if search_query:
+        safe_q = sanitize_search(search_query)
         query = query.filter(or_(
-            Sale.customer_name.ilike(f"%{search_query}%"),
-            Sale.sale_number.ilike(f"%{search_query}%")
+            Sale.customer_name.ilike(f"%{safe_q}%"),
+            Sale.sale_number.ilike(f"%{safe_q}%")
         ))
 
     paginated_sales = query.order_by(Sale.sale_date.desc()).paginate(page=page, per_page=per_page, error_out=False)

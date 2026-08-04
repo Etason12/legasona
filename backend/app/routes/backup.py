@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from flask import Blueprint, jsonify, Response, request
 from flask_jwt_extended import jwt_required
 from sqlalchemy import text
@@ -12,7 +12,7 @@ backup_bp = Blueprint('backup', __name__)
 SERIALIZERS = {
     Branch: lambda r: {'id': r.id, 'name': r.name, 'location': r.location, 'address': r.address, 'phone': r.phone, 'status': r.status, 'monthly_budget': str(r.monthly_budget) if r.monthly_budget else None},
     Customer: lambda r: {'id': r.id, 'full_name': r.full_name, 'phone': r.phone, 'email': r.email, 'address': r.address, 'customer_type': r.customer_type, 'credit_limit': str(r.credit_limit) if r.credit_limit else None, 'loyalty_points': r.loyalty_points, 'created_at': r.created_at.isoformat() if r.created_at else None, 'branch_id': r.branch_id},
-    User: lambda r: {'id': r.id, 'username': r.username, 'role': r.role, 'branch_id': r.branch_id, 'status': r.status, 'password_hash': r.password_hash},
+    User: lambda r: {'id': r.id, 'username': r.username, 'role': r.role, 'branch_id': r.branch_id, 'status': r.status},
     Vehicle: lambda r: {'id': r.id, 'vin': r.vin, 'type': r.type, 'power_type': r.power_type, 'model': r.model, 'color': r.color, 'chassis_number': r.chassis_number, 'engine_number': r.engine_number, 'cost_price': str(r.cost_price) if r.cost_price else None, 'selling_price': str(r.selling_price) if r.selling_price else None, 'branch_id': r.branch_id, 'status': r.status, 'received_date': r.received_date.isoformat() if r.received_date else None, 'image': r.image},
     SparePart: lambda r: {'id': r.id, 'part_number': r.part_number, 'name': r.name, 'category': r.category, 'unit_price': str(r.unit_price) if r.unit_price else None, 'cost_price': str(r.cost_price) if r.cost_price else None, 'branch_id': r.branch_id, 'quantity': r.quantity, 'image': r.image},
     Sale: lambda r: {'id': r.id, 'sale_number': r.sale_number, 'sale_type': r.sale_type, 'item_id': r.item_id, 'quantity': r.quantity, 'customer_name': r.customer_name, 'category': r.category, 'customer_phone': r.customer_phone, 'customer_id_number': r.customer_id_number, 'customer_id': r.customer_id, 'total_amount': str(r.total_amount) if r.total_amount else None, 'cost_at_sale': str(r.cost_at_sale) if r.cost_at_sale else None, 'chassis_number': r.chassis_number, 'motor_number': r.motor_number, 'receipt_image': r.receipt_image, 'transaction_reference': r.transaction_reference, 'status': r.status, 'branch_id': r.branch_id, 'user_id': r.user_id, 'sale_date': r.sale_date.isoformat() if r.sale_date else None, 'remark': r.remark},
@@ -70,7 +70,7 @@ def parse_value(model, key, value):
 def export_backup():
     backup = {
         'version': '1.0',
-        'exported_at': datetime.utcnow().isoformat(),
+        'exported_at': datetime.now(timezone.utc).isoformat(),
         'tables': {},
     }
     for model, serializer in SERIALIZERS.items():
@@ -79,7 +79,7 @@ def export_backup():
         backup['tables'][table_name] = [serializer(r) for r in records]
 
     json_str = json.dumps(backup, indent=2, ensure_ascii=False)
-    filename = f"legasona-backup-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+    filename = f"legasona-backup-{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
     return Response(
         json_str,
         mimetype='application/json',
@@ -98,7 +98,7 @@ def import_backup():
     try:
         backup = json.loads(file.read().decode('utf-8'))
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
-        return jsonify({'message': f'Invalid backup file: {str(e)}'}), 400
+        return jsonify({'message': f'Invalid backup file'}), 400
 
     tables = backup.get('tables', {})
     if not tables:
@@ -134,4 +134,4 @@ def import_backup():
         return jsonify({'message': 'Backup restored successfully'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'message': f'Import failed: {str(e)}'}), 500
+        return jsonify({'message': f'Import failed'}), 500

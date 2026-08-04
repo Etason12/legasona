@@ -6,6 +6,8 @@ _DEFAULT_JWT    = 'jwt-secret-key'
 
 class Config:
     SECRET_KEY     = os.environ.get('SECRET_KEY', _DEFAULT_SECRET)
+    MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10MB
+    MAX_FORM_MEMORY_SIZE = 10 * 1024 * 1024
     _db_url = os.environ.get('DATABASE_URL', 'sqlite:///dealership.db')
     if _db_url.startswith('postgres'):
         _db_url = _db_url.replace('postgres://', 'postgresql://')

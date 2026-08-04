@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
@@ -29,6 +29,32 @@ def create_app(config_class=Config):
 
     allowed_origins = os.environ.get('CORS_ORIGINS', '*').split(',')
     CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
+
+    # ── Security Headers ──────────────────────────────────────────────
+    @app.after_request
+    def set_security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        if not app.config.get('DEBUG'):
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        response.headers['Content-Security-Policy'] = "default-src 'self'"
+        return response
+
+    # ── Global Error Handlers ─────────────────────────────────────────
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        logger.error(f"Unhandled exception: {e}", exc_info=True)
+        return jsonify({'message': 'Internal server error'}), 500
+
+    @app.errorhandler(413)
+    def handle_request_too_large(e):
+        return jsonify({'message': 'Request too large. Maximum size is 10MB.'}), 413
+
+    @app.errorhandler(404)
+    def handle_not_found(e):
+        return jsonify({'message': 'Not found'}), 404
 
     # Register blueprints (backend API routes)
     from app.routes.health import health_bp

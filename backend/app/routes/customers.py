@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Customer, Sale, Order, Vehicle, SparePart, User, db
 from app.utils.auth import admin_required, role_required, effective_branch_id
 from app.utils.validation import safe_int
+from app.utils.sanitization import sanitize_string, sanitize_search
 from sqlalchemy import or_
 
 customers_bp = Blueprint('customers', __name__)
@@ -18,9 +19,10 @@ def get_customers():
     per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=100)
     query  = Customer.query
     if search:
+        safe_q = sanitize_search(search)
         query = query.filter(or_(
-            Customer.full_name.ilike(f"%{search}%"),
-            Customer.phone.ilike(f"%{search}%")
+            Customer.full_name.ilike(f"%{safe_q}%"),
+            Customer.phone.ilike(f"%{safe_q}%")
         ))
     branch_id = effective_branch_id(current_user, branch_id)
     if branch_id:

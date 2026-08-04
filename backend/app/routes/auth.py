@@ -1,30 +1,16 @@
 import hmac
 import os
-import time
-from collections import defaultdict
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app.models import User, Branch
 from app import db
+from app.utils.rate_limit import is_rate_limited, record_attempt, get_client_ip
+from app.utils.sanitization import sanitize_string
 
 auth_bp = Blueprint('auth', __name__)
 
 _DEFAULT_SECRET = 'dev-secret-key'
 _DEFAULT_RESET_KEY = 'dev-reset-key'
-
-# Simple in-memory login rate limiter (per IP)
-_LOGIN_WINDOW = 60  # seconds
-_LOGIN_MAX_ATTEMPTS = 5
-_login_attempts = defaultdict(list)
-
-def _too_many_login_attempts(client_ip):
-    now = time.time()
-    timestamps = [t for t in _login_attempts[client_ip] if now - t < _LOGIN_WINDOW]
-    _login_attempts[client_ip] = timestamps
-    return len(timestamps) >= _LOGIN_MAX_ATTEMPTS
-
-def _record_login_attempt(client_ip):
-    _login_attempts[client_ip].append(time.time())
 
 def _valid_reset_key(reset_key):
     secret = os.environ.get('ADMIN_RESET_KEY', _DEFAULT_RESET_KEY)
@@ -38,13 +24,13 @@ def login():
     username = data.get('username')
     password = data.get('password')
 
-    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
-    if _too_many_login_attempts(client_ip):
+    client_ip = get_client_ip()
+    if is_rate_limited(f'login:{client_ip}', 5, 60):
         return jsonify({'message': 'Too many login attempts. Please try again later.'}), 429
 
     user = User.query.filter_by(username=username).first()
     if user and user.status != 'active':
-        _record_login_attempt(client_ip)
+        record_attempt(f'login:{client_ip}')
         return jsonify({'message': 'Invalid credentials'}), 401
     if user:
         if user.check_password(password):
@@ -60,7 +46,7 @@ def login():
                     'branch_name': branch_name
                 }
             }), 200
-    _record_login_attempt(client_ip)
+    record_attempt(f'login:{client_ip}')
     return jsonify({'message': 'Invalid credentials'}), 401
 
 @auth_bp.route('/me', methods=['GET'])
@@ -96,8 +82,13 @@ def get_user():
 
 @auth_bp.route('/reset-admin', methods=['POST'])
 def reset_admin():
+    client_ip = get_client_ip()
+    if is_rate_limited(f'reset-admin:{client_ip}', 3, 300):
+        return jsonify({'message': 'Too many attempts. Please try again in 5 minutes.'}), 429
+
     data = request.get_json() or {}
     if not _valid_reset_key(data.get('reset_key', '')):
+        record_attempt(f'reset-admin:{client_ip}')
         return jsonify({'message': 'Invalid reset key'}), 401
     if data.get('list_users'):
         users = User.query.with_entities(User.id, User.username, User.role).all()
@@ -105,7 +96,7 @@ def reset_admin():
     admin = User.query.filter_by(role='admin').first()
     if not admin:
         return jsonify({'message': 'No admin user found'}), 404
-    new_password = (data.get('new_password') or '').strip()
+    new_password = sanitize_string((data.get('new_password') or '').strip(), max_length=128)
     if len(new_password) < 8:
         return jsonify({'message': 'new_password must be at least 8 characters'}), 400
     admin.set_password(new_password)
@@ -114,10 +105,15 @@ def reset_admin():
 
 @auth_bp.route('/create-admin', methods=['POST'])
 def create_admin():
+    client_ip = get_client_ip()
+    if is_rate_limited(f'create-admin:{client_ip}', 3, 300):
+        return jsonify({'message': 'Too many attempts. Please try again in 5 minutes.'}), 429
+
     data = request.get_json() or {}
     if not _valid_reset_key(data.get('reset_key', '')):
+        record_attempt(f'create-admin:{client_ip}')
         return jsonify({'message': 'Invalid reset key'}), 401
-    username = data.get('username', '').strip()
+    username = sanitize_string(data.get('username', '').strip(), max_length=50)
     password = data.get('password', '')
     if not username or not password:
         return jsonify({'message': 'username and password required'}), 400
@@ -136,6 +132,11 @@ def create_admin():
 def change_password():
     user_id = get_jwt_identity()
     user = User.query.get_or_404(user_id)
+
+    client_ip = get_client_ip()
+    if is_rate_limited(f'change-pw:{user_id}:{client_ip}', 5, 60):
+        return jsonify({'message': 'Too many attempts. Please try again later.'}), 429
+
     data = request.get_json()
     current_password = data.get('current_password', '')
     new_password = data.get('new_password', '')
@@ -144,6 +145,7 @@ def change_password():
         return jsonify({'message': 'Current password and new password are required'}), 400
 
     if not user.check_password(current_password):
+        record_attempt(f'change-pw:{user_id}:{client_ip}')
         return jsonify({'message': 'Current password is incorrect'}), 401
 
     if len(new_password) < 8:

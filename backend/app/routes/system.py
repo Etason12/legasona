@@ -59,7 +59,7 @@ def import_excel_vehicles():
         return jsonify({'message': f'Imported {imported} vehicles, skipped {skipped}'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'message': f'Import failed: {str(e)}'}), 500
+        return jsonify({'message': f'Import failed'}), 500
 
 @system_bp.route('/reset-database', methods=['POST'])
 @jwt_required()
@@ -110,4 +110,4 @@ def reset_database():
         return jsonify({'message': 'Database reset successfully. Default admin user and sample data restored.'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'message': f'Reset failed: {str(e)}'}), 500
+        return jsonify({'message': f'Reset failed'}), 500

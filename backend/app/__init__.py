@@ -17,34 +17,42 @@ jwt = JWTManager()
 def _migrate_columns(database):
     """Add columns that may be missing from existing tables."""
     from sqlalchemy import text, inspect
+    from app.models import Sale, Order
     engine = database.engine
     insp = inspect(engine)
-    alters = []
 
-    try:
-        existing_cols = {c['name'] for c in insp.get_columns('orders')}
-        if 'deposit_receipt_image' not in existing_cols:
-            alters.append('ALTER TABLE orders ADD COLUMN deposit_receipt_image TEXT')
-        if 'sale_id' not in existing_cols:
-            alters.append('ALTER TABLE orders ADD COLUMN sale_id INTEGER')
-    except Exception as e:
-        logger.warning(f"Migration: could not inspect orders table: {e}")
+    TABLE_MODELS = {'sales': Sale, 'orders': Order}
 
-    try:
-        existing_cols = {c['name'] for c in insp.get_columns('sales')}
-        if 'order_id' not in existing_cols:
-            alters.append('ALTER TABLE sales ADD COLUMN order_id INTEGER')
-    except Exception as e:
-        logger.warning(f"Migration: could not inspect sales table: {e}")
-
-    for stmt in alters:
+    for table_name, model in TABLE_MODELS.items():
         try:
-            with database.engine.connect() as conn:
-                conn.execute(text(stmt))
-                conn.commit()
-            logger.info(f"Migration applied: {stmt}")
+            existing_cols = {c['name'] for c in insp.get_columns(table_name)}
+            model_cols = {c.name for c in model.__table__.columns}
+            missing = model_cols - existing_cols
+            for col_name in sorted(missing):
+                col = model.__table__.columns[col_name]
+                pg_type = 'TEXT' if col.type.__class__.__name__ in ('Text',) else \
+                          'INTEGER' if col.type.__class__.__name__ in ('Integer',) else \
+                          'NUMERIC(12,2)' if col.type.__class__.__name__ in ('Numeric',) else \
+                          'BOOLEAN' if col.type.__class__.__name__ in ('Boolean',) else \
+                          'TIMESTAMP' if col.type.__class__.__name__ in ('DateTime',) else \
+                          'VARCHAR(200)' if hasattr(col.type, 'length') else 'TEXT'
+                default_sql = ''
+                if col.default is not None and hasattr(col.default, 'arg'):
+                    default_val = col.default.arg
+                    if isinstance(default_val, bool):
+                        default_sql = f" DEFAULT {str(default_val).upper()}"
+                    elif isinstance(default_val, (int, float)):
+                        default_sql = f" DEFAULT {default_val}"
+                stmt = f'ALTER TABLE {table_name} ADD COLUMN {col_name} {pg_type}{default_sql}'
+                try:
+                    with engine.connect() as conn:
+                        conn.execute(text(stmt))
+                        conn.commit()
+                    logger.info(f"Migration applied: {stmt}")
+                except Exception as e:
+                    logger.warning(f"Migration skip: {col_name} on {table_name} — {e}")
         except Exception as e:
-            logger.warning(f"Migration failed: {stmt} — {e}")
+            logger.warning(f"Migration: could not inspect {table_name} — {e}")
 
 def create_app(config_class=Config):
     # Determine the absolute path to the React build directory

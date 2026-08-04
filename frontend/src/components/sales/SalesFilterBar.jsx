@@ -1,7 +1,7 @@
-import { Search } from 'lucide-react'
+import { Search, MapPin } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext'
 
-const SalesFilterBar = ({ statusFilter, onStatusChange, startDate, endDate, onStartDateChange, onEndDateChange, searchQuery, onSearchChange }) => {
+const SalesFilterBar = ({ statusFilter, onStatusChange, startDate, endDate, onStartDateChange, onEndDateChange, searchQuery, onSearchChange, branches, selectedBranchId, onBranchChange }) => {
   const { t } = useLanguage()
 
   return (
@@ -25,6 +25,20 @@ const SalesFilterBar = ({ statusFilter, onStatusChange, startDate, endDate, onSt
           >{label}</button>
         ))}
       </div>
+
+      {branches && branches.length > 0 && (
+        <div className="flex items-center gap-2 w-full lg:w-auto">
+          <MapPin size={16} className="text-slate-400" />
+          <select
+            className="input-field w-auto"
+            value={selectedBranchId}
+            onChange={e => onBranchChange(e.target.value)}
+          >
+            <option value="">{t('allBranches') || 'All Branches'}</option>
+            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 w-full lg:w-auto">
         <input type="date" className="input-field w-auto" value={startDate} onChange={e => onStartDateChange(e.target.value)} />

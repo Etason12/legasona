@@ -36,6 +36,8 @@ const Sales = ({ user }) => {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [perPage] = useState(50)
+  const [branches, setBranches] = useState([])
+  const [selectedBranchId, setSelectedBranchId] = useState('')
 
   // Modals
   const [showNewSale, setShowNewSale] = useState(false)
@@ -73,7 +75,13 @@ const Sales = ({ user }) => {
   )
 
   useEffect(() => { const t = setTimeout(() => setDebouncedSearch(searchQuery), 350); return () => clearTimeout(t) }, [searchQuery])
-  useEffect(() => { fetchData() }, [statusFilter, debouncedSearch, startDate, endDate, page])
+  useEffect(() => { fetchData() }, [statusFilter, debouncedSearch, startDate, endDate, page, selectedBranchId])
+
+  useEffect(() => {
+    const isAdmin = user?.role?.toLowerCase() === 'admin'
+    setSelectedBranchId(isAdmin ? '' : (user?.branch_id ? String(user.branch_id) : ''))
+    api.get('/branches').then(res => setBranches(res.data.items || res.data || [])).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (showNewSale) {
@@ -115,7 +123,7 @@ const Sales = ({ user }) => {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const branchId = user?.role?.toLowerCase() === 'admin' ? '' : (user?.branch_id || '')
+      const branchId = user?.role?.toLowerCase() === 'admin' ? selectedBranchId : (user?.branch_id || '')
       const [salesRes, vehRes, partsRes, custRes] = await Promise.all([
         api.get(`/sales?status=${statusFilter}&search=${searchQuery}&start_date=${startDate}&end_date=${endDate}&branch_id=${branchId}&page=${page}&per_page=${perPage}`),
         api.get(`/inventory/vehicles?status=available&branch_id=${branchId}`),
@@ -357,6 +365,7 @@ const Sales = ({ user }) => {
         statusFilter={statusFilter} onStatusChange={setStatusFilter}
         startDate={startDate} endDate={endDate} onStartDateChange={setStartDate} onEndDateChange={setEndDate}
         searchQuery={searchQuery} onSearchChange={setSearchQuery}
+        branches={branches} selectedBranchId={selectedBranchId} onBranchChange={setSelectedBranchId}
       />
 
       <SalesTable

@@ -1,6 +1,8 @@
 import os
 import logging
+from decimal import Decimal
 from flask import Flask, send_from_directory, jsonify, request
+from flask.json.provider import DefaultJSONProvider
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
@@ -13,6 +15,17 @@ logger = logging.getLogger(__name__)
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
+
+
+class SafeJSONProvider(DefaultJSONProvider):
+    """Extend Flask's JSON provider to handle Decimal and date objects."""
+    @staticmethod
+    def default(o):
+        if isinstance(o, Decimal):
+            return float(o)
+        if hasattr(o, 'isoformat'):
+            return o.isoformat()
+        return DefaultJSONProvider.default(o)
 
 def _migrate_columns(database):
     """Add columns that may be missing from existing tables."""
@@ -68,6 +81,8 @@ def create_app(config_class=Config):
     static_dir = os.path.join(frontend_root, 'dist')
     # Serve static files at root (no prefix) to allow SPA routes like /login
     app = Flask(__name__, static_folder=static_dir, static_url_path='/static')
+    app.json_provider_class = SafeJSONProvider
+    app.json = SafeJSONProvider(app)
     app.config.from_object(config_class)
 
     # Initialise extensions

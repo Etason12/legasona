@@ -42,7 +42,7 @@ const Transfers = ({ user }) => {
    ])
     setVehicles(vRes.data.items || vRes.data || [])
     setSpareParts(sRes.data.items || sRes.data || [])
-   setBranches(bRes.data)
+    setBranches(bRes.data.items || bRes.data)
   } catch (error) {
    console.error('Failed to fetch inventory/branches')
   }

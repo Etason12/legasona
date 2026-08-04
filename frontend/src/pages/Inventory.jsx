@@ -241,7 +241,7 @@ const Inventory = ({ user }) => {
       ])
       setVehicles(vRes.data.items || [])
       setSpareParts(sRes.data.items || [])
-      setBranches(bRes.data)
+      setBranches(bRes.data.items || bRes.data)
       setStats(statsRes.data)
     } catch { toast.error('Failed to load inventory') }
     finally { setLoading(false) }

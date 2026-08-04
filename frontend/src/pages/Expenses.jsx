@@ -79,7 +79,7 @@ const Expenses = ({ user }) => {
   const fetchBranches = async () => {
     try {
       const res = await api.get('/branches')
-      setBranches(res.data)
+      setBranches(res.data.items || res.data)
     } catch { /* ignore */ }
   }
 

@@ -85,7 +85,7 @@ const Settings = ({ user }) => {
   setLoadingBranches(true)
   try {
    const res = await api.get('/branches')
-   setBranches(res.data)
+    setBranches(res.data.items || res.data)
   } catch {
    toast.error('Failed to fetch branches')
   } finally {

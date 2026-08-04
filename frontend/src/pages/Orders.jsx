@@ -62,7 +62,7 @@ const Orders = ({ user }) => {
   const fetchBranches = async () => {
     try {
       const res = await api.get('/branches')
-      setBranches(res.data)
+      setBranches(res.data.items || res.data)
     } catch (err) {
       console.error('Failed to fetch branches')
     }

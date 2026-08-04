@@ -1,6 +1,4 @@
 import { capitalizeName } from '../utils/format';
-import { Filesystem, Directory } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
 
 let XLSXModule = null;
 const getXLSX = async () => {
@@ -15,6 +13,8 @@ const isNative = () => typeof window !== 'undefined' && window.Capacitor?.isNati
 const saveFile = async (blob, fileName) => {
   if (isNative()) {
     try {
+      const { Filesystem, Directory } = await import('@capacitor/filesystem');
+      const { Share } = await import('@capacitor/share');
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64 = reader.result.split(',')[1];

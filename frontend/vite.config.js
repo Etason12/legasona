@@ -15,6 +15,30 @@ export default defineConfig({
     }
   },
   build: {
-    chunkSizeWarningLimit: 2000
-  }
+    chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react-dom') || id.includes('react-router') || id.includes('react/')) {
+              return 'vendor-react';
+            }
+            if (id.includes('recharts')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('lucide-react') || id.includes('react-toastify')) {
+              return 'vendor-ui';
+            }
+            if (id.includes('axios')) {
+              return 'vendor-http';
+            }
+          }
+        }
+      }
+    },
+    // Generate source maps for production debugging (optional, remove if not needed)
+    sourcemap: false,
+    // Target modern browsers for smaller output
+    target: 'es2020',
+  },
 })

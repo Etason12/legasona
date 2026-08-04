@@ -1,8 +1,23 @@
-import { jsPDF } from "jspdf";
-import QRCode from "qrcode";
 import { capitalizeName } from '../utils/format';
-import { Filesystem, Directory } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
+
+// Lazy-loaded heavy dependencies (loaded only when receipt is generated)
+let _jsPDF = null;
+let _QRCode = null;
+
+async function getJsPDF() {
+  if (!_jsPDF) {
+    const mod = await import('jspdf');
+    _jsPDF = mod.jsPDF;
+  }
+  return _jsPDF;
+}
+
+async function getQRCode() {
+  if (!_QRCode) {
+    _QRCode = await import('qrcode');
+  }
+  return _QRCode;
+}
 
 const buildItemDescription = (saleData) => {
   const lines = [];
@@ -25,6 +40,8 @@ const buildItemDescription = (saleData) => {
 };
 
 export const generateReceipt = async (saleData) => {
+  const [jsPDF, QRCode] = await Promise.all([getJsPDF(), getQRCode()]);
+
   const doc = new jsPDF({ unit: "mm", format: [80, 180] });
 
   const pageWidth = 80;
@@ -144,6 +161,8 @@ export const generateReceipt = async (saleData) => {
   const isNative = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform();
   if (isNative) {
     try {
+      const { Filesystem, Directory } = await import('@capacitor/filesystem');
+      const { Share } = await import('@capacitor/share');
       const blob = doc.output('blob');
       const reader = new FileReader();
       reader.onloadend = async () => {

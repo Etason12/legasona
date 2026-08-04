@@ -31,7 +31,7 @@ const ImageCell = ({ imageData, onClick }) => {
   )
 }
 
-const ItemModal = ({ mode, item, type, onClose, onSaved, branches }) => {
+const ItemModal = ({ mode, item, type, onClose, onSaved, branches, categories }) => {
   const { pickImage } = useImagePicker()
   const isEdit  = mode === 'edit'
   const fileRef = useRef()
@@ -172,7 +172,16 @@ const ItemModal = ({ mode, item, type, onClose, onSaved, branches }) => {
                 <div className="space-y-6">
                   <div><label className="label">{t('partNumberSku')} *</label><input required className="input-field" value={form.part_number||''} onChange={e=>set('part_number',e.target.value)} placeholder="SKU-8821"/></div>
                   <div><label className="label">{t('componentName')} *</label><input required className="input-field" value={form.name||''} onChange={e=>set('name',e.target.value)} placeholder="e.g. Brake Pads"/></div>
-                  <div><label className="label">{t('category')}</label><input className="input-field" value={form.category||''} onChange={e=>set('category',e.target.value)} placeholder="e.g. Braking System"/></div>
+                  <div><label className="label">{t('category')}</label>
+                    <div className="flex gap-2">
+                      <select className="input-field flex-1" value={form.category || ''} onChange={e => set('category', e.target.value)}>
+                        <option value="">—</option>
+                        {(categories || []).map(c => <option key={c} value={c}>{c}</option>)}
+                        {form.category && !categories?.includes(form.category) && <option value={form.category}>{form.category}</option>}
+                      </select>
+                      <input className="input-field flex-1" value={form.category || ''} onChange={e => set('category', e.target.value)} placeholder={t('addNewCategory') || 'New category'} />
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-6">
                   <div><label className="label">{t('stockLevel')}</label><input type="number" className="input-field" value={form.quantity||''} onChange={e=>set('quantity',e.target.value)} placeholder="0"/></div>
@@ -218,6 +227,8 @@ const Inventory = ({ user }) => {
 
   const [branchFilter, setBranchFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('available')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [categories, setCategories] = useState([])
   const [stats, setStats]               = useState({ available: 0, reserved: 0, sold: 0, 'in-transit': 0 })
 
   useEffect(() => {
@@ -227,6 +238,13 @@ const Inventory = ({ user }) => {
   }, [user])
 
   useEffect(() => { fetchData() }, [branchFilter, statusFilter])
+
+  useEffect(() => {
+    const bId = branchFilter
+    api.get(`/inventory/spare-part-categories?branch_id=${bId}`)
+      .then(res => { setCategories(res.data || []); setCategoryFilter('') })
+      .catch(() => {})
+  }, [branchFilter])
 
   const fetchData = async () => {
     setLoading(true)
@@ -267,6 +285,7 @@ const Inventory = ({ user }) => {
       : (i.name?.toLowerCase().includes(q) || i.part_number?.toLowerCase().includes(q)))
     if (!matchesSearch) return false
     if (branchFilter && String(i.branch_id) !== branchFilter) return false
+    if (activeTab === 'parts' && categoryFilter && i.category !== categoryFilter) return false
     return true
   })
 
@@ -327,6 +346,14 @@ const Inventory = ({ user }) => {
               </select>
             </div>
           )}
+          {activeTab === 'parts' && categories.length > 0 && (
+            <div>
+              <select className="input-field text-xs" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+                <option value="">{t('allCategories') || 'All Categories'}</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          )}
         </div>
         <div className="flex-1 relative w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
@@ -368,6 +395,7 @@ const Inventory = ({ user }) => {
                       <p className="text-xs font-mono text-slate-500 mt-0.5">{activeTab === 'vehicles' ? `VIN: ${item.vin}` : `Part #: ${item.part_number}`}</p>
                       {activeTab === 'vehicles' && <p className="text-xs text-slate-400 mt-0.5">Motor: {item.engine_number || '—'}</p>}
                       {activeTab === 'vehicles' && <p className="text-xs text-slate-400 mt-0.5">{item.type} · {item.power_type}</p>}
+                      {activeTab === 'parts' && item.category && <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5 font-medium">{item.category}</p>}
                     </td>
                     <td className="px-5 py-3 hidden md:table-cell">
                       {/* Use fetched branch data — no hardcoding */}
@@ -439,7 +467,7 @@ const Inventory = ({ user }) => {
         <ItemModal
           mode={modal.mode} item={modal.item}
           type={activeTab === 'vehicles' ? 'vehicles' : 'spare-parts'}
-          branches={branches}
+          branches={branches} categories={categories}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); fetchData() }}
         />

@@ -224,3 +224,16 @@ def delete_spare_part(id):
     db.session.delete(p)
     db.session.commit()
     return jsonify({'message': 'Spare part deleted'}), 200
+
+@inventory_bp.route('/spare-part-categories', methods=['GET'])
+@jwt_required()
+def get_spare_part_categories():
+    branch_id = request.args.get('branch_id')
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    branch_id = effective_branch_id(current_user, branch_id)
+    query = db.session.query(SparePart.category).filter(SparePart.category.isnot(None), SparePart.category != '')
+    if branch_id:
+        query = query.filter(SparePart.branch_id == branch_id)
+    categories = sorted({row[0].strip() for row in query.distinct().all() if row[0]})
+    return jsonify(categories), 200

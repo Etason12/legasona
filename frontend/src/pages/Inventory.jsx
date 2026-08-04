@@ -378,6 +378,7 @@ const Inventory = ({ user }) => {
                 <tr className="bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 text-xs font-bold text-slate-500">
                   <th className="px-5 py-4 hidden sm:table-cell">{t('photo')}</th>
                   <th className="px-5 py-4">{t('itemDetails')}</th>
+                  {activeTab === 'parts' && <th className="px-5 py-4 hidden md:table-cell">{t('category') || 'Category'}</th>}
                   <th className="px-5 py-4 hidden md:table-cell">{t('branch')}</th>
                   <th className="px-5 py-4">{t('statusStock')}</th>
                   <th className="px-5 py-4 hidden lg:table-cell">{t('price')}</th>
@@ -386,7 +387,7 @@ const Inventory = ({ user }) => {
               </thead>
               <tbody>
                 {items.length === 0 ? (
-                  <tr><td colSpan="6"><EmptyState message={t('noItemsFoundDesc')} /></td></tr>
+                  <tr><td colSpan={activeTab === 'parts' ? 7 : 6}><EmptyState message={t('noItemsFoundDesc')} /></td></tr>
                 ) : items.map(item => (
                   <tr key={item.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/60 transition-colors group border-b border-neutral-100 dark:border-neutral-800 last:border-0">
                     <td className="px-6 py-5 hidden sm:table-cell"><ImageCell imageData={item.image} onClick={setPreviewImage}/></td>
@@ -395,8 +396,14 @@ const Inventory = ({ user }) => {
                       <p className="text-xs font-mono text-slate-500 mt-0.5">{activeTab === 'vehicles' ? `VIN: ${item.vin}` : `Part #: ${item.part_number}`}</p>
                       {activeTab === 'vehicles' && <p className="text-xs text-slate-400 mt-0.5">Motor: {item.engine_number || '—'}</p>}
                       {activeTab === 'vehicles' && <p className="text-xs text-slate-400 mt-0.5">{item.type} · {item.power_type}</p>}
-                      {activeTab === 'parts' && item.category && <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5 font-medium">{item.category}</p>}
                     </td>
+                    {activeTab === 'parts' && (
+                      <td className="px-5 py-3 hidden md:table-cell">
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                          {item.category || '—'}
+                        </span>
+                      </td>
+                    )}
                     <td className="px-5 py-3 hidden md:table-cell">
                       {/* Use fetched branch data — no hardcoding */}
                       <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-neutral-100 dark:bg-neutral-800 text-slate-500 border border-neutral-200 dark:border-neutral-700 uppercase">

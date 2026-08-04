@@ -1,8 +1,10 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Sale, Payment, Expense, Vehicle, SparePart, Branch, Order, ActivityLog, User, db
+from app.utils.auth import effective_branch_id
+from app.utils.validation import safe_int
 from sqlalchemy import func
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 reports_bp = Blueprint('reports', __name__)
 
@@ -21,8 +23,7 @@ def get_dashboard_stats():
     end_date = request.args.get('end_date')
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
-    if not branch_id and current_user.role != 'admin':
-        branch_id = current_user.branch_id
+    branch_id = effective_branch_id(current_user, branch_id)
 
     sales_q   = db.session.query(func.sum(Sale.total_amount))
     orders_q  = Order.query.filter(Order.status == 'waiting')
@@ -57,8 +58,8 @@ def get_dashboard_stats():
         prev_rev_q = _date_filter(prev_rev_q, Sale.sale_date, prev_start.date().isoformat(), prev_end.date().isoformat())
         prev_revenue = prev_rev_q.scalar() or 0
     else:
-        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-        sixty_days_ago  = datetime.utcnow() - timedelta(days=60)
+        thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+        sixty_days_ago  = datetime.now(timezone.utc) - timedelta(days=60)
         prev_rev_q     = db.session.query(func.sum(Sale.total_amount)).filter(
             Sale.sale_date >= sixty_days_ago, Sale.sale_date < thirty_days_ago)
         if branch_id:
@@ -94,7 +95,7 @@ def get_dashboard_stats():
                 'sales': float(sales_month_q.scalar() or 0)
             })
     else:
-        current_date = datetime.utcnow()
+        current_date = datetime.now(timezone.utc)
         for i in range(5, -1, -1):
             month_date     = current_date - timedelta(days=i * 30)
             start_of_month = month_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -137,8 +138,7 @@ def get_profit_analysis():
     end_date = request.args.get('end_date')
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
-    if not branch_id and current_user.role != 'admin':
-        branch_id = current_user.branch_id
+    branch_id = effective_branch_id(current_user, branch_id)
 
     sales_q    = db.session.query(
         func.sum(Sale.total_amount).label('revenue'),
@@ -179,8 +179,7 @@ def get_payment_report():
     end_date = request.args.get('end_date')
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
-    if not branch_id and current_user.role != 'admin':
-        branch_id = current_user.branch_id
+    branch_id = effective_branch_id(current_user, branch_id)
 
     query = db.session.query(Payment, Sale).join(Sale, Payment.sale_id == Sale.id)
 
@@ -227,8 +226,7 @@ def get_branch_comparison():
     end_date = request.args.get('end_date')
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
-    if not branch_id and current_user.role != 'admin':
-        branch_id = current_user.branch_id
+    branch_id = effective_branch_id(current_user, branch_id)
     branches = Branch.query.all()
     result = []
     for b in branches:
@@ -259,8 +257,7 @@ def get_inventory_distribution():
     branch_id = request.args.get('branch_id')
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
-    if not branch_id and current_user.role != 'admin':
-        branch_id = current_user.branch_id
+    branch_id = effective_branch_id(current_user, branch_id)
 
     vehicle_q = db.session.query(Vehicle.type, func.count(Vehicle.id))
     vehicle_power_q = db.session.query(Vehicle.power_type, func.count(Vehicle.id))
@@ -289,7 +286,7 @@ def get_activity_log():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
 
-    limit     = int(request.args.get('limit', 10))
+    limit     = safe_int(request.args.get('limit', 10), default=10, min_val=1, max_val=100)
 
     query = ActivityLog.query.order_by(ActivityLog.timestamp.desc())
 
@@ -299,8 +296,8 @@ def get_activity_log():
 
     has_page = request.args.get('page')
     if has_page:
-        page     = int(has_page)
-        per_page = int(request.args.get('per_page', 20))
+        page     = safe_int(has_page, default=1, min_val=1)
+        per_page = safe_int(request.args.get('per_page', 20), default=20, min_val=1, max_val=100)
         offset   = (page - 1) * per_page
         total    = query.count()
         logs     = query.offset(offset).limit(per_page).all()

@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from app.models import Transfer, Vehicle, SparePart, db
 from app.utils.auth import role_required
-from datetime import datetime
+from datetime import datetime, timezone
 
 transfers_bp = Blueprint('transfers', __name__)
 
@@ -28,7 +28,7 @@ def request_transfer():
     new_transfer = Transfer(
         from_branch_id=from_branch_id, to_branch_id=data.get('to_branch_id'),
         item_type=item_type, item_id=item_id, quantity=quantity,
-        requested_by=data.get('user_id'), approval_status='pending'
+        requested_by=int(get_jwt_identity()), approval_status='pending'
     )
     db.session.add(new_transfer)
     db.session.commit()
@@ -77,6 +77,6 @@ def approve_transfer(id):
             return jsonify({'message': 'Insufficient stock to fulfill transfer'}), 400
 
     transfer.approval_status = 'approved'
-    transfer.completed_date  = datetime.utcnow()
+    transfer.completed_date  = datetime.now(timezone.utc)
     db.session.commit()
     return jsonify({'message': 'Transfer approved and completed'}), 200

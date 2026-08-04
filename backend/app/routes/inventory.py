@@ -1,10 +1,11 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Vehicle, SparePart, User, db
-from app.utils.auth import role_required
+from app.utils.auth import role_required, effective_branch_id
 from app.utils.image_utils import compress_to_base64
 from app.utils.logging import log_activity
 from app.utils.notifications import send_notification
+from app.utils.validation import safe_int
 
 inventory_bp = Blueprint('inventory', __name__)
 
@@ -16,13 +17,12 @@ def get_vehicles():
     status = request.args.get('status')
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
-    page = int(request.args.get('page', 1))
-    per_page = int(request.args.get('per_page', 50))
+    page = safe_int(request.args.get('page', 1), default=1, min_val=1)
+    per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=100)
     query = Vehicle.query
+    branch_id = effective_branch_id(current_user, branch_id)
     if branch_id:
         query = query.filter_by(branch_id=branch_id)
-    elif current_user.branch_id:
-        query = query.filter_by(branch_id=current_user.branch_id)
     if status:
         query = query.filter_by(status=status)
     
@@ -93,8 +93,8 @@ def update_vehicle(id):
     v.type = data.get('type', v.type)
     v.power_type = data.get('power_type', v.power_type)
     v.color = data.get('color', v.color)
-    v.cost_price = float(data.get('cost_price', v.cost_price) or v.cost_price)
-    v.selling_price = float(data.get('selling_price', v.selling_price) or v.selling_price)
+    v.cost_price = float(data['cost_price']) if data.get('cost_price') not in (None, '') else v.cost_price
+    v.selling_price = float(data['selling_price']) if data.get('selling_price') not in (None, '') else v.selling_price
     v.status = data.get('status', v.status)
     v.branch_id = data.get('branch_id', v.branch_id)
     if data.get('vin'):
@@ -124,13 +124,12 @@ def get_spare_parts():
     branch_id = request.args.get('branch_id')
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
-    page = int(request.args.get('page', 1))
-    per_page = int(request.args.get('per_page', 50))
+    page = safe_int(request.args.get('page', 1), default=1, min_val=1)
+    per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=100)
     query = SparePart.query
+    branch_id = effective_branch_id(current_user, branch_id)
     if branch_id:
         query = query.filter_by(branch_id=branch_id)
-    elif current_user.branch_id:
-        query = query.filter_by(branch_id=current_user.branch_id)
     
     paginated_parts = query.with_entities(
         SparePart.id, SparePart.part_number, SparePart.name,
@@ -192,9 +191,9 @@ def update_spare_part(id):
     p.name = data.get('name', p.name)
     p.part_number = data.get('part_number', p.part_number)
     p.category = data.get('category', p.category)
-    p.unit_price = float(data['unit_price']) if 'unit_price' in data else p.unit_price
-    p.cost_price = float(data['cost_price']) if 'cost_price' in data else p.cost_price
-    p.quantity = int(data['quantity']) if 'quantity' in data else p.quantity
+    p.unit_price = float(data['unit_price']) if data.get('unit_price') not in (None, '') else p.unit_price
+    p.cost_price = float(data['cost_price']) if data.get('cost_price') not in (None, '') else p.cost_price
+    p.quantity = int(data['quantity']) if data.get('quantity') not in (None, '') else p.quantity
     db.session.commit()
     return jsonify({'message': 'Spare part updated'}), 200
 
@@ -205,10 +204,9 @@ def get_vehicle_stats():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     query = db.session.query(Vehicle.status, db.func.count(Vehicle.id))
+    branch_id = effective_branch_id(current_user, branch_id)
     if branch_id:
         query = query.filter(Vehicle.branch_id == branch_id)
-    elif current_user.branch_id:
-        query = query.filter(Vehicle.branch_id == current_user.branch_id)
     rows = query.group_by(Vehicle.status).all()
     stats = {r[0]: r[1] for r in rows}
     return jsonify({

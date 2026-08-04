@@ -8,7 +8,23 @@ def _current_user():
     user_id = get_jwt_identity()
     if user_id is None:
         return None
-    return User.query.get(int(user_id))
+    try:
+        user = User.query.get(int(user_id))
+    except (ValueError, TypeError):
+        return None
+    if user and user.status != 'active':
+        return None
+    return user
+
+
+def effective_branch_id(user, requested_branch_id):
+    """Non-admin users are always confined to their assigned branch.
+
+    Admins may explicitly request any branch (or None for all branches).
+    """
+    if user.role == 'admin':
+        return requested_branch_id
+    return user.branch_id
 
 
 def admin_required(fn):

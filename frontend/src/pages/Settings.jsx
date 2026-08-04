@@ -661,10 +661,12 @@ const Settings = ({ user }) => {
            onClick={async () => {
             if (!window.confirm('ARE YOU SURE? This will permanently delete ALL data in the database. Only the default admin user will remain. This action CANNOT be undone.')) return
             if (!window.confirm('FINAL WARNING: All sales records, inventory, customers, and transactions will be lost. Continue?')) return
-            try {
-             await api.post('/reset-database')
-             toast.success('Database reset successfully! Redirecting to login...')
-             setTimeout(() => window.location.reload(), 1500)
+             try {
+              const resetKey = window.prompt('Enter the SECRET_KEY to confirm database reset:')
+              if (!resetKey) return
+              await api.post('/reset-database', { reset_key: resetKey })
+              toast.success('Database reset successfully! Redirecting to login...')
+              setTimeout(() => window.location.reload(), 1500)
             } catch (err) {
              toast.error(err.response?.data?.message || 'Reset failed')
             }

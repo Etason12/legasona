@@ -1,7 +1,14 @@
-import * as XLSX from 'xlsx';
 import { capitalizeName } from '../utils/format';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+
+let XLSXModule = null;
+const getXLSX = async () => {
+  if (!XLSXModule) {
+    XLSXModule = await import('xlsx');
+  }
+  return XLSXModule;
+}
 
 const isNative = () => typeof window !== 'undefined' && window.Capacitor?.isNativePlatform()
 
@@ -32,7 +39,7 @@ const saveFile = async (blob, fileName) => {
     a.href = url
     a.download = fileName
     a.click()
-    URL.revokeObjectURL(url)
+    setTimeout(() => URL.revokeObjectURL(url), 100)
   }
 }
 
@@ -48,7 +55,7 @@ const COL_WIDTHS = {
   ],
 };
 
-const sheetFromRows = (rows) => {
+const sheetFromRows = (rows, XLSX) => {
   const ws = XLSX.utils.aoa_to_sheet(rows);
   return ws;
 };
@@ -67,7 +74,7 @@ const fmtDate = (iso) => {
   return `${dd}/${mm}/${yyyy}`
 }
 const fmtMoney = (n) => (n != null && !Number.isNaN(Number(n)) ? Number(n) : 0);
-const applyNumFormat = (ws, colIndices, fmt = '#,##0') => {
+const applyNumFormat = (ws, colIndices, fmt = '#,##0', XLSX) => {
   if (!ws || !ws['!ref']) return;
   const range = XLSX.utils.decode_range(ws['!ref']);
   for (let r = range.s.r; r <= range.e.r; r++) {
@@ -92,7 +99,8 @@ const paymentSummary = (payments) => {
     .join('; ');
 };
 
-export const exportToExcel = (data, fileName) => {
+export const exportToExcel = async (data, fileName) => {
+  const XLSX = await getXLSX();
   const worksheet = XLSX.utils.json_to_sheet(data);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
@@ -100,7 +108,8 @@ export const exportToExcel = (data, fileName) => {
   saveFile(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${fileName}.xlsx`);
 };
 
-export const exportSalesToExcel = (sales, t = (k) => k) => {
+export const exportSalesToExcel = async (sales, t = (k) => k) => {
+  const XLSX = await getXLSX();
   const dateStr = new Date().toISOString().split('T')[0];
   const totalRevenue = sales.reduce((a, s) => a + fmtMoney(s.total_amount), 0);
   const totalPaid = sales.reduce((a, s) => a + fmtMoney(s.amount_paid), 0);
@@ -125,9 +134,9 @@ export const exportSalesToExcel = (sales, t = (k) => k) => {
     [S('completed', 'Completed'), sales.filter((s) => s.status === 'completed').length],
     [S('pending', 'Pending'), sales.filter((s) => s.status === 'pending').length],
   ];
-  const wsSummary = sheetFromRows(summaryRows);
+  const wsSummary = sheetFromRows(summaryRows, XLSX);
   wsSummary['!cols'] = [{ wch: 28 }, { wch: 22 }];
-  applyNumFormat(wsSummary, [1]);
+  applyNumFormat(wsSummary, [1], '#,##0', XLSX);
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
 
   // ── Sales detail sheet ──
@@ -152,9 +161,9 @@ export const exportSalesToExcel = (sales, t = (k) => k) => {
     fmtMoney(s.balance ?? s.total_amount - s.amount_paid),
     paymentSummary(s.payments),
   ]);
-  const wsSales = sheetFromRows([salesHeader, ...salesRows]);
+  const wsSales = sheetFromRows([salesHeader, ...salesRows], XLSX);
   applySheetLayout(wsSales, COL_WIDTHS.sales, 1);
-  applyNumFormat(wsSales, [10, 11, 12]);
+  applyNumFormat(wsSales, [10, 11, 12], '#,##0', XLSX);
   XLSX.utils.book_append_sheet(wb, wsSales, 'Sales');
 
   // ── Payment lines sheet (one row per payment) ──
@@ -190,9 +199,9 @@ export const exportSalesToExcel = (sales, t = (k) => k) => {
       ]);
     }
   });
-  const wsPayments = sheetFromRows([payHeader, ...payRows]);
+  const wsPayments = sheetFromRows([payHeader, ...payRows], XLSX);
   applySheetLayout(wsPayments, COL_WIDTHS.payments, 1);
-  applyNumFormat(wsPayments, [5]);
+  applyNumFormat(wsPayments, [5], '#,##0', XLSX);
   XLSX.utils.book_append_sheet(wb, wsPayments, 'Payments');
 
   const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -211,7 +220,8 @@ const INVENTORY_COL_WIDTHS = {
   ],
 };
 
-export const exportInventoryToExcel = (items, type, t = (k) => k) => {
+export const exportInventoryToExcel = async (items, type, t = (k) => k) => {
+  const XLSX = await getXLSX();
   const dateStr = new Date().toISOString().split('T')[0];
   const wb = XLSX.utils.book_new();
   const S = (k, fallback) => { const v = t(k); return v !== k ? v : fallback; };
@@ -244,7 +254,7 @@ export const exportInventoryToExcel = (items, type, t = (k) => k) => {
     const ws = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...rows]);
     ws['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
     ws['!cols'] = INVENTORY_COL_WIDTHS.vehicles;
-    applyNumFormat(ws, [8, 9]);
+    applyNumFormat(ws, [8, 9], '#,##0', XLSX);
     XLSX.utils.book_append_sheet(wb, ws, S('vehicles', 'Vehicles'));
   } else {
     const headers = [
@@ -269,7 +279,7 @@ export const exportInventoryToExcel = (items, type, t = (k) => k) => {
     const ws = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...rows]);
     ws['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
     ws['!cols'] = INVENTORY_COL_WIDTHS.parts;
-    applyNumFormat(ws, [4, 5]);
+    applyNumFormat(ws, [4, 5], '#,##0', XLSX);
     XLSX.utils.book_append_sheet(wb, ws, S('spareParts', 'Spare Parts'));
   }
 
@@ -285,7 +295,8 @@ const REPORT_COL_WIDTHS = {
   ],
 };
 
-export const exportOrdersToExcel = (orders, t = (k) => k) => {
+export const exportOrdersToExcel = async (orders, t = (k) => k) => {
+  const XLSX = await getXLSX();
   const dateStr = new Date().toISOString().split('T')[0];
   const totalDeposits = orders.reduce((a, o) => a + fmtMoney(o.deposit_amount), 0);
   const totalRefunds = orders.reduce((a, o) => a + fmtMoney(o.refund_amount), 0);
@@ -309,9 +320,9 @@ export const exportOrdersToExcel = (orders, t = (k) => k) => {
     [S('totalDeposits', 'Total Deposits') + ' (ETB)', totalDeposits],
     ['Total Refunds (ETB)', totalRefunds],
   ];
-  const wsSummary = sheetFromRows(summaryRows);
+  const wsSummary = sheetFromRows(summaryRows, XLSX);
   wsSummary['!cols'] = [{ wch: 28 }, { wch: 22 }];
-  applyNumFormat(wsSummary, [1]);
+  applyNumFormat(wsSummary, [1], '#,##0', XLSX);
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
 
   // ── Orders detail sheet ──
@@ -345,21 +356,22 @@ export const exportOrdersToExcel = (orders, t = (k) => k) => {
     o.refund_bank || '',
     o.refund_transaction_reference || '',
   ]);
-  const wsOrders = sheetFromRows([orderHeader, ...orderRows]);
+  const wsOrders = sheetFromRows([orderHeader, ...orderRows], XLSX);
   const ORDER_COL_WIDTHS = [
     { wch: 8 }, { wch: 20 }, { wch: 14 }, { wch: 28 }, { wch: 14 }, { wch: 14 },
     { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 14 },
     { wch: 20 }, { wch: 12 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 18 },
   ];
   applySheetLayout(wsOrders, ORDER_COL_WIDTHS, 1);
-  applyNumFormat(wsOrders, [4, 15]);
+  applyNumFormat(wsOrders, [4, 15], '#,##0', XLSX);
   XLSX.utils.book_append_sheet(wb, wsOrders, S('ordersTitle', 'Orders'));
 
   const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   saveFile(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Legasona_Orders_Report_${dateStr}.xlsx`);
 };
 
-export const exportReportsToExcel = (payments, stats, profit, t = (k) => k) => {
+export const exportReportsToExcel = async (payments, stats, profit, t = (k) => k) => {
+  const XLSX = await getXLSX();
   const dateStr = new Date().toISOString().split('T')[0];
   const wb = XLSX.utils.book_new();
   const S = (k, fallback) => { const v = t(k); return v !== k ? v : fallback; };
@@ -389,7 +401,7 @@ export const exportReportsToExcel = (payments, stats, profit, t = (k) => k) => {
   const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
   wsSummary['!cols'] = REPORT_COL_WIDTHS.summary;
   wsSummary['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
-  applyNumFormat(wsSummary, [1]);
+  applyNumFormat(wsSummary, [1], '#,##0', XLSX);
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
 
   // ── Payments sheet ──
@@ -420,7 +432,7 @@ export const exportReportsToExcel = (payments, stats, profit, t = (k) => k) => {
     const wsPayments = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...rows]);
     wsPayments['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', activePane: 'bottomLeft', state: 'frozen' };
     wsPayments['!cols'] = REPORT_COL_WIDTHS.payments;
-    applyNumFormat(wsPayments, [8]);
+    applyNumFormat(wsPayments, [8], '#,##0', XLSX);
     XLSX.utils.book_append_sheet(wb, wsPayments, 'Payments');
   }
 

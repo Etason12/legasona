@@ -7,6 +7,7 @@ notifications_bp = Blueprint('notifications', __name__)
 
 @notifications_bp.route('/onesignal-config', methods=['GET'])
 @jwt_required()
+@admin_required
 def get_config():
     config = OneSignalConfig.query.first()
     if not config:

@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Purchase, PurchaseItem, SparePart, Vehicle, User, db
-from app.utils.auth import role_required
+from app.utils.auth import role_required, effective_branch_id
 from app.utils.image_utils import compress_to_base64
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 purchases_bp = Blueprint('purchases', __name__)
@@ -15,10 +15,9 @@ def get_purchases():
     current_user = User.query.get(current_user_id)
     branch_id = request.args.get('branch_id')
     query = Purchase.query
+    branch_id = effective_branch_id(current_user, branch_id)
     if branch_id:
         query = query.filter(Purchase.branch_id == branch_id)
-    elif current_user.branch_id:
-        query = query.filter(Purchase.branch_id == current_user.branch_id)
     purchases = query.order_by(Purchase.purchase_date.desc()).all()
     result = []
     for pu in purchases:
@@ -49,11 +48,12 @@ def record_purchase():
     total = sum(float(i.get('quantity', 0)) * float(i.get('unit_cost', 0)) for i in items_data)
 
     receipt_data = compress_to_base64(file)
+    current_user_id = int(get_jwt_identity())
 
     new_purchase = Purchase(
         supplier_name=(data.get('supplier_name') or '').strip().title(), item_type=data.get('item_type'),
         total_amount=total, payment_method=data.get('payment_method'),
-        branch_id=data.get('branch_id'), user_id=data.get('user_id'),
+        branch_id=data.get('branch_id'), user_id=current_user_id,
         receipt_attachment=receipt_data
     )
     db.session.add(new_purchase)

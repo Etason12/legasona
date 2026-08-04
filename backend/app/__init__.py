@@ -1,14 +1,11 @@
 import os
-import time
 import logging
-from sqlalchemy import exc as sa_exc
 from flask import Flask, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from config import Config
-from app.routes.health import health_bp
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +26,12 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+    allowed_origins = os.environ.get('CORS_ORIGINS', '*').split(',')
+    CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
 
     # Register blueprints (backend API routes)
+    from app.routes.health import health_bp
     from app.routes.auth import auth_bp
     from app.routes.branches import branches_bp
     from app.routes.inventory import inventory_bp
@@ -65,70 +65,59 @@ def create_app(config_class=Config):
     app.register_blueprint(backup_bp, url_prefix='/api')
     app.register_blueprint(notifications_bp, url_prefix='/api')
 
-    # Seed database on first startup
+    # Ensure tables exist (safe, idempotent)
     with app.app_context():
-        from app.models import User, Branch, Vehicle, SparePart
         db.create_all()
-        # Widen password_hash column for scrypt hashes (Python 3.14 / Werkzeug default)
-        try:
-            db.session.execute(db.text("ALTER TABLE users ALTER COLUMN password_hash TYPE TEXT"))
+
+    # Register CLI commands for seeding
+    @app.cli.command('seed')
+    def seed_command():
+        """Seed the database with initial branches, admin user, and sample data."""
+        from app.models import User, Branch, Vehicle, SparePart
+        _seed_database()
+
+    def _seed_database():
+        with app.app_context():
+            from app.models import User, Branch, Vehicle, SparePart
+
+            if not Branch.query.filter_by(name='Shire').first():
+                shire = Branch(name='Shire', location='Shire, Tigray')
+                mekelle = Branch(name='Mekelle', location='Mekelle, Tigray')
+                db.session.add_all([shire, mekelle])
+                db.session.flush()
+            else:
+                shire = Branch.query.filter_by(name='Shire').first()
+                mekelle = Branch.query.filter_by(name='Mekelle').first()
+
+            admin = User.query.filter_by(username='admin').first()
+            if not admin:
+                admin = User(username='admin', role='admin')
+                admin.set_password(os.environ.get('ADMIN_DEFAULT_PASSWORD', 'admin123'))
+                db.session.add(admin)
+
+            if not Vehicle.query.first():
+                vehicles = [
+                    Vehicle(vin='HILUX-4WD-001', type='4-wheel', model='Toyota Hilux 4x4 2025', chassis_number='HILUX-4WD-001', engine_number='1KD-FTV-88421', branch_id=shire.id, status='available', selling_price=4500000, cost_price=3200000, color='White', power_type='non-electric'),
+                    Vehicle(vin='FOTON-EV-3W-003', type='3-wheel', model='Foton Electric Tricycle', chassis_number='FOTON-EV-3W-003', engine_number='MOT-EV-33210', branch_id=mekelle.id, status='available', selling_price=1200000, cost_price=800000, color='Blue', power_type='electric'),
+                ]
+                db.session.add_all(vehicles)
+
+            if not SparePart.query.first():
+                parts = [
+                    SparePart(part_number='OIL-FILT-001', name='Engine Oil Filter', quantity=45, branch_id=shire.id, unit_price=1200, cost_price=450, category='Filters'),
+                    SparePart(part_number='BRK-PAD-002', name='Brake Pad Set (Front)', quantity=12, branch_id=mekelle.id, unit_price=4500, cost_price=1800, category='Brakes'),
+                ]
+                db.session.add_all(parts)
+
             db.session.commit()
-        except Exception:
-            db.session.rollback()
-        # Apply pending schema migrations (e.g. new columns on existing tables)
-        try:
-            from flask_migrate import upgrade
-            upgrade()
-        except Exception:
-            db.session.rollback()
-
-        # Ensure all existing orders are assigned to Mekelle branch
-        try:
-            from app.models import Order
-            mekelle = Branch.query.filter_by(name='Mekelle').first()
-            if mekelle:
-                # Update orders that don't have a branch assigned
-                Order.query.filter(Order.branch_id == None).update({'branch_id': mekelle.id})
-                db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        db.session.commit()
-        if not Branch.query.filter_by(name='Shire').first():
-            shire = Branch(name='Shire', location='Shire, Tigray')
-            mekelle = Branch(name='Mekelle', location='Mekelle, Tigray')
-            db.session.add_all([shire, mekelle])
-            db.session.flush()
-        else:
-            shire = Branch.query.filter_by(name='Shire').first()
-            mekelle = Branch.query.filter_by(name='Mekelle').first()
-        admin = User.query.filter_by(username='admin').first()
-        if not admin:
-            admin = User(username='admin', role='admin')
-            admin.set_password('admin123')
-            db.session.add(admin)
-        elif not admin.check_password('admin123'):
-            admin.set_password('admin123')
-        if not Vehicle.query.first():
-            vehicles = [
-                Vehicle(vin='HILUX-4WD-001', type='4-wheel', model='Toyota Hilux 4x4 2025', chassis_number='HILUX-4WD-001', engine_number='1KD-FTV-88421', branch_id=shire.id, status='available', selling_price=4500000, cost_price=3200000, color='White', power_type='non-electric'),
-                Vehicle(vin='FOTON-EV-3W-003', type='3-wheel', model='Foton Electric Tricycle', chassis_number='FOTON-EV-3W-003', engine_number='MOT-EV-33210', branch_id=mekelle.id, status='available', selling_price=1200000, cost_price=800000, color='Blue', power_type='electric'),
-            ]
-            db.session.add_all(vehicles)
-        if not SparePart.query.first():
-            parts = [
-                SparePart(part_number='OIL-FILT-001', name='Engine Oil Filter', quantity=45, branch_id=shire.id, unit_price=1200, cost_price=450, category='Filters'),
-                SparePart(part_number='BRK-PAD-002', name='Brake Pad Set (Front)', quantity=12, branch_id=mekelle.id, unit_price=4500, cost_price=1800, category='Brakes'),
-            ]
-            db.session.add_all(parts)
-        db.session.commit()
+            logger.info('Database seeded successfully.')
 
     # Serve React frontend (built files) for any route not matched by API
     @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')
     def serve_frontend(path):
-        if path != '' and os.path.exists(os.path.join(app.static_folder, path)):
+        if path != '' and os.path.exists(os.path.join(app.static_folder or '', path)):
             return send_from_directory(app.static_folder, path)
-        return send_from_directory(app.static_folder, 'index.html')
+        return send_from_directory(app.static_folder or '', 'index.html')
 
     return app

@@ -8,7 +8,7 @@ class Config:
     SECRET_KEY     = os.environ.get('SECRET_KEY', _DEFAULT_SECRET)
     _db_url = os.environ.get('DATABASE_URL', 'sqlite:///dealership.db')
     if _db_url.startswith('postgres'):
-        _db_url = _db_url.replace('postgresql://', 'postgresql://')
+        _db_url = _db_url.replace('postgres://', 'postgresql://')
         conn_opts = []
         if 'sslmode' not in _db_url:
             conn_opts.append('sslmode=require')

@@ -1,10 +1,20 @@
+import hmac
 import os
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Branch, User, Vehicle, SparePart, Sale, Payment, Order, Transfer, Purchase, PurchaseItem, Expense, ActivityLog, Customer
 from app.utils.auth import admin_required
 
 system_bp = Blueprint('system', __name__)
+
+_DEFAULT_SECRET = 'dev-secret-key'
+_DEFAULT_RESET_KEY = 'dev-reset-key'
+
+def _valid_reset_key(reset_key):
+    secret = os.environ.get('ADMIN_RESET_KEY', _DEFAULT_RESET_KEY)
+    if secret == _DEFAULT_RESET_KEY:
+        return False
+    return hmac.compare_digest(reset_key, secret)
 
 @system_bp.route('/import-excel-vehicles', methods=['POST'])
 @jwt_required()
@@ -55,6 +65,9 @@ def import_excel_vehicles():
 @jwt_required()
 @admin_required
 def reset_database():
+    data = request.get_json() or {}
+    if not _valid_reset_key(data.get('reset_key', '')):
+        return jsonify({'message': 'Invalid reset key'}), 401
     from app import db
     try:
         Payment.query.delete()
@@ -78,7 +91,7 @@ def reset_database():
         db.session.flush()
 
         admin = User(username='admin', role='admin', branch_id=shire.id)
-        admin.set_password('admin123')
+        admin.set_password(data.get('new_password') or 'admin123')
         db.session.add(admin)
 
         vehicles = [

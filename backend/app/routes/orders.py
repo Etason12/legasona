@@ -1,10 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Order, Customer, User, Branch, db
 from app.utils.auth import role_required
 from app.utils.logging import log_activity
 from app.utils.notifications import send_notification
+from app.utils.validation import safe_int
 
 orders_bp = Blueprint('orders', __name__)
 
@@ -43,8 +44,9 @@ def create_order():
     if not branch_id:
         return jsonify({'message': 'Branch ID is required'}), 400
 
-    last_order = Order.query.order_by(Order.sequence_number.desc()).first()
-    next_seq   = (last_order.sequence_number + 1) if last_order else 1
+    from sqlalchemy import func, text
+    last_order = db.session.query(func.coalesce(func.max(Order.sequence_number), 0)).scalar()
+    next_seq = last_order + 1
 
     customer_id = _ensure_customer(data, branch_id) or data.get('customer_id') or None
 
@@ -83,8 +85,8 @@ def get_orders():
     current_user = User.query.get(current_user_id)
     branch_id = request.args.get('branch_id')
     
-    page = int(request.args.get('page', 1))
-    per_page = int(request.args.get('per_page', 20))
+    page = safe_int(request.args.get('page', 1), default=1, min_val=1)
+    per_page = safe_int(request.args.get('per_page', 20), default=20, min_val=1, max_val=100)
     
     query = Order.query
     
@@ -186,11 +188,11 @@ def cancel_order(id):
     current_user_id = int(get_jwt_identity())
 
     order.status = 'cancelled'
-    order.cancelled_at = datetime.utcnow()
+    order.cancelled_at = datetime.now(timezone.utc)
     order.cancelled_by = current_user_id
     order.cancellation_reason = data.get('reason', '').strip()[:200]
     order.refund_amount = float(data.get('refund_amount', order.deposit_amount or 0))
-    order.refund_date = datetime.utcnow()
+    order.refund_date = datetime.now(timezone.utc)
 
     refund_method = data.get('refund_method', 'cash')
     order.refund_method = refund_method

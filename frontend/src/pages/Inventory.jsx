@@ -38,7 +38,7 @@ const ItemModal = ({ mode, item, type, onClose, onSaved, branches }) => {
   const [preview, setPreview] = useState(null)
   const [selectedFile, setSelectedFile] = useState(null)
   const [saving, setSaving]   = useState(false)
-  const user = JSON.parse(localStorage.getItem('user'))
+  const user = (() => { try { return JSON.parse(localStorage.getItem('user')) } catch { return null } })()
   const { t } = useLanguage()
   const defaultBranch = user?.branch_id || branches?.[0]?.id
   const [form, setForm] = useState(

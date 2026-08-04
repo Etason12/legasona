@@ -32,7 +32,15 @@ const ProtectedRoute = ({ user, allowedRoles, children }) => {
 }
 
 function App() {
-  const [user, setUser]       = useState(JSON.parse(localStorage.getItem('user')))
+  const [user, setUser]       = useState(() => {
+    try {
+      const stored = localStorage.getItem('user')
+      return stored ? JSON.parse(stored) : null
+    } catch {
+      localStorage.removeItem('user')
+      return null
+    }
+  })
   const [checking, setChecking] = useState(true)
 
   // Validate token with backend on every app load

@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Customer, Sale, Order, Vehicle, SparePart, User, db
-from app.utils.auth import admin_required, role_required
+from app.utils.auth import admin_required, role_required, effective_branch_id
+from app.utils.validation import safe_int
 from sqlalchemy import or_
 
 customers_bp = Blueprint('customers', __name__)
@@ -13,18 +14,17 @@ def get_customers():
     branch_id = request.args.get('branch_id')
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
-    page = int(request.args.get('page', 1))
-    per_page = int(request.args.get('per_page', 50))
+    page = safe_int(request.args.get('page', 1), default=1, min_val=1)
+    per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=100)
     query  = Customer.query
     if search:
         query = query.filter(or_(
             Customer.full_name.ilike(f"%{search}%"),
             Customer.phone.ilike(f"%{search}%")
         ))
+    branch_id = effective_branch_id(current_user, branch_id)
     if branch_id:
         query = query.filter(Customer.branch_id == branch_id)
-    elif current_user.branch_id:
-        query = query.filter(Customer.branch_id == current_user.branch_id)
     
     paginated_customers = query.order_by(Customer.full_name.asc()).paginate(page=page, per_page=per_page, error_out=False)
     customers = paginated_customers.items

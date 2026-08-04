@@ -2,9 +2,10 @@ import json
 import logging
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.utils.auth import admin_required, role_required
+from app.utils.auth import admin_required, role_required, effective_branch_id
 from app.utils.image_utils import compress_to_base64
-from datetime import datetime
+from app.utils.validation import safe_int
+from datetime import datetime, timezone
 from sqlalchemy import func, or_
 from app.models import Sale, Payment, Vehicle, SparePart, User, Customer, db
 from app.utils.logging import log_activity
@@ -12,6 +13,17 @@ from app.utils.notifications import send_notification
 
 sales_bp = Blueprint('sales', __name__)
 logger = logging.getLogger(__name__)
+
+def _generate_sale_number(prefix):
+    """Build a unique sale number using a timestamp plus a random suffix."""
+    import secrets
+    for _ in range(10):
+        stamp = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
+        suffix = f"{secrets.randbelow(10000):04d}"
+        number = f"{prefix}-{stamp}-{suffix}"
+        if not Sale.query.filter_by(sale_number=number).first():
+            return number
+    raise RuntimeError('Could not generate a unique sale number')
 
 def _ensure_customer(data, item_branch_id=None):
     """Create a Customer record if one doesn't exist for this phone number.
@@ -58,11 +70,12 @@ def record_vehicle_sale():
     total_amount = selling_price
     paid_amount = sum(float(p.get('amount', 0)) for p in payments_data)
     status = 'completed' if paid_amount >= total_amount else 'pending'
-    sale_number = f"VS-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+    sale_number = _generate_sale_number('VS')
     sale_date_str = data.get('sale_date')
-    sale_date = datetime.fromisoformat(sale_date_str) if sale_date_str else datetime.utcnow()
+    sale_date = datetime.fromisoformat(sale_date_str) if sale_date_str else datetime.now(timezone.utc)
 
     customer_id = _ensure_customer(data, item_branch_id=vehicle.branch_id) or data.get('customer_id') or None
+    current_user_id = int(get_jwt_identity())
 
     new_sale = Sale(
         sale_number=sale_number, sale_type='vehicle', item_id=vehicle_id,
@@ -71,7 +84,7 @@ def record_vehicle_sale():
         total_amount=total_amount,
         chassis_number=vehicle.vin, motor_number=data.get('motor_number'),
         status=status, branch_id=vehicle.branch_id,
-        user_id=int(get_jwt_identity()) if get_jwt_identity() else data.get('user_id'),
+        user_id=current_user_id,
         sale_date=sale_date,
         cost_at_sale=vehicle.cost_price or 0.0,
         category='Vehicle',
@@ -110,7 +123,7 @@ def record_vehicle_sale():
 
     vehicle.status = 'sold' if status == 'completed' else 'reserved'
 
-    log_activity(data.get('user_id'), 'VEHICLE_SALE', f"Recorded sale {sale_number} for {data.get('customer_name')} - ETB {total_amount}")
+    log_activity(current_user_id, 'VEHICLE_SALE', f"Recorded sale {sale_number} for {data.get('customer_name')} - ETB {total_amount}")
 
     db.session.commit()
     send_notification(
@@ -142,19 +155,20 @@ def record_spare_part_sale():
     payments_data = data.get('payments', [])
     paid_amount = sum(float(p.get('amount', 0)) for p in payments_data)
     status = 'completed' if paid_amount >= total_amount else 'pending'
-    sale_number = f"SP-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+    sale_number = _generate_sale_number('SP')
     sale_date_str = data.get('sale_date')
-    sale_date = datetime.fromisoformat(sale_date_str) if sale_date_str else datetime.utcnow()
+    sale_date = datetime.fromisoformat(sale_date_str) if sale_date_str else datetime.now(timezone.utc)
 
     customer_id = _ensure_customer(data, item_branch_id=part.branch_id) or data.get('customer_id') or None
+    current_user_id = int(get_jwt_identity())
 
     new_sale = Sale(
-        sale_number=sale_number, sale_type='spare_part', item_id=part_id,
+        sale_number=sale_number, sale_type='spare_part', item_id=part_id, quantity=qty,
         customer_name=(data.get('customer_name') or '').strip().title(), customer_phone=data.get('customer_phone'),
         customer_id=customer_id,
         total_amount=total_amount, status=status,
         category=part.category,
-        branch_id=part.branch_id, user_id=data.get('user_id'),
+        branch_id=part.branch_id, user_id=current_user_id,
         sale_date=sale_date,
         cost_at_sale=(part.cost_price or 0.0) * qty,
         remark=data.get('remark')
@@ -185,7 +199,7 @@ def record_spare_part_sale():
 
     part.quantity -= qty
 
-    log_activity(data.get('user_id'), 'SPARE_PART_SALE', f"Recorded sale {sale_number} for {data.get('customer_name')} - ETB {total_amount}")
+    log_activity(current_user_id, 'SPARE_PART_SALE', f"Recorded sale {sale_number} for {data.get('customer_name')} - ETB {total_amount}")
 
     db.session.commit()
     send_notification(
@@ -438,11 +452,17 @@ def update_sale(id):
 @role_required('admin', 'manager')
 def cancel_sale(id):
     sale = Sale.query.get_or_404(id)
+    if sale.status == 'cancelled':
+        return jsonify({'message': 'Sale is already cancelled'}), 400
     sale.status = 'cancelled'
     if sale.sale_type == 'vehicle':
         v = Vehicle.query.get(sale.item_id)
         if v:
             v.status = 'available'
+    elif sale.sale_type == 'spare_part':
+        part = SparePart.query.get(sale.item_id)
+        if part:
+            part.quantity = (part.quantity or 0) + (sale.quantity or 1)
     for p in Payment.query.filter_by(sale_id=sale.id).all():
         db.session.delete(p)
     db.session.commit()
@@ -473,14 +493,13 @@ def get_sales():
     current_user = User.query.get(current_user_id)
 
     # Implement pagination parameters
-    page = int(request.args.get('page', 1))
-    per_page = int(request.args.get('per_page', 50))
+    page = safe_int(request.args.get('page', 1), default=1, min_val=1)
+    per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=100)
     
     query = Sale.query
+    branch_id = effective_branch_id(current_user, branch_id)
     if branch_id:
         query = query.filter(Sale.branch_id == branch_id)
-    elif current_user.branch_id:
-        query = query.filter(Sale.branch_id == current_user.branch_id)
     if status_filter:
         query = query.filter(Sale.status == status_filter)
     if start_date:

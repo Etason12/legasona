@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Expense, Branch, User, db
-from app.utils.auth import role_required
+from app.utils.auth import role_required, effective_branch_id
 from app.utils.image_utils import compress_to_base64
-from datetime import datetime
+from datetime import datetime, timezone
 
 expenses_bp = Blueprint('expenses', __name__)
 
@@ -16,7 +16,6 @@ def create_expense():
         description = request.form.get('description')
         amount      = request.form.get('amount')
         branch_id   = request.form.get('branch_id')
-        user_id     = request.form.get('user_id')
         file        = request.files.get('receipt')
     else:
         data        = request.get_json()
@@ -24,14 +23,14 @@ def create_expense():
         description = data.get('description')
         amount      = data.get('amount')
         branch_id   = data.get('branch_id')
-        user_id     = data.get('user_id')
         file        = None
 
     receipt_data = compress_to_base64(file)
+    current_user_id = int(get_jwt_identity())
 
     new_expense = Expense(
         category=category, description=description, amount=amount,
-        branch_id=branch_id, user_id=user_id, receipt_attachment=receipt_data
+        branch_id=branch_id, user_id=current_user_id, receipt_attachment=receipt_data
     )
     db.session.add(new_expense)
     db.session.commit()
@@ -50,10 +49,9 @@ def get_expenses():
 
     query = Expense.query.join(User, Expense.user_id == User.id).add_columns(User.username.label('user_name'))
 
+    branch_id = effective_branch_id(current_user, branch_id)
     if branch_id:
         query = query.filter(Expense.branch_id == branch_id)
-    elif current_user.branch_id:
-        query = query.filter(Expense.branch_id == current_user.branch_id)
     if start_date:
         query = query.filter(Expense.expense_date >= datetime.fromisoformat(start_date))
     if end_date:

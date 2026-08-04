@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Order, Customer, User, Branch, db
+from app.models import Order, Customer, User, Branch, Sale, Payment, Vehicle, db
 from app.utils.auth import role_required
 from app.utils.logging import log_activity
 from app.utils.notifications import send_notification
 from app.utils.validation import safe_int
+from app.utils.image_utils import compress_to_base64
 
 orders_bp = Blueprint('orders', __name__)
 
@@ -123,10 +124,12 @@ def get_orders():
             'deposit_bank': o.deposit_bank,
             'deposit_account_holder': o.deposit_account_holder,
             'deposit_transaction_reference': o.deposit_transaction_reference,
+            'deposit_receipt_image': o.deposit_receipt_image,
             'order_date': o.order_date.isoformat(),
             'remark': o.remark,
             'branch_id': o.branch_id,
             'branch_name': branches.get(o.branch_id),
+            'sale_id': o.sale_id,
             'cancelled_at': o.cancelled_at.isoformat() if o.cancelled_at else None,
             'cancellation_reason': o.cancellation_reason,
             'refund_amount': o.refund_amount,
@@ -146,22 +149,56 @@ def get_orders():
     }), 200
 
 
+@orders_bp.route('/available-vehicles', methods=['GET'])
+@jwt_required()
+def get_available_vehicles():
+    branch_id = request.args.get('branch_id')
+    query = Vehicle.query.filter(Vehicle.status == 'available')
+    if branch_id:
+        query = query.filter(Vehicle.branch_id == int(branch_id))
+    vehicles = query.order_by(Vehicle.model).all()
+    return jsonify([{
+        'id': v.id, 'vin': v.vin, 'model': v.model, 'color': v.color,
+        'type': v.type, 'power_type': v.power_type,
+        'chassis_number': v.chassis_number, 'engine_number': v.engine_number,
+        'selling_price': float(v.selling_price or 0),
+        'branch_id': v.branch_id, 'image': v.image
+    } for v in vehicles]), 200
+
+
 @orders_bp.route('/<int:id>/deposit', methods=['POST'])
 @jwt_required()
 @role_required('admin', 'manager', 'cashier')
 def add_deposit(id):
     order = Order.query.get_or_404(id)
-    data = request.get_json()
-    amount = float(data.get('amount', 0))
+    if request.content_type and 'multipart' in request.content_type:
+        amount = float(request.form.get('amount', 0))
+        method = request.form.get('method', 'cash')
+        bank = request.form.get('bank', '')
+        account_holder = request.form.get('account_holder', '')
+        reference = request.form.get('reference', '')
+        receipt_file = request.files.get('receipt')
+    else:
+        data = request.get_json() or {}
+        amount = float(data.get('amount', 0))
+        method = data.get('method', 'cash')
+        bank = data.get('bank', '')
+        account_holder = data.get('account_holder', '')
+        reference = data.get('reference', '')
+        receipt_file = None
+
     if amount <= 0:
         return jsonify({'message': 'Deposit amount must be greater than zero'}), 400
     order.deposit_amount = (order.deposit_amount or 0) + amount
-    method = data.get('method', 'cash')
     order.deposit_method = method
     if method == 'bank':
-        order.deposit_bank = data.get('bank', '').upper()
-        order.deposit_account_holder = data.get('account_holder', '').upper()
-        order.deposit_transaction_reference = data.get('reference', '').upper()
+        order.deposit_bank = bank.upper()
+        order.deposit_account_holder = account_holder.upper()
+        order.deposit_transaction_reference = reference.upper()
+    if receipt_file and receipt_file.filename:
+        receipt_data = compress_to_base64(receipt_file)
+        if receipt_data:
+            order.deposit_receipt_image = receipt_data
     db.session.commit()
     return jsonify({'message': 'Deposit added', 'deposit_amount': order.deposit_amount}), 200
 
@@ -169,10 +206,94 @@ def add_deposit(id):
 @jwt_required()
 @role_required('admin', 'manager')
 def fulfill_order(id):
+    from sqlalchemy import func
+    import secrets
+
     order = Order.query.get_or_404(id)
+    if order.status != 'waiting':
+        return jsonify({'message': 'Order is not in waiting status'}), 400
+
+    data = request.get_json() or {}
+    vehicle_id = data.get('vehicle_id')
+    if not vehicle_id:
+        return jsonify({'message': 'Vehicle ID is required'}), 400
+
+    vehicle = Vehicle.query.get(vehicle_id)
+    if not vehicle:
+        return jsonify({'message': 'Vehicle not found'}), 404
+    if vehicle.status != 'available':
+        return jsonify({'message': 'Vehicle is not available'}), 400
+    if vehicle.branch_id != order.branch_id:
+        return jsonify({'message': 'Vehicle is not in the same branch as the order'}), 400
+
+    selling_price = float(vehicle.selling_price or 0)
+    if selling_price <= 0:
+        return jsonify({'message': 'Vehicle has no selling price set'}), 400
+
+    deposit = float(order.deposit_amount or 0)
+    status = 'completed' if deposit >= selling_price else 'pending'
+
+    sale_number = None
+    for _ in range(10):
+        stamp = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
+        suffix = f"{secrets.randbelow(10000):04d}"
+        candidate = f"VS-{stamp}-{suffix}"
+        if not Sale.query.filter_by(sale_number=candidate).first():
+            sale_number = candidate
+            break
+    if not sale_number:
+        return jsonify({'message': 'Could not generate sale number'}), 500
+
+    current_user_id = int(get_jwt_identity())
+
+    new_sale = Sale(
+        sale_number=sale_number, sale_type='vehicle', item_id=vehicle_id,
+        customer_name=order.customer_name, customer_phone=order.customer_phone,
+        customer_id=order.customer_id,
+        total_amount=selling_price,
+        cost_at_sale=float(vehicle.cost_price or 0),
+        chassis_number=vehicle.vin,
+        status=status, branch_id=vehicle.branch_id,
+        user_id=current_user_id,
+        sale_date=datetime.now(timezone.utc),
+        category='Vehicle',
+        remark=order.remark,
+        order_id=order.id
+    )
+    db.session.add(new_sale)
+    db.session.flush()
+
+    if deposit > 0:
+        db.session.add(Payment(
+            sale_id=new_sale.id,
+            payment_method=order.deposit_method or 'cash',
+            bank_name=(order.deposit_bank or '').upper(),
+            account_holder=(order.deposit_account_holder or '').upper(),
+            amount=deposit,
+            transaction_reference=(order.deposit_transaction_reference or '').upper() or None,
+            receipt_image=order.deposit_receipt_image,
+            payment_date=datetime.now(timezone.utc)
+        ))
+
+    vehicle.status = 'sold' if status == 'completed' else 'reserved'
     order.status = 'fulfilled'
+    order.sale_id = new_sale.id
+
+    log_activity(current_user_id, 'FULFILL_ORDER',
+        f"Fulfilled order #{order.sequence_number}, created sale {sale_number} for {order.customer_name} - ETB {selling_price}")
+
     db.session.commit()
-    return jsonify({'message': 'Order marked as fulfilled'}), 200
+    send_notification(
+        'Order Fulfilled',
+        f'Order #{order.sequence_number} fulfilled — {sale_number} for {order.customer_name}',
+        {'type': 'order_fulfilled', 'sale_number': sale_number}
+    )
+    return jsonify({
+        'message': f'Order fulfilled. Sale {sale_number} created as {status}',
+        'sale_id': new_sale.id,
+        'sale_number': sale_number,
+        'status': status
+    }), 200
 
 @orders_bp.route('/<int:id>/cancel', methods=['POST'])
 @jwt_required()

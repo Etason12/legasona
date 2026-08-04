@@ -93,7 +93,9 @@ class Sale(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     sale_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     remark = db.Column(db.Text)
+    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=True)
     payments = db.relationship('Payment', backref='sale', lazy=True)
+    originating_order = db.relationship('Order', backref='created_sale', uselist=False, foreign_keys=[order_id])
 
     __table_args__ = (
         db.Index('ix_sales_status', 'status'),
@@ -127,10 +129,12 @@ class Order(db.Model):
     deposit_bank = db.Column(db.String(50))
     deposit_account_holder = db.Column(db.String(50))
     deposit_transaction_reference = db.Column(db.String(100))
+    deposit_receipt_image = db.Column(db.Text)
     order_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     status = db.Column(db.String(20), default='waiting')  # waiting, fulfilled, cancelled
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))
     remark = db.Column(db.Text)
+    sale_id = db.Column(db.Integer, db.ForeignKey('sales.id'), nullable=True)
     # Cancellation / refund tracking
     cancelled_at = db.Column(db.DateTime)
     cancelled_by = db.Column(db.Integer, db.ForeignKey('users.id'))

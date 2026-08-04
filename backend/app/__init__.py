@@ -14,6 +14,38 @@ db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
 
+def _migrate_columns(database):
+    """Add columns that may be missing from existing tables."""
+    from sqlalchemy import text, inspect
+    engine = database.engine
+    insp = inspect(engine)
+    alters = []
+
+    try:
+        existing_cols = {c['name'] for c in insp.get_columns('orders')}
+        if 'deposit_receipt_image' not in existing_cols:
+            alters.append('ALTER TABLE orders ADD COLUMN deposit_receipt_image TEXT')
+        if 'sale_id' not in existing_cols:
+            alters.append('ALTER TABLE orders ADD COLUMN sale_id INTEGER')
+    except Exception:
+        pass
+
+    try:
+        existing_cols = {c['name'] for c in insp.get_columns('sales')}
+        if 'order_id' not in existing_cols:
+            alters.append('ALTER TABLE sales ADD COLUMN order_id INTEGER')
+    except Exception:
+        pass
+
+    for stmt in alters:
+        try:
+            with database.engine.connect() as conn:
+                conn.execute(text(stmt))
+                conn.commit()
+            logger.info(f"Migration applied: {stmt}")
+        except Exception as e:
+            logger.debug(f"Migration skip: {stmt} ({e})")
+
 def create_app(config_class=Config):
     # Determine the absolute path to the React build directory
     frontend_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../frontend'))
@@ -94,6 +126,9 @@ def create_app(config_class=Config):
     # Ensure tables exist (safe, idempotent)
     with app.app_context():
         db.create_all()
+
+        # ── Auto-migrate: add columns that may be missing ──────────
+        _migrate_columns(db)
 
     # Register CLI commands for seeding
     @app.cli.command('seed')

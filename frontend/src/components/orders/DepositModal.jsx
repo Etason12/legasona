@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, CreditCard, Landmark, Phone, Eye, Loader2 } from 'lucide-react'
+import { X, CreditCard, Landmark, Phone, Eye, Loader2, Upload } from 'lucide-react'
 import { useLanguage } from '../../i18n/LanguageContext'
 import { capitalizeName } from '../../utils/format'
 
@@ -10,6 +10,7 @@ const DepositModal = ({ order, onClose, onSubmit, submitting, onViewCustomer }) 
   const [bank, setBank] = useState('')
   const [accountHolder, setAccountHolder] = useState('')
   const [reference, setReference] = useState('')
+  const [receiptFile, setReceiptFile] = useState(null)
   const [error, setError] = useState('')
 
   const remaining = order.total_amount - (order.total_deposits || 0)
@@ -30,7 +31,7 @@ const DepositModal = ({ order, onClose, onSubmit, submitting, onViewCustomer }) 
       if (!reference) { setError('Transaction reference is required'); return }
     }
     setError('')
-    onSubmit(order.id, val, method, bank, accountHolder, reference)
+    onSubmit(order.id, val, method, bank, accountHolder, reference, receiptFile)
   }
 
   return (
@@ -120,6 +121,26 @@ const DepositModal = ({ order, onClose, onSubmit, submitting, onViewCustomer }) 
           )}
 
           {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+
+          <div className="p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800">
+            <p className="text-xs font-semibold text-neutral-500 mb-2">{t('receiptOptional') || 'Receipt (optional)'}</p>
+            <label className="flex items-center gap-3 cursor-pointer p-3 bg-white dark:bg-neutral-800 rounded-xl border border-dashed border-neutral-300 dark:border-neutral-600 hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
+              <Upload size={18} className="text-neutral-400" />
+              <span className="text-sm text-neutral-600 dark:text-neutral-300">
+                {receiptFile ? receiptFile.name : t('selectImageFile') || 'Select image file'}
+              </span>
+              <input type="file" accept="image/*" className="hidden" onChange={e => setReceiptFile(e.target.files[0] || null)} />
+            </label>
+            {receiptFile && (
+              <img src={URL.createObjectURL(receiptFile)} alt="Receipt preview" className="mt-2 max-h-24 rounded-lg object-contain" />
+            )}
+            {order.deposit_receipt_image && !receiptFile && (
+              <div className="mt-2">
+                <p className="text-[11px] text-neutral-400 mb-1">{t('currentReceipt') || 'Current receipt'}:</p>
+                <img src={order.deposit_receipt_image} alt="Current receipt" className="max-h-24 rounded-lg object-contain" />
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="modal-footer">

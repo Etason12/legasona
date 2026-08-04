@@ -590,6 +590,7 @@ def get_sales():
             'cashier_name': cashier.username if cashier else None,
             'balance': float(s.total_amount) - float(total_paid),
             'remark': s.remark,
+            'order_id': s.order_id,
         })
     return jsonify({
         'items': result,

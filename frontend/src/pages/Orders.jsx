@@ -12,6 +12,7 @@ import AddOrderModal from '../components/orders/AddOrderModal'
 import DepositModal from '../components/orders/DepositModal'
 import CancelOrderModal from '../components/orders/CancelOrderModal'
 import CustomerDetailModal from '../components/orders/CustomerDetailModal'
+import FulfillOrderModal from '../components/orders/FulfillOrderModal'
 
 const Orders = ({ user }) => {
   const { t } = useLanguage()
@@ -36,6 +37,8 @@ const Orders = ({ user }) => {
   const [customerDeposits, setCustomerDeposits] = useState([])
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [cancellingOrder, setCancellingOrder] = useState(null)
+  const [showFulfillModal, setShowFulfillModal] = useState(false)
+  const [fulfillOrder, setFulfillOrder] = useState(null)
   const [customers, setCustomers] = useState([])
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
   const [newCustPhone, setNewCustPhone] = useState('')
@@ -129,14 +132,23 @@ const Orders = ({ user }) => {
     }
   }
 
-  const handleFulfill = async (orderId) => {
-    if (!window.confirm('Mark this order as fulfilled?')) return
+  const handleFulfill = async (order) => {
+    setFulfillOrder(order)
+    setShowFulfillModal(true)
+  }
+
+  const handleFulfillSubmit = async (orderId, vehicleId) => {
+    setSubmitting(true)
     try {
-      await api.post(`/orders/${orderId}/fulfill`)
-      toast.success('Order fulfilled successfully')
+      const res = await api.post(`/orders/${orderId}/fulfill`, { vehicle_id: vehicleId })
+      toast.success(res.data.message || 'Order fulfilled successfully')
+      setShowFulfillModal(false)
+      setFulfillOrder(null)
       fetchOrders()
     } catch (error) {
-      toast.error('Failed to fulfill order')
+      toast.error(error.response?.data?.message || 'Failed to fulfill order')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -186,16 +198,28 @@ const Orders = ({ user }) => {
     setShowCustomerModal(true)
   }
 
-  const handleAddDeposit = async (orderId, amount, method, bank, accountHolder, reference) => {
+  const handleAddDeposit = async (orderId, amount, method, bank, accountHolder, reference, receiptFile) => {
     setSubmitting(true)
     try {
-      const res = await api.post(`/orders/${orderId}/deposit`, {
-        amount: parseFloat(amount),
-        method,
-        bank,
-        account_holder: accountHolder,
-        reference
-      })
+      let res
+      if (receiptFile) {
+        const fd = new FormData()
+        fd.append('amount', parseFloat(amount))
+        fd.append('method', method)
+        fd.append('bank', bank || '')
+        fd.append('account_holder', accountHolder || '')
+        fd.append('reference', reference || '')
+        fd.append('receipt', receiptFile)
+        res = await api.post(`/orders/${orderId}/deposit`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      } else {
+        res = await api.post(`/orders/${orderId}/deposit`, {
+          amount: parseFloat(amount),
+          method,
+          bank,
+          account_holder: accountHolder,
+          reference
+        })
+      }
       toast.success(`Deposit added. Total: ETB ${res.data.deposit_amount.toLocaleString()}`)
       setShowDepositModal(false)
       setDepositOrder(null)
@@ -342,6 +366,15 @@ const Orders = ({ user }) => {
           order={cancellingOrder}
           onClose={() => setShowCancelModal(false)}
           onSubmit={handleCancelOrder}
+          submitting={submitting}
+        />
+      )}
+
+      {showFulfillModal && fulfillOrder && (
+        <FulfillOrderModal
+          order={fulfillOrder}
+          onClose={() => { setShowFulfillModal(false); setFulfillOrder(null) }}
+          onSubmit={handleFulfillSubmit}
           submitting={submitting}
         />
       )}

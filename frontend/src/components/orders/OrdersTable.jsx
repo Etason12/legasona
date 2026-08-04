@@ -111,7 +111,7 @@ const OrdersTable = ({ orders, onSelectOrder, onDeposit, onFulfill, onCancel, on
                         <CreditCard size={16} />
                       </button>
                       <button
-                        onClick={() => onFulfill(order.id)}
+                        onClick={() => onFulfill(order)}
                         className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl border border-emerald-200 dark:border-emerald-800 transition-colors"
                         title={t('fulfill')}
                       >

@@ -63,6 +63,7 @@ class SparePart(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     part_number = db.Column(db.String(50), nullable=False)
     name = db.Column(db.String(100), nullable=False)
+    name_tigrinya = db.Column(db.String(100))
     category = db.Column(db.String(50))
     unit_price = db.Column(db.Numeric(12, 2))
     cost_price = db.Column(db.Numeric(12, 2))

@@ -44,7 +44,7 @@ const ItemModal = ({ mode, item, type, onClose, onSaved, branches, categories })
   const [form, setForm] = useState(
     type === 'vehicles'
       ? { vin: '', model: '', type: '4-wheel', power_type: 'non-electric', color: '', chassis_number: '', engine_number: '', cost_price: '', selling_price: '', branch_id: item?.branch_id || defaultBranch, status: 'available', ...item, chassis_number: item?.vin || item?.chassis_number || '' }
-      : { part_number: '', name: '', category: '', quantity: '', unit_price: '', cost_price: '', branch_id: item?.branch_id || defaultBranch, ...item }
+      : { part_number: '', name: '', name_tigrinya: '', category: '', quantity: '', unit_price: '', cost_price: '', branch_id: item?.branch_id || defaultBranch, ...item }
   )
 
   const set = (k, v) => setForm(f => {
@@ -170,8 +170,9 @@ const ItemModal = ({ mode, item, type, onClose, onSaved, branches, categories })
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
                 <div className="space-y-6">
-                  <div><label className="label">{t('partNumberSku')} *</label><input required className="input-field" value={form.part_number||''} onChange={e=>set('part_number',e.target.value)} placeholder="SKU-8821"/></div>
+                  {isEdit && <div><label className="label">{t('partNumberSku')}</label><input className="input-field bg-neutral-100 dark:bg-neutral-800" value={form.part_number||''} readOnly /></div>}
                   <div><label className="label">{t('componentName')} *</label><input required className="input-field" value={form.name||''} onChange={e=>set('name',e.target.value)} placeholder="e.g. Brake Pads"/></div>
+                  <div><label className="label">{t('nameTigrinya') || 'Name (Tigrinya)'}</label><input className="input-field" value={form.name_tigrinya||''} onChange={e=>set('name_tigrinya',e.target.value)} placeholder="e.g. ቻርoucher ፓድ"/></div>
                   <div><label className="label">{t('category')}</label>
                     <div className="flex gap-2">
                       <select className="input-field flex-1" value={form.category || ''} onChange={e => set('category', e.target.value)}>
@@ -230,6 +231,8 @@ const Inventory = ({ user }) => {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [categories, setCategories] = useState([])
   const [stats, setStats]               = useState({ available: 0, reserved: 0, sold: 0, 'in-transit': 0 })
+  const [spPage, setSpPage] = useState(1)
+  const [spTotalPages, setSpTotalPages] = useState(1)
 
   useEffect(() => {
     if (user?.role?.toLowerCase() !== 'admin') {
@@ -237,10 +240,11 @@ const Inventory = ({ user }) => {
     }
   }, [user])
 
-  useEffect(() => { fetchData() }, [branchFilter, statusFilter])
+  useEffect(() => { fetchData() }, [branchFilter, statusFilter, spPage])
 
   useEffect(() => {
     const bId = branchFilter
+    setSpPage(1)
     api.get(`/inventory/spare-part-categories?branch_id=${bId}`)
       .then(res => { setCategories(res.data || []); setCategoryFilter('') })
       .catch(() => {})
@@ -253,12 +257,14 @@ const Inventory = ({ user }) => {
       const sId = activeTab === 'vehicles' ? statusFilter : ''
       const [vRes, sRes, bRes, statsRes] = await Promise.all([
         api.get(`/inventory/vehicles?branch_id=${bId}&status=${sId}`),
-        api.get(`/inventory/spare-parts?branch_id=${bId}`),
+        api.get(`/inventory/spare-parts?branch_id=${bId}&page=${spPage}&per_page=50`),
         api.get('/branches'),
         api.get(`/inventory/vehicle-stats?branch_id=${bId}`),
       ])
       setVehicles(vRes.data.items || [])
-      setSpareParts(sRes.data.items || [])
+      const spData = sRes.data
+      setSpareParts(spData.items || [])
+      setSpTotalPages(spData.pages || 1)
       setBranches(bRes.data.items || bRes.data)
       setStats(statsRes.data)
     } catch { toast.error('Failed to load inventory') }
@@ -282,7 +288,7 @@ const Inventory = ({ user }) => {
     const matchesSearch = !q || (activeTab === 'vehicles'
       ? (i.model?.toLowerCase().includes(q) || i.vin?.toLowerCase().includes(q)
         || i.chassis_number?.toLowerCase().includes(q) || i.engine_number?.toLowerCase().includes(q))
-      : (i.name?.toLowerCase().includes(q) || i.part_number?.toLowerCase().includes(q)))
+      : (i.name?.toLowerCase().includes(q) || i.part_number?.toLowerCase().includes(q) || i.name_tigrinya?.toLowerCase().includes(q)))
     if (!matchesSearch) return false
     if (branchFilter && String(i.branch_id) !== branchFilter) return false
     if (activeTab === 'parts' && categoryFilter && i.category !== categoryFilter) return false
@@ -393,9 +399,10 @@ const Inventory = ({ user }) => {
                     <td className="px-6 py-5 hidden sm:table-cell"><ImageCell imageData={item.image} onClick={setPreviewImage}/></td>
                     <td className="px-6 py-5">
                       <p className="text-slate-900 dark:text-white font-bold text-sm">{activeTab === 'vehicles' ? item.model : item.name}</p>
-                      <p className="text-xs font-mono text-slate-500 mt-0.5">{activeTab === 'vehicles' ? `VIN: ${item.vin}` : `Part #: ${item.part_number}`}</p>
+                      <p className="text-xs font-mono text-slate-500 mt-0.5">{activeTab === 'vehicles' ? `VIN: ${item.vin}` : `SKU: ${item.part_number}`}</p>
                       {activeTab === 'vehicles' && <p className="text-xs text-slate-400 mt-0.5">Motor: {item.engine_number || '—'}</p>}
                       {activeTab === 'vehicles' && <p className="text-xs text-slate-400 mt-0.5">{item.type} · {item.power_type}</p>}
+                      {activeTab === 'parts' && item.name_tigrinya && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5" style={{fontFamily: 'system-ui'}}>{item.name_tigrinya}</p>}
                     </td>
                     {activeTab === 'parts' && (
                       <td className="px-5 py-3 hidden md:table-cell">
@@ -449,6 +456,14 @@ const Inventory = ({ user }) => {
           </div>
         )}
       </div>
+
+      {activeTab === 'parts' && spTotalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <button disabled={spPage <= 1} onClick={() => setSpPage(p => p - 1)} className="px-3 py-1.5 text-xs font-bold rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-600 dark:text-slate-300 disabled:opacity-40">Prev</button>
+          <span className="text-xs text-slate-500 font-medium">Page {spPage} of {spTotalPages}</span>
+          <button disabled={spPage >= spTotalPages} onClick={() => setSpPage(p => p + 1)} className="px-3 py-1.5 text-xs font-bold rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-600 dark:text-slate-300 disabled:opacity-40">Next</button>
+        </div>
+      )}
 
       {/* Stats bar — shows breakdown for all statuses in current branch/search */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

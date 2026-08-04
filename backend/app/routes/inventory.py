@@ -6,6 +6,7 @@ from app.utils.image_utils import compress_to_base64
 from app.utils.logging import log_activity
 from app.utils.notifications import send_notification
 from app.utils.validation import safe_int
+import time
 
 inventory_bp = Blueprint('inventory', __name__)
 
@@ -133,7 +134,7 @@ def get_spare_parts():
     
     paginated_parts = query.with_entities(
         SparePart.id, SparePart.part_number, SparePart.name,
-        SparePart.category, SparePart.quantity,
+        SparePart.name_tigrinya, SparePart.category, SparePart.quantity,
         SparePart.unit_price, SparePart.cost_price,
         SparePart.branch_id, SparePart.image
     ).paginate(page=page, per_page=per_page, error_out=False)
@@ -142,7 +143,7 @@ def get_spare_parts():
     return jsonify({
         'items': [{
             'id': p.id, 'part_number': p.part_number, 'name': p.name,
-            'category': p.category, 'quantity': p.quantity,
+            'name_tigrinya': p.name_tigrinya, 'category': p.category, 'quantity': p.quantity,
             'unit_price': p.unit_price, 'cost_price': p.cost_price,
             'branch_id': p.branch_id, 'image': p.image
         } for p in parts],
@@ -156,8 +157,10 @@ def get_spare_parts():
 @role_required('admin', 'manager', 'storekeeper')
 def add_spare_part():
     image_data = compress_to_base64(request.files.get('image'))
+    part_number = f"SP-{int(time.time() * 1000) % 1000000:06d}"
     p = SparePart(
-        part_number=request.form.get('part_number'), name=request.form.get('name'),
+        part_number=part_number, name=request.form.get('name'),
+        name_tigrinya=request.form.get('name_tigrinya'),
         category=request.form.get('category'),
         unit_price=float(request.form.get('unit_price', 0) or 0),
         cost_price=float(request.form.get('cost_price', 0) or 0),
@@ -189,6 +192,7 @@ def update_spare_part(id):
     else:
         data = request.get_json() or {}
     p.name = data.get('name', p.name)
+    p.name_tigrinya = data.get('name_tigrinya', p.name_tigrinya)
     p.part_number = data.get('part_number', p.part_number)
     p.category = data.get('category', p.category)
     p.unit_price = float(data['unit_price']) if data.get('unit_price') not in (None, '') else p.unit_price

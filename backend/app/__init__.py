@@ -27,15 +27,15 @@ def _migrate_columns(database):
             alters.append('ALTER TABLE orders ADD COLUMN deposit_receipt_image TEXT')
         if 'sale_id' not in existing_cols:
             alters.append('ALTER TABLE orders ADD COLUMN sale_id INTEGER')
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Migration: could not inspect orders table: {e}")
 
     try:
         existing_cols = {c['name'] for c in insp.get_columns('sales')}
         if 'order_id' not in existing_cols:
             alters.append('ALTER TABLE sales ADD COLUMN order_id INTEGER')
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Migration: could not inspect sales table: {e}")
 
     for stmt in alters:
         try:
@@ -44,7 +44,7 @@ def _migrate_columns(database):
                 conn.commit()
             logger.info(f"Migration applied: {stmt}")
         except Exception as e:
-            logger.debug(f"Migration skip: {stmt} ({e})")
+            logger.warning(f"Migration failed: {stmt} — {e}")
 
 def create_app(config_class=Config):
     # Determine the absolute path to the React build directory

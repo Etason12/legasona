@@ -20,4 +20,5 @@ def record_attempt(key):
 def get_client_ip():
     """Extract client IP from X-Forwarded-For or remote_addr."""
     from flask import request
-    return request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
+    ip = request.headers.get('X-Forwarded-For') or request.remote_addr or 'unknown'
+    return ip.split(',')[0].strip()

@@ -56,7 +56,7 @@ def _migrate_columns(database):
                           'NUMERIC(12,2)' if col.type.__class__.__name__ in ('Numeric',) else \
                           'BOOLEAN' if col.type.__class__.__name__ in ('Boolean',) else \
                           'TIMESTAMP' if col.type.__class__.__name__ in ('DateTime',) else \
-                          'VARCHAR(200)' if hasattr(col.type, 'length') else 'TEXT'
+                          f'VARCHAR({col.type.length})' if hasattr(col.type, 'length') and col.type.length else 'TEXT'
                 default_sql = ''
                 if col.default is not None and hasattr(col.default, 'arg'):
                     default_val = col.default.arg
@@ -203,15 +203,25 @@ def create_app(config_class=Config):
 
     # Ensure tables exist (safe, idempotent)
     with app.app_context():
-        db.create_all()
+        try:
+            db.create_all()
+            logger.info('db.create_all() completed.')
+        except Exception as e:
+            logger.error(f'db.create_all() failed: {e}', exc_info=True)
 
         # ── Auto-migrate: add columns that may be missing ──────────
-        _migrate_columns(db)
+        try:
+            _migrate_columns(db)
+        except Exception as e:
+            logger.error(f'_migrate_columns() failed: {e}', exc_info=True)
 
         # ── Auto-seed on fresh database (e.g. new Neon DB) ─────────
-        from app.models import User as _User
-        if not db.session.query(_User).first():
-            _seed_database()
+        try:
+            from app.models import User as _User
+            if not db.session.query(_User).first():
+                _seed_database()
+        except Exception as e:
+            logger.error(f'Auto-seed failed: {e}', exc_info=True)
 
     # Serve React frontend (built files) for any route not matched by API
     @app.route('/', defaults={'path': ''})

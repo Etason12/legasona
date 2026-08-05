@@ -52,6 +52,7 @@ const Sales = ({ user }) => {
   const [editSaleRemark, setEditSaleRemark] = useState('')
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [previewImage, setPreviewImage] = useState(null)
+  const receiptRef = useRef(null)
 
   // New sale form
   const [form, setForm] = useState({})
@@ -411,7 +412,7 @@ const Sales = ({ user }) => {
             dt.items.add(file)
             setEditingPayment(prev => ({ ...prev, receipt_preview: result.dataUrl }))
           }}
-          receiptRef={useRef(null)}
+          receiptRef={receiptRef}
         />
       )}
 

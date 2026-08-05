@@ -1,10 +1,13 @@
 import hmac
+import logging
 import os
 import time
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Branch, User, Vehicle, SparePart, Sale, Payment, Order, Transfer, Purchase, PurchaseItem, Expense, ActivityLog, Customer
 from app.utils.auth import admin_required
+
+logger = logging.getLogger(__name__)
 
 system_bp = Blueprint('system', __name__)
 
@@ -190,4 +193,5 @@ def import_spare_parts():
         return jsonify({'message': f'Imported {added} spare parts ({len(PARTS) - added} already existed)'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'message': 'Import failed'}), 500
+        logger.error(f'Import spare parts failed: {e}', exc_info=True)
+        return jsonify({'message': f'Import failed: {str(e)}'}), 500

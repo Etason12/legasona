@@ -28,7 +28,11 @@ def login():
         username = data.get('username')
         password = data.get('password')
 
-        client_ip = get_client_ip()
+        try:
+            client_ip = get_client_ip()
+        except Exception:
+            client_ip = 'unknown'
+
         if is_rate_limited(f'login:{client_ip}', 5, 60):
             return jsonify({'message': 'Too many login attempts. Please try again later.'}), 429
 

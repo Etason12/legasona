@@ -41,6 +41,10 @@ def login():
             record_attempt(f'login:{client_ip}')
             return jsonify({'message': 'Invalid credentials'}), 401
         if user:
+            if not user.password_hash:
+                logger.error(f"User '{username}' has no password_hash — re-seeding password")
+                user.set_password(os.environ.get('ADMIN_DEFAULT_PASSWORD', 'admin123'))
+                db.session.commit()
             if user.check_password(password):
                 access_token = create_access_token(identity=str(user.id))
                 branch_name = user.branch.name if user.branch else "All"

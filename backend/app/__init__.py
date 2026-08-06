@@ -227,6 +227,9 @@ def create_app(config_class=Config):
     @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')
     def serve_frontend(path):
+        # Unknown /api/* paths must stay JSON 404s, not SPA fallback
+        if path.startswith('api/'):
+            return jsonify({'message': 'Not found'}), 404
         if path != '' and os.path.exists(os.path.join(app.static_folder or '', path)):
             return send_from_directory(app.static_folder, path)
         return send_from_directory(app.static_folder or '', 'index.html')

@@ -1,0 +1,1 @@
+var e=e=>e?.role?.toLowerCase()===`admin`;export{e as t};

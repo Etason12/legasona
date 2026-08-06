@@ -16,7 +16,7 @@ services:
       - key: ADMIN_RESET_KEY
         generateValue: true
       - key: CORS_ORIGINS
-        value: https://legasona-frontend.onrender.com
+        value: https://legasonaimporter.onrender.com
       - key: FLASK_ENV
         value: production
 

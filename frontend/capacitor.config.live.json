@@ -3,7 +3,7 @@
   "appName": "Legasona",
   "webDir": "dist",
   "server": {
-    "url": "https://legasona-frontend.onrender.com",
+    "url": "https://legasonaimporter.onrender.com",
     "cleartext": false
   },
   "android": {

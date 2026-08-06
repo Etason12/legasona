@@ -111,14 +111,42 @@ legasona/
 
 ## 🌐 Deployment
 
-The project is deployed on **Render** with two services:
-
-1. **`legasona-api`** — Python web service, runs `start.sh` (auto-migrates + starts Gunicorn)
-2. **`legasona-frontend`** — Static site, serves the built React app with SPA rewrite rules
+The project is deployed on **Render** as a single Python web service
+(`https://legasonaimporter.onrender.com`). The Flask app serves both the
+`/api` endpoints **and** the built React frontend (from `frontend/dist/`) at
+the root — so one URL is the whole app. `start.sh` auto-runs migrations and
+starts Gunicorn on every deploy.
 
 Database: PostgreSQL 16 (Render managed).
 
-To deploy your own fork, connect your GitHub repo to Render and use `render.yaml` as the blueprint.
+> Note: `render.yaml` also documents an *optional* static-site service
+> (`legasona-frontend`) for hosting the frontend separately. It is not
+> required — the API service already serves the app.
+
+### 🔄 Rebuilding & deploying the frontend
+
+The built frontend lives in **`frontend/dist/` and is committed to git** — the
+server does **not** run `npm install` / `npm run build` during deploy. So
+whenever you change frontend code, you **must** rebuild and commit `dist` or
+the deployed app keeps serving the old bundle:
+
+```bash
+cd frontend
+npm install
+VITE_API_URL=https://legasonaimporter.onrender.com/api npm run build
+cd ..
+git add frontend/dist
+git commit -m "build: rebuild frontend dist"
+git push origin main
+```
+
+Render auto-deploys the API service on every push to `main` (including the
+committed `dist`), so the new build goes live automatically — no dashboard
+action needed. `frontend/dist/` is intentionally **not** gitignored so the
+committed bundle stays in sync with the source.
+
+To deploy your own fork, connect your GitHub repo to Render and use
+`render.yaml` as the blueprint.
 
 ---
 

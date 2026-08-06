@@ -69,9 +69,8 @@ const Purchases = ({ user }) => {
 
  const fetchInventory = async () => {
   try {
-   const [vRes, sRes, bRes] = await Promise.all([
-    api.get('/inventory/vehicles'),
-    api.get('/inventory/spare-parts'),
+   const [vRes, sRes, bRes] = await Promise.all([     api.get('/inventory/vehicles?per_page=10000&no_image=1'),
+     api.get('/inventory/spare-parts?per_page=10000&no_image=1'),
     api.get('/branches')
    ])
     setInventory({ vehicles: vRes.data.items || vRes.data || [], spareParts: sRes.data.items || sRes.data || [] })

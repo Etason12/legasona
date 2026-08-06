@@ -6,6 +6,7 @@ from app.utils.image_utils import compress_to_base64
 from app.utils.logging import log_activity
 from app.utils.notifications import send_notification
 from app.utils.validation import safe_int
+from sqlalchemy import or_
 import time
 
 inventory_bp = Blueprint('inventory', __name__)
@@ -19,20 +20,32 @@ def get_vehicles():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     page = safe_int(request.args.get('page', 1), default=1, min_val=1)
-    per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=100)
+    per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=10000)
     query = Vehicle.query
     branch_id = effective_branch_id(current_user, branch_id)
     if branch_id:
         query = query.filter_by(branch_id=branch_id)
     if status:
         query = query.filter_by(status=status)
-    
-    paginated_vehicles = query.with_entities(
+    search = (request.args.get('search') or '').strip()
+    if search:
+        like = f'%{search}%'
+        query = query.filter(or_(
+            Vehicle.model.ilike(like),
+            Vehicle.vin.ilike(like),
+            Vehicle.engine_number.ilike(like),
+        ))
+    no_image = request.args.get('no_image') == '1'
+    select_cols = [
         Vehicle.id, Vehicle.vin, Vehicle.type, Vehicle.power_type,
         Vehicle.model, Vehicle.color, Vehicle.engine_number,
         Vehicle.cost_price, Vehicle.selling_price, Vehicle.branch_id,
-        Vehicle.status, Vehicle.image
-    ).paginate(page=page, per_page=per_page, error_out=False)
+        Vehicle.status,
+    ]
+    if not no_image:
+        select_cols.append(Vehicle.image)
+
+    paginated_vehicles = query.with_entities(*select_cols).paginate(page=page, per_page=per_page, error_out=False)
     
     vehicles = paginated_vehicles.items
     return jsonify({
@@ -41,7 +54,7 @@ def get_vehicles():
             'model': v.model, 'color': v.color, 'chassis_number': v.vin,
             'engine_number': v.engine_number, 'cost_price': v.cost_price,
             'selling_price': v.selling_price, 'branch_id': v.branch_id,
-            'status': v.status, 'image': v.image
+            'status': v.status, 'image': None if no_image else getattr(v, 'image', None)
         } for v in vehicles],
         'total': paginated_vehicles.total,
         'pages': paginated_vehicles.pages,
@@ -126,18 +139,30 @@ def get_spare_parts():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     page = safe_int(request.args.get('page', 1), default=1, min_val=1)
-    per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=100)
+    per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=10000)
     query = SparePart.query
     branch_id = effective_branch_id(current_user, branch_id)
     if branch_id:
         query = query.filter_by(branch_id=branch_id)
-    
-    paginated_parts = query.with_entities(
+    search = (request.args.get('search') or '').strip()
+    if search:
+        like = f'%{search}%'
+        query = query.filter(or_(
+            SparePart.name.ilike(like),
+            SparePart.part_number.ilike(like),
+            SparePart.name_tigrinya.ilike(like),
+        ))
+    no_image = request.args.get('no_image') == '1'
+    select_cols = [
         SparePart.id, SparePart.part_number, SparePart.name,
         SparePart.name_tigrinya, SparePart.category, SparePart.quantity,
         SparePart.unit_price, SparePart.cost_price,
-        SparePart.branch_id, SparePart.image
-    ).paginate(page=page, per_page=per_page, error_out=False)
+        SparePart.branch_id,
+    ]
+    if not no_image:
+        select_cols.append(SparePart.image)
+
+    paginated_parts = query.with_entities(*select_cols).paginate(page=page, per_page=per_page, error_out=False)
     
     parts = paginated_parts.items
     return jsonify({
@@ -145,7 +170,7 @@ def get_spare_parts():
             'id': p.id, 'part_number': p.part_number, 'name': p.name,
             'name_tigrinya': p.name_tigrinya, 'category': p.category, 'quantity': p.quantity,
             'unit_price': p.unit_price, 'cost_price': p.cost_price,
-            'branch_id': p.branch_id, 'image': p.image
+            'branch_id': p.branch_id, 'image': None if no_image else getattr(p, 'image', None)
         } for p in parts],
         'total': paginated_parts.total,
         'pages': paginated_parts.pages,

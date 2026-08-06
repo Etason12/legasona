@@ -87,7 +87,7 @@ def get_orders():
     branch_id = request.args.get('branch_id')
     
     page = safe_int(request.args.get('page', 1), default=1, min_val=1)
-    per_page = safe_int(request.args.get('per_page', 20), default=20, min_val=1, max_val=100)
+    per_page = safe_int(request.args.get('per_page', 20), default=20, min_val=1, max_val=10000)
     
     query = Order.query
     

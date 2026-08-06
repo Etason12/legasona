@@ -127,8 +127,8 @@ const Sales = ({ user }) => {
       const branchId = user?.role?.toLowerCase() === 'admin' ? selectedBranchId : (user?.branch_id || '')
       const [salesRes, vehRes, partsRes, custRes] = await Promise.all([
         api.get(`/sales?status=${statusFilter}&search=${searchQuery}&start_date=${startDate}&end_date=${endDate}&branch_id=${branchId}&page=${page}&per_page=${perPage}`),
-        api.get(`/inventory/vehicles?status=available&branch_id=${branchId}`),
-        api.get(`/inventory/spare-parts?branch_id=${branchId}`),
+        api.get(`/inventory/vehicles?status=available&branch_id=${branchId}&per_page=10000&no_image=1`),
+        api.get(`/inventory/spare-parts?branch_id=${branchId}&per_page=10000&no_image=1`),
         api.get('/customers')
       ])
       if (Array.isArray(salesRes.data)) {

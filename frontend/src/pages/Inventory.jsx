@@ -233,6 +233,8 @@ const Inventory = ({ user }) => {
   const [stats, setStats]               = useState({ available: 0, reserved: 0, sold: 0, 'in-transit': 0 })
   const [spPage, setSpPage] = useState(1)
   const [spTotalPages, setSpTotalPages] = useState(1)
+  const [vPage, setVPage] = useState(1)
+  const [vTotalPages, setVTotalPages] = useState(1)
 
   useEffect(() => {
     if (user?.role?.toLowerCase() !== 'admin') {
@@ -240,7 +242,12 @@ const Inventory = ({ user }) => {
     }
   }, [user])
 
-  useEffect(() => { fetchData() }, [branchFilter, statusFilter, spPage])
+  useEffect(() => { fetchData() }, [branchFilter, statusFilter, spPage, vPage])
+
+  useEffect(() => {
+    setSpPage(1)
+    setVPage(1)
+  }, [branchFilter, statusFilter])
 
   useEffect(() => {
     const bId = branchFilter
@@ -256,12 +263,13 @@ const Inventory = ({ user }) => {
       const bId = branchFilter
       const sId = activeTab === 'vehicles' ? statusFilter : ''
       const [vRes, sRes, bRes, statsRes] = await Promise.all([
-        api.get(`/inventory/vehicles?branch_id=${bId}&status=${sId}`),
+        api.get(`/inventory/vehicles?branch_id=${bId}&status=${sId}&page=${vPage}&per_page=50`),
         api.get(`/inventory/spare-parts?branch_id=${bId}&page=${spPage}&per_page=50`),
         api.get('/branches'),
         api.get(`/inventory/vehicle-stats?branch_id=${bId}`),
       ])
       setVehicles(vRes.data.items || [])
+      setVTotalPages(vRes.data.pages || 1)
       const spData = sRes.data
       setSpareParts(spData.items || [])
       setSpTotalPages(spData.pages || 1)
@@ -462,6 +470,13 @@ const Inventory = ({ user }) => {
           <button disabled={spPage <= 1} onClick={() => setSpPage(p => p - 1)} className="px-3 py-1.5 text-xs font-bold rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-600 dark:text-slate-300 disabled:opacity-40">Prev</button>
           <span className="text-xs text-slate-500 font-medium">Page {spPage} of {spTotalPages}</span>
           <button disabled={spPage >= spTotalPages} onClick={() => setSpPage(p => p + 1)} className="px-3 py-1.5 text-xs font-bold rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-600 dark:text-slate-300 disabled:opacity-40">Next</button>
+        </div>
+      )}
+      {activeTab === 'vehicles' && vTotalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <button disabled={vPage <= 1} onClick={() => setVPage(p => p - 1)} className="px-3 py-1.5 text-xs font-bold rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-600 dark:text-slate-300 disabled:opacity-40">Prev</button>
+          <span className="text-xs text-slate-500 font-medium">Page {vPage} of {vTotalPages}</span>
+          <button disabled={vPage >= vTotalPages} onClick={() => setVPage(p => p + 1)} className="px-3 py-1.5 text-xs font-bold rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-600 dark:text-slate-300 disabled:opacity-40">Next</button>
         </div>
       )}
 

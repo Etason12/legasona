@@ -107,7 +107,16 @@ def create_app(config_class=Config):
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         if not app.config.get('DEBUG'):
             response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-        response.headers['Content-Security-Policy'] = "default-src 'self'"
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob:; "
+            "media-src 'self' blob: data:; "
+            "font-src 'self' data:; "
+            "connect-src 'self' https://legasonaimporter.onrender.com; "
+            "frame-src 'self' blob:"
+        )
         return response
 
     # ── Global Error Handlers ─────────────────────────────────────────

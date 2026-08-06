@@ -25,7 +25,7 @@ import {
 } from 'recharts'
 import { exportReportsToExcel } from '../services/ExportService'
 import { useLanguage } from '../i18n/LanguageContext'
-import { formatDate, capitalizeName } from '../utils/format'
+import { formatDate, capitalizeName, daysAgo } from '../utils/format'
 
 const COLORS = ['#0ea5e9', '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#f97316', '#84cc16'];
 
@@ -37,11 +37,8 @@ const Reports = ({ user }) => {
   const [branchComparison, setBranchComparison] = useState([])
   const [inventoryDist, setInventoryDist] = useState(null)
   const [branches, setBranches] = useState([])
-  const today = new Date()
-  const pad = n => String(n).padStart(2, '0')
-  const monthStart = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-01`
-  const [startDate, setStartDate] = useState(monthStart)
-  const [endDate, setEndDate] = useState(`${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`)
+  const [startDate, setStartDate] = useState(daysAgo(31))
+  const [endDate, setEndDate] = useState(daysAgo(0))
   const [loading, setLoading] = useState(true)
   const [saleTypeFilter, setSaleTypeFilter] = useState('')
   const [selectedBranchId, setSelectedBranchId] = useState('')

@@ -39,3 +39,11 @@ export const capitalizeName = (str) => {
   if (!str) return ''
   return str.replace(/\b\w/g, c => c.toUpperCase())
 }
+
+export const daysAgo = (days) => {
+  const d = new Date()
+  d.setDate(d.getDate() - days)
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
+}

@@ -5,7 +5,7 @@ import api from '../services/api'
 import { exportSalesToExcel } from '../services/ExportService'
 import { useLanguage } from '../i18n/LanguageContext'
 import { useImagePicker } from '../hooks/useImagePicker'
-import { capitalizeName } from '../utils/format'
+import { capitalizeName, daysAgo } from '../utils/format'
 
 import SalesFilterBar from '../components/sales/SalesFilterBar'
 import SalesTable from '../components/sales/SalesTable'
@@ -30,9 +30,8 @@ const Sales = ({ user }) => {
   const [statusFilter, setStatusFilter] = useState('pending')
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const today = new Date(); const pad = n => String(n).padStart(2, '0')
-  const [startDate, setStartDate] = useState(`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`)
-  const [endDate, setEndDate] = useState(`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`)
+  const [startDate, setStartDate] = useState(daysAgo(31))
+  const [endDate, setEndDate] = useState(daysAgo(0))
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [perPage] = useState(50)

@@ -4,7 +4,7 @@ import api from '../services/api'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useLanguage } from '../i18n/LanguageContext'
-import { formatDate } from '../utils/format'
+import { formatDate, daysAgo } from '../utils/format'
 
 const Expenses = ({ user }) => {
  const [expenses, setExpenses] = useState([])
@@ -12,9 +12,8 @@ const Expenses = ({ user }) => {
  const [showAddModal, setShowAddModal] = useState(false)
  const [submitting, setSubmitting] = useState(false)
   const [previewImage, setPreviewImage] = useState(null)
-   const today = new Date(); const pad = n => String(n).padStart(2, '0')
-   const [startDate, setStartDate] = useState(`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`)
-   const [endDate, setEndDate] = useState(`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`)
+   const [startDate, setStartDate] = useState(daysAgo(31))
+   const [endDate, setEndDate] = useState(daysAgo(0))
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [budgetData, setBudgetData] = useState({ budget: 0, spent: 0, remaining: 0 })

@@ -216,6 +216,31 @@ def test_vehicle_sale_sale_number_fits_varchar20(client, auth_headers, db):
         f"sale_number {sale.sale_number!r} is {len(sale.sale_number)} chars (must be <= 20)"
 
 
+def test_vehicle_sale_edit_completed_only(client, auth_headers, db):
+    """Admins may only edit completed sales; pending/cancelled are rejected."""
+    from app.models import Sale
+    vehicle = _create_vehicle(client, auth_headers, db)
+
+    pending = client.post('/api/sales/vehicle', headers=auth_headers, json={
+        'vehicle_id': vehicle.id, 'customer_name': 'Test', 'customer_phone': '+251911000994',
+        'payments': [],
+    })
+    assert pending.status_code == 201
+    pid = pending.get_json()['sale_id']
+    resp = client.patch(f'/api/sales/{pid}', headers=auth_headers, json={'remark': 'nope'})
+    assert resp.status_code == 400, resp.get_json()
+
+    completed = client.post('/api/sales/vehicle', headers=auth_headers, json={
+        'vehicle_id': vehicle.id, 'customer_name': 'Test', 'customer_phone': '+251911000993',
+        'payments': [{'method': 'cash', 'amount': '2500000'}],
+    })
+    assert completed.status_code == 201 and completed.get_json()['status'] == 'completed'
+    cid = completed.get_json()['sale_id']
+    resp = client.patch(f'/api/sales/{cid}', headers=auth_headers, json={'remark': 'ok'})
+    assert resp.status_code == 200, resp.get_json()
+    assert db.session.get(Sale, cid).remark == 'ok'
+
+
 def test_vehicle_sale_payments_null(client, auth_headers, db):
     """payments=null must be treated as empty list, not crash with a 500."""
     vehicle = _create_vehicle(client, auth_headers, db)

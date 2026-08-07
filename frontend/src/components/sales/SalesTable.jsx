@@ -111,7 +111,7 @@ const SalesTable = ({ sales, loading, user, onPreviewImage, onViewPayments, onCo
                         <>
                           {sale.status !== 'cancelled' ? (
                             <>
-                              {sale.status === 'pending' && (
+                              {sale.status === 'completed' && (
                                 <button onClick={() => onEditSale(sale)} className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-200 dark:border-indigo-800 transition-colors" title={t('editSale')}>
                                   <Pencil size={18} />
                                 </button>

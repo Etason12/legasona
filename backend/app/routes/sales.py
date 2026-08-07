@@ -536,6 +536,10 @@ def add_payment(id):
 @admin_required
 def update_sale(id):
     sale = db.get_or_404(Sale, id)
+    if sale.status == 'cancelled':
+        return jsonify({'message': 'Cancelled sales cannot be edited'}), 400
+    if sale.status != 'completed':
+        return jsonify({'message': 'Only completed sales can be edited'}), 400
     data = request.get_json()
     if not data:
         return jsonify({'message': 'No data provided'}), 400

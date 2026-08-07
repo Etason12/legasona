@@ -29,7 +29,7 @@ def test_record_vehicle_sale(client, auth_headers, db):
 
     sale = Sale.query.filter_by(sale_number=data['sale_number']).first()
     assert sale is not None
-    assert len(sale.sale_number) > 20  # regression: 22-char numbers must be storable
+    assert len(sale.sale_number) <= 20  # must fit VARCHAR(20) on Postgres
     assert sale.sale_type == 'vehicle'
     assert sale.item_id == vehicle.id
     assert sale.status == 'completed'
@@ -98,7 +98,7 @@ def test_record_spare_part_sale(client, auth_headers, db):
 
     sale = Sale.query.filter_by(sale_number=data['sale_number']).first()
     assert sale is not None
-    assert len(sale.sale_number) > 20  # regression: 22-char numbers must be storable
+    assert len(sale.sale_number) <= 20  # must fit VARCHAR(20) on Postgres
     assert sale.sale_type == 'spare_part'
     assert sale.quantity == 2
     assert float(sale.total_amount) == 1000

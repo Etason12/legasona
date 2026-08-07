@@ -88,10 +88,16 @@ def _customer_fields(data):
     return name, phone
 
 def _generate_sale_number(prefix):
-    """Build a unique sale number using a timestamp plus a random suffix."""
+    """Build a unique sale number that fits a VARCHAR(20) column.
+
+    Format: VS-YYYYMMDD-XXXX (16 chars). The previous VS-YYYYMMDDHHMMSS-XXXX
+    format was 22 chars, which overflows the production column on PostgreSQL
+    (still VARCHAR(20) because the widen migration did not apply there),
+    causing a DataError/500. This format is safe on both VARCHAR(20) and
+    VARCHAR(40)."""
     import secrets
     for _ in range(10):
-        stamp = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
+        stamp = datetime.now(timezone.utc).strftime('%Y%m%d')
         suffix = f"{secrets.randbelow(10000):04d}"
         number = f"{prefix}-{stamp}-{suffix}"
         if not Sale.query.filter_by(sale_number=number).first():

@@ -202,6 +202,20 @@ def test_vehicle_sale_long_phone_and_name(client, auth_headers, db):
     assert len(sale.motor_number) == 50
 
 
+def test_vehicle_sale_sale_number_fits_varchar20(client, auth_headers, db):
+    """The generated sale_number must fit VARCHAR(20) on the production Postgres."""
+    vehicle = _create_vehicle(client, auth_headers, db)
+    resp = client.post('/api/sales/vehicle', headers=auth_headers, json={
+        'vehicle_id': vehicle.id, 'customer_name': 'Test User', 'customer_phone': '+251911000995',
+        'payments': [{'method': 'cash', 'amount': '1620000'}],
+    })
+    assert resp.status_code == 201, f"Expected 201, got {resp.status_code}: {resp.get_json()}"
+    from app.models import Sale
+    sale = Sale.query.filter_by(sale_type='vehicle').order_by(Sale.id.desc()).first()
+    assert sale is not None and len(sale.sale_number) <= 20, \
+        f"sale_number {sale.sale_number!r} is {len(sale.sale_number)} chars (must be <= 20)"
+
+
 def test_vehicle_sale_payments_null(client, auth_headers, db):
     """payments=null must be treated as empty list, not crash with a 500."""
     vehicle = _create_vehicle(client, auth_headers, db)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { Plus, Download, Loader2, CheckCircle2, Truck, Wrench, X, Trash2, Upload, Camera } from 'lucide-react'
+import { Plus, Download, Loader2, CheckCircle2, Truck, Wrench, X, Trash2, Upload, Camera, Search } from 'lucide-react'
 import { toast } from 'react-toastify'
 import api from '../services/api'
 import { exportSalesToExcel } from '../services/ExportService'
@@ -58,6 +58,7 @@ const Sales = ({ user }) => {
   const set = (key, value) => setForm(prev => ({...prev, [key]: value}))
   const [payments, setPayments] = useState([{ id: 1, method: 'cash', amount: '', bank: '', reference: '', accountHolder: '' }])
   const [selectedVehicleId, setSelectedVehicleId] = useState('')
+  const [vehicleSearch, setVehicleSearch] = useState('')
   const [selectedPartId, setSelectedPartId] = useState('')
   const [partQuantity, setPartQuantity] = useState(1)
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
@@ -74,6 +75,23 @@ const Sales = ({ user }) => {
     [availableParts]
   )
 
+  // Vehicles shown in the sale dropdown: filtered by the search box, with the
+  // currently selected vehicle kept visible even if it doesn't match.
+  const filteredVehicles = useMemo(() => {
+    const q = vehicleSearch.trim().toLowerCase()
+    if (!q) return sortedVehicles
+    const matched = sortedVehicles.filter(v =>
+      (v.model || '').toLowerCase().includes(q) ||
+      (v.vin || '').toLowerCase().includes(q) ||
+      (v.engine_number || '').toLowerCase().includes(q)
+    )
+    const selected = sortedVehicles.find(v => v.id === parseInt(selectedVehicleId, 10))
+    if (selected && !matched.some(v => v.id === selected.id)) {
+      return [selected, ...matched]
+    }
+    return matched
+  }, [sortedVehicles, vehicleSearch, selectedVehicleId])
+
   useEffect(() => { const t = setTimeout(() => setDebouncedSearch(searchQuery), 350); return () => clearTimeout(t) }, [searchQuery])
   useEffect(() => { fetchData() }, [statusFilter, debouncedSearch, startDate, endDate, page, selectedBranchId])
 
@@ -87,6 +105,7 @@ const Sales = ({ user }) => {
     if (showNewSale) {
       setForm({})
       setSelectedVehicleId('')
+      setVehicleSearch('')
       setSelectedPartId('')
       setPartQuantity(1)
       setSelectedCustomerId('')
@@ -126,7 +145,7 @@ const Sales = ({ user }) => {
       const branchId = user?.role?.toLowerCase() === 'admin' ? selectedBranchId : (user?.branch_id || '')
       const [salesRes, vehRes, partsRes, custRes] = await Promise.all([
         api.get(`/sales?status=${statusFilter}&search=${searchQuery}&start_date=${startDate}&end_date=${endDate}&branch_id=${branchId}&page=${page}&per_page=${perPage}`),
-        api.get(`/inventory/vehicles?status=available&branch_id=${branchId}&per_page=10000&no_image=1`),
+        api.get(`/inventory/vehicles?status=available,reserved&branch_id=${branchId}&per_page=10000&no_image=1`),
         api.get(`/inventory/spare-parts?branch_id=${branchId}&per_page=10000&no_image=1`),
         api.get('/customers')
       ])
@@ -423,6 +442,8 @@ const Sales = ({ user }) => {
           addPaymentRow={addPaymentRow} removePaymentRow={removePaymentRow}
           selectedVehicleId={selectedVehicleId} onVehicleSelect={handleVehicleSelect}
           sortedVehicles={sortedVehicles}
+          filteredVehicles={filteredVehicles}
+          vehicleSearch={vehicleSearch} onVehicleSearchChange={setVehicleSearch}
           selectedPartId={selectedPartId} onPartSelect={setSelectedPartId}
           sortedParts={sortedParts} partQuantity={partQuantity} onPartQuantityChange={setPartQuantity}
           availableParts={availableParts}
@@ -453,7 +474,8 @@ const Sales = ({ user }) => {
 
 // NewSaleModal - inline since it's complex but tightly coupled to Sales state
 const NewSaleModal = ({ show, onClose, form, setForm, set, payments, setPayments, addPaymentRow, removePaymentRow,
-  selectedVehicleId, onVehicleSelect, sortedVehicles, selectedPartId, onPartSelect, sortedParts,
+  selectedVehicleId, onVehicleSelect, sortedVehicles, filteredVehicles, vehicleSearch, onVehicleSearchChange,
+  selectedPartId, onPartSelect, sortedParts,
   partQuantity, onPartQuantityChange, availableParts, selectedCustomerId, onCustomerSelect,
   customers, newCustPhone, onCustPhoneChange, phoneWarning, onPhoneWarningChange,
   saleType, onSaleTypeChange, onSubmit, submitting, handleCameraNewSalePay }) => {
@@ -522,12 +544,28 @@ const NewSaleModal = ({ show, onClose, form, setForm, set, payments, setPayments
                     <div className="space-y-4">
                       <div>
                         <label className="label">{t('vehicle')} *</label>
+                        <div className="relative mb-2">
+                          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          <input
+                            type="text"
+                            className="input-field pl-9"
+                            placeholder={t('searchVehicles') || 'Search by model, VIN, or engine...'}
+                            value={vehicleSearch}
+                            onChange={e => onVehicleSearchChange(e.target.value)}
+                          />
+                        </div>
                         <select name="vehicle_id" required className="input-field" value={selectedVehicleId} onChange={e => onVehicleSelect(e.target.value)}>
                           <option value="">{t('selectItem')}</option>
-                          {sortedVehicles.map(v => (
-                            <option key={v.id} value={v.id}>{v.model.toUpperCase()} — {v.vin}{v.engine_number ? ` — Motor: ${v.engine_number}` : ''}{v.selling_price != null ? ` — ETB ${Number(v.selling_price).toLocaleString()}` : ''}</option>
+                          {filteredVehicles.map(v => (
+                            <option key={v.id} value={v.id}>{(v.model || '').toUpperCase()} — {v.vin}{v.engine_number ? ` — Motor: ${v.engine_number}` : ''}{v.selling_price != null ? ` — ETB ${Number(v.selling_price).toLocaleString()}` : ''}{v.status === 'reserved' ? ' — (RESERVED)' : ''}</option>
                           ))}
                         </select>
+                        {vehicleSearch.trim() && filteredVehicles.length === 0 && (
+                          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">{t('noVehiclesMatch') || 'No vehicles match your search'}</p>
+                        )}
+                        {vehicleSearch.trim() && filteredVehicles.length > 0 && (
+                          <p className="text-xs text-slate-400 mt-1.5">{filteredVehicles.length} / {sortedVehicles.length}</p>
+                        )}
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div><label className="label">{t('chassisNumber')} (VIN)</label><input type="text" name="chassis_number" readOnly className="input-field bg-neutral-100 dark:bg-neutral-800" value={form.chassis_number ?? ''} /></div>

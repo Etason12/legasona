@@ -58,6 +58,29 @@ def test_vehicles_no_image(client, auth_headers, db):
     assert full['items'][0]['image'] is not None
 
 
+def test_vehicles_multi_status(client, auth_headers, db):
+    """Comma-separated status filter returns vehicles in any listed status
+    (used by the sales dropdown to include sellable 'reserved' vehicles)."""
+    from app.models import Vehicle
+    db.session.add(Vehicle(vin='MS-0001', model='M1', type='3-wheel', status='available', selling_price=100))
+    db.session.add(Vehicle(vin='MS-0002', model='M2', type='3-wheel', status='reserved', selling_price=100))
+    db.session.add(Vehicle(vin='MS-0003', model='M3', type='3-wheel', status='sold', selling_price=100))
+    db.session.commit()
+
+    resp = client.get('/api/inventory/vehicles?status=available,reserved', headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.get_json()
+    vins = {i['vin'] for i in data['items']}
+    assert {'MS-0001', 'MS-0002'} <= vins
+    assert 'MS-0003' not in vins
+
+    # Single status still works (backward compatible)
+    resp2 = client.get('/api/inventory/vehicles?status=available', headers=auth_headers)
+    vins2 = {i['vin'] for i in resp2.get_json()['items']}
+    assert 'MS-0001' in vins2
+    assert 'MS-0002' not in vins2
+
+
 def test_spare_parts_search(client, auth_headers, db):
     """Spare parts search filters by name/part_number."""
     from app.models import SparePart

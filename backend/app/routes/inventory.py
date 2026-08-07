@@ -26,7 +26,10 @@ def get_vehicles():
     if branch_id:
         query = query.filter_by(branch_id=branch_id)
     if status:
-        query = query.filter_by(status=status)
+        # Support comma-separated statuses, e.g. status=available,reserved
+        statuses = [s.strip() for s in status.split(',') if s.strip()]
+        if statuses:
+            query = query.filter(Vehicle.status.in_(statuses))
     search = (request.args.get('search') or '').strip()
     if search:
         like = f'%{search}%'

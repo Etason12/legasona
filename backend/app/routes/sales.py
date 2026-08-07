@@ -15,6 +15,24 @@ from app.utils.notifications import send_notification
 sales_bp = Blueprint('sales', __name__)
 logger = logging.getLogger(__name__)
 
+
+def _safe_float(value, field_name='amount'):
+    """Parse a payment amount from a potentially messy phone-keyboard string.
+    Strips commas, spaces, and currency symbols before converting to float.
+    Returns 0 for empty/None values; raises ValueError with a 400-friendly
+    message for unparseable strings."""
+    if value is None or value == '':
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    cleaned = str(value).strip().replace(',', '').replace(' ', '').replace('ETB', '').replace('ET', '')
+    if not cleaned:
+        return 0.0
+    try:
+        return float(cleaned)
+    except (ValueError, TypeError):
+        raise ValueError(f'Invalid {field_name}: "{value}" — please enter a numeric value')
+
 def _generate_sale_number(prefix):
     """Build a unique sale number using a timestamp plus a random suffix."""
     import secrets
@@ -52,6 +70,9 @@ def _ensure_customer(data, item_branch_id=None):
 def record_vehicle_sale():
     try:
         return _record_vehicle_sale()
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'message': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         logger.error(f"record_vehicle_sale failed: {e}", exc_info=True)
@@ -78,10 +99,10 @@ def _record_vehicle_sale():
     if selling_price <= 0:
         return jsonify({'message': 'Vehicle has no selling price set in inventory'}), 400
     total_amount = selling_price
-    paid_amount = sum(float(p.get('amount', 0)) for p in payments_data)
+    paid_amount = sum(_safe_float(p.get('amount'), 'payment amount') for p in payments_data)
     status = 'completed' if paid_amount >= total_amount else 'pending'
     sale_number = _generate_sale_number('VS')
-    sale_date_str = data.get('sale_date')
+    sale_date_str = (data.get('sale_date') or '').strip()
     sale_date = datetime.fromisoformat(sale_date_str) if sale_date_str else datetime.now(timezone.utc)
 
     customer_id = _ensure_customer(data, item_branch_id=vehicle.branch_id) or data.get('customer_id') or None
@@ -126,7 +147,7 @@ def _record_vehicle_sale():
         db.session.add(Payment(
             sale_id=new_sale.id, payment_method=method,
             bank_name=p.get('bank', '').upper(), account_holder=p.get('accountHolder', '').upper(),
-            amount=float(p.get('amount', 0)),
+            amount=_safe_float(p.get('amount'), 'payment amount'),
             transaction_reference=ref.upper() if ref else None, receipt_image=receipt_data,
             payment_date=sale_date
         ))
@@ -153,6 +174,9 @@ def _record_vehicle_sale():
 def record_spare_part_sale():
     try:
         return _record_spare_part_sale()
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'message': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         logger.error(f"record_spare_part_sale failed: {e}", exc_info=True)
@@ -170,12 +194,14 @@ def _record_spare_part_sale():
     if part.quantity < qty:
         return jsonify({'message': 'Insufficient stock'}), 400
 
-    total_amount = float(data.get('total_amount'))
+    total_amount = _safe_float(data.get('total_amount'), 'total amount')
+    if total_amount <= 0:
+        return jsonify({'message': 'Total amount must be greater than zero'}), 400
     payments_data = data.get('payments', [])
-    paid_amount = sum(float(p.get('amount', 0)) for p in payments_data)
+    paid_amount = sum(_safe_float(p.get('amount'), 'payment amount') for p in payments_data)
     status = 'completed' if paid_amount >= total_amount else 'pending'
     sale_number = _generate_sale_number('SP')
-    sale_date_str = data.get('sale_date')
+    sale_date_str = (data.get('sale_date') or '').strip()
     sale_date = datetime.fromisoformat(sale_date_str) if sale_date_str else datetime.now(timezone.utc)
 
     customer_id = _ensure_customer(data, item_branch_id=part.branch_id) or data.get('customer_id') or None
@@ -211,7 +237,7 @@ def _record_spare_part_sale():
         db.session.add(Payment(
             sale_id=new_sale.id, payment_method=method,
             bank_name=p.get('bank', '').upper(), account_holder=p.get('accountHolder', '').upper(),
-            amount=float(p.get('amount', 0)),
+            amount=_safe_float(p.get('amount'), 'payment amount'),
             transaction_reference=ref.upper() if ref else None,
             payment_date=sale_date
         ))
@@ -284,7 +310,7 @@ def update_payment(sale_id, payment_id):
         return jsonify({'message': 'No data provided'}), 400
 
     method = data.get('method', payment.payment_method)
-    amount = float(data.get('amount', payment.amount))
+    amount = _safe_float(data.get('amount', payment.amount), 'payment amount')
 
     if method == 'bank':
         bank = data.get('bank', payment.bank_name or '')
@@ -382,7 +408,10 @@ def add_payment(id):
         return jsonify({'message': 'Sale already fully paid'}), 400
 
     try:
-        amount = float(request.form.get('amount', 0))
+        amount_raw = request.form.get('amount')
+        amount = _safe_float(amount_raw, 'payment amount')
+        if amount <= 0:
+            return jsonify({'message': 'Payment amount must be greater than zero'}), 400
         method = request.form.get('method', 'cash')
         bank = request.form.get('bank', '')
         account_holder = request.form.get('account_holder', '')
@@ -428,6 +457,9 @@ def add_payment(id):
             {'type': 'payment', 'sale_number': sale.sale_number, 'amount': amount}
         )
         return jsonify({'message': 'Payment added', 'status': sale.status}), 200
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'message': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         logger.error(f"add_payment failed for sale {id}: {e}", exc_info=True)
@@ -445,7 +477,7 @@ def update_sale(id):
 
     total_amount = data.get('total_amount')
     if total_amount is not None:
-        sale.total_amount = float(total_amount)
+        sale.total_amount = _safe_float(total_amount, 'total amount')
         # Recalculate status based on new total
         total_paid = db.session.query(func.sum(Payment.amount)).filter(Payment.sale_id == sale.id).scalar() or 0
         if total_paid >= sale.total_amount:

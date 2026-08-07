@@ -278,7 +278,7 @@ const Sales = ({ user }) => {
 
     const paymentsData = payments.map(p => ({
       method: p.method,
-      amount: p.amount,
+      amount: p.amount === '' || p.amount == null ? 0 : Number(String(p.amount).replace(/[\s,]/g, '')) || 0,
       ...(p.method === 'bank' ? { bank: p.bank?.toUpperCase(), reference: p.reference?.toUpperCase(), accountHolder: p.accountHolder?.toUpperCase() } : {}),
     }))
 

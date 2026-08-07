@@ -21,8 +21,13 @@ def app():
 
 @pytest.fixture(scope='function')
 def db(app):
-    """Create a fresh database for each test."""
+    """Create a fresh database for each test.
+
+    drop_all() before create_all() clears any data seeded by create_app()
+    (branches, admin user, sample inventory), so even the first test in a
+    process starts with a truly empty database."""
     with app.app_context():
+        _db.drop_all()
         _db.create_all()
         yield _db
         _db.session.rollback()
@@ -33,6 +38,40 @@ def db(app):
 def client(app, db):
     """Create a test client with a fresh database."""
     return app.test_client()
+
+
+# ── Shared API setup helpers (used by e2e test files) ───────────────────
+
+def create_branch_via_api(client, headers, name='Shire', location='Shire'):
+    """Create a branch through the API and return its id."""
+    resp = client.post('/api/branches', headers=headers,
+                       json={'name': name, 'location': location})
+    assert resp.status_code == 201, resp.get_json()
+    return resp.get_json()['id']
+
+
+def create_vehicle_via_api(client, headers, branch_id, vin, model,
+                           selling_price, cost_price=0):
+    """Create an available vehicle through the API and return its id."""
+    resp = client.post('/api/inventory/vehicles', headers=headers, data={
+        'vin': vin, 'type': '4-wheel', 'power_type': 'non-electric',
+        'model': model, 'branch_id': str(branch_id),
+        'cost_price': str(cost_price), 'selling_price': str(selling_price),
+    }, content_type='multipart/form-data')
+    assert resp.status_code == 201, resp.get_json()
+    return resp.get_json()['id']
+
+
+def create_spare_part_via_api(client, headers, branch_id, name, unit_price,
+                              quantity, cost_price=0):
+    """Create a spare part through the API and return its id."""
+    resp = client.post('/api/inventory/spare-parts', headers=headers, data={
+        'name': name, 'category': 'Filters', 'branch_id': str(branch_id),
+        'unit_price': str(unit_price), 'cost_price': str(cost_price),
+        'quantity': str(quantity),
+    }, content_type='multipart/form-data')
+    assert resp.status_code == 201, resp.get_json()
+    return resp.get_json()['id']
 
 
 @pytest.fixture

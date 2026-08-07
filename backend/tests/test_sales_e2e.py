@@ -10,35 +10,8 @@ the frontend does — no direct model manipulation for the flow under test:
 
 Each test uses a fresh in-memory database and an admin auth token.
 """
-# ── API setup helpers ─────────────────────────────────────────────────
-
-def _create_branch(client, headers, name='Shire', location='Shire'):
-    resp = client.post('/api/branches', headers=headers,
-                       json={'name': name, 'location': location})
-    assert resp.status_code == 201, resp.get_json()
-    return resp.get_json()['id']
-
-
-def _create_vehicle(client, headers, branch_id, vin, model,
-                    selling_price, cost_price=0):
-    resp = client.post('/api/inventory/vehicles', headers=headers, data={
-        'vin': vin, 'type': '4-wheel', 'power_type': 'non-electric',
-        'model': model, 'branch_id': str(branch_id),
-        'cost_price': str(cost_price), 'selling_price': str(selling_price),
-    }, content_type='multipart/form-data')
-    assert resp.status_code == 201, resp.get_json()
-    return resp.get_json()['id']
-
-
-def _create_spare_part(client, headers, branch_id, name, unit_price,
-                       quantity, cost_price=0):
-    resp = client.post('/api/inventory/spare-parts', headers=headers, data={
-        'name': name, 'category': 'Filters', 'branch_id': str(branch_id),
-        'unit_price': str(unit_price), 'cost_price': str(cost_price),
-        'quantity': str(quantity),
-    }, content_type='multipart/form-data')
-    assert resp.status_code == 201, resp.get_json()
-    return resp.get_json()['id']
+from tests.conftest import (create_branch_via_api, create_vehicle_via_api,
+                            create_spare_part_via_api)
 
 
 def _find_sale(client, headers, sale_id):
@@ -54,10 +27,10 @@ def test_e2e_vehicle_sale_lifecycle(client, auth_headers, db):
     """Full vehicle sale journey through the API."""
     from app.models import Customer, Payment, Sale, Vehicle
 
-    branch_id = _create_branch(client, auth_headers)
-    vehicle_id = _create_vehicle(client, auth_headers, branch_id,
-                                 'E2E-VIN-001', 'Toyota Hilux',
-                                 selling_price=2500000, cost_price=1800000)
+    branch_id = create_branch_via_api(client, auth_headers)
+    vehicle_id = create_vehicle_via_api(client, auth_headers, branch_id,
+                                        'E2E-VIN-001', 'Toyota Hilux',
+                                        selling_price=2500000, cost_price=1800000)
 
     # 1. Record sale with a partial cash payment → pending, vehicle reserved
     resp = client.post('/api/sales/vehicle', headers=auth_headers, json={
@@ -176,10 +149,10 @@ def test_e2e_bank_payment_and_customer_reuse(client, auth_headers, db):
     duplicate references, and reuse the same customer for one phone."""
     from app.models import Customer
 
-    branch_id = _create_branch(client, auth_headers)
-    vehicle_id = _create_vehicle(client, auth_headers, branch_id,
-                                 'E2E-VIN-002', 'Foton',
-                                 selling_price=1200000, cost_price=800000)
+    branch_id = create_branch_via_api(client, auth_headers)
+    vehicle_id = create_vehicle_via_api(client, auth_headers, branch_id,
+                                        'E2E-VIN-002', 'Foton',
+                                        selling_price=1200000, cost_price=800000)
 
     # 1. Bank payment missing required fields → 400
     resp = client.post('/api/sales/vehicle', headers=auth_headers, json={
@@ -213,8 +186,9 @@ def test_e2e_bank_payment_and_customer_reuse(client, auth_headers, db):
     assert payment['reference'] == 'TX-E2E-001'
 
     # 4. Duplicate transaction reference is rejected on a second sale
-    other_vehicle = _create_vehicle(client, auth_headers, branch_id,
-                                    'E2E-VIN-003', 'Bajaj', selling_price=500000)
+    other_vehicle = create_vehicle_via_api(client, auth_headers, branch_id,
+                                           'E2E-VIN-003', 'Bajaj',
+                                           selling_price=500000)
     resp = client.post('/api/sales/vehicle', headers=auth_headers, json={
         'vehicle_id': other_vehicle,
         'customer_name': 'Jane Smith',
@@ -244,10 +218,10 @@ def test_e2e_spare_part_sale_lifecycle(client, auth_headers, db):
     stock on cancel."""
     from app.models import Sale, SparePart
 
-    branch_id = _create_branch(client, auth_headers)
-    part_id = _create_spare_part(client, auth_headers, branch_id,
-                                 'Oil Filter', unit_price=500, quantity=10,
-                                 cost_price=200)
+    branch_id = create_branch_via_api(client, auth_headers)
+    part_id = create_spare_part_via_api(client, auth_headers, branch_id,
+                                        'Oil Filter', unit_price=500, quantity=10,
+                                        cost_price=200)
 
     # 1. Quantity beyond stock → 400
     resp = client.post('/api/sales/spare-part', headers=auth_headers, json={

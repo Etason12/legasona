@@ -280,6 +280,23 @@ def test_non_admin_cannot_add_payment_to_completed_sale(client, auth_headers, db
     assert resp.status_code == 400, resp.get_json()
 
 
+def test_delete_customer_with_sales(client, auth_headers, db):
+    """Deleting a customer that has linked sales must not 500 (FK violation)."""
+    from app.models import Customer, Sale
+    vehicle = _create_vehicle(client, auth_headers, db)
+    resp = client.post('/api/sales/vehicle', headers=auth_headers, json={
+        'vehicle_id': vehicle.id, 'customer_name': 'Del Me', 'customer_phone': '+251911000987',
+        'payments': [],
+    })
+    assert resp.status_code == 201, resp.get_json()
+    cust = Customer.query.filter_by(phone='+251911000987').first()
+    assert cust is not None
+    resp = client.delete(f'/api/customers/{cust.id}', headers=auth_headers)
+    assert resp.status_code == 200, resp.get_json()
+    assert Customer.query.get(cust.id) is None
+    assert Sale.query.filter_by(customer_phone='+251911000987').first() is not None
+
+
 def test_vehicle_sale_payments_null(client, auth_headers, db):
     """payments=null must be treated as empty list, not crash with a 500."""
     vehicle = _create_vehicle(client, auth_headers, db)

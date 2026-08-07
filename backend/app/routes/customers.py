@@ -5,6 +5,7 @@ from app.utils.auth import admin_required, role_required, effective_branch_id
 from app.utils.validation import safe_int
 from app.utils.sanitization import sanitize_string, sanitize_search
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 
 customers_bp = Blueprint('customers', __name__)
 
@@ -118,6 +119,14 @@ def update_customer(id):
 @admin_required
 def delete_customer(id):
     c = db.get_or_404(Customer, id)
-    db.session.delete(c)
-    db.session.commit()
+    try:
+        # Detach any historical records that reference this customer so the
+        # delete doesn't violate the sales/orders foreign keys on Postgres.
+        Sale.query.filter_by(customer_id=id).update({'customer_id': None})
+        Order.query.filter_by(customer_id=id).update({'customer_id': None})
+        db.session.delete(c)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'message': 'Cannot delete this customer because they have linked sales or orders'}), 400
     return jsonify({'message': 'Customer deleted'}), 200

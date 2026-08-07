@@ -27,7 +27,7 @@ const Sales = ({ user }) => {
   const [submitting, setSubmitting] = useState(false)
 
   // Filters
-  const [statusFilter, setStatusFilter] = useState('pending')
+  const [statusFilter, setStatusFilter] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [startDate, setStartDate] = useState(daysAgo(31))

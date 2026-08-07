@@ -63,6 +63,7 @@ const Sales = ({ user }) => {
   const [partSearch, setPartSearch] = useState('')
   const [partQuantity, setPartQuantity] = useState(1)
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
+  const [customerSearch, setCustomerSearch] = useState('')
   const [newCustPhone, setNewCustPhone] = useState('')
   const [phoneWarning, setPhoneWarning] = useState('')
   const [saleType, setSaleType] = useState('vehicle')
@@ -111,6 +112,26 @@ const Sales = ({ user }) => {
     return matched
   }, [sortedParts, partSearch, selectedPartId])
 
+  // Customers shown in the sale dropdown: filtered by the search box, with
+  // the currently selected customer kept visible even if it doesn't match.
+  const sortedCustomers = useMemo(() =>
+    [...customers].sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '')),
+    [customers]
+  )
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase()
+    if (!q) return sortedCustomers
+    const matched = sortedCustomers.filter(c =>
+      (c.full_name || '').toLowerCase().includes(q) ||
+      (c.phone || '').toLowerCase().includes(q)
+    )
+    const selected = sortedCustomers.find(c => c.id === parseInt(selectedCustomerId, 10))
+    if (selected && !matched.some(c => c.id === selected.id)) {
+      return [selected, ...matched]
+    }
+    return matched
+  }, [sortedCustomers, customerSearch, selectedCustomerId])
+
   useEffect(() => { const t = setTimeout(() => setDebouncedSearch(searchQuery), 350); return () => clearTimeout(t) }, [searchQuery])
   useEffect(() => { fetchData() }, [statusFilter, debouncedSearch, startDate, endDate, page, selectedBranchId])
 
@@ -129,6 +150,7 @@ const Sales = ({ user }) => {
       setPartSearch('')
       setPartQuantity(1)
       setSelectedCustomerId('')
+      setCustomerSearch('')
       setNewCustPhone('')
       setPhoneWarning('')
       setSaleType('vehicle')
@@ -309,7 +331,7 @@ const Sales = ({ user }) => {
       toast.success('Sale recorded successfully!')
       setShowNewSale(false); setForm({})
       setPayments([{ id: 1, method: 'cash', amount: '', bank: '', reference: '', accountHolder: '' }])
-      setSelectedCustomerId(''); setSelectedVehicleId(''); setSelectedPartId(''); setPartSearch(''); setPartQuantity(1)
+      setSelectedCustomerId(''); setSelectedVehicleId(''); setSelectedPartId(''); setPartSearch(''); setCustomerSearch(''); setPartQuantity(1)
       fetchData()
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to record sale')
@@ -470,7 +492,8 @@ const Sales = ({ user }) => {
           partQuantity={partQuantity} onPartQuantityChange={setPartQuantity}
           availableParts={availableParts}
           selectedCustomerId={selectedCustomerId} onCustomerSelect={setSelectedCustomerId}
-          customers={customers}
+          customers={customers} sortedCustomers={sortedCustomers} filteredCustomers={filteredCustomers}
+          customerSearch={customerSearch} onCustomerSearchChange={setCustomerSearch}
           newCustPhone={newCustPhone} onCustPhoneChange={setNewCustPhone}
           phoneWarning={phoneWarning} onPhoneWarningChange={setPhoneWarning}
           saleType={saleType} onSaleTypeChange={setSaleType}
@@ -499,7 +522,8 @@ const NewSaleModal = ({ show, onClose, form, setForm, set, payments, setPayments
   selectedVehicleId, onVehicleSelect, sortedVehicles, filteredVehicles, vehicleSearch, onVehicleSearchChange,
   selectedPartId, onPartSelect, sortedParts, filteredParts, partSearch, onPartSearchChange,
   partQuantity, onPartQuantityChange, availableParts, selectedCustomerId, onCustomerSelect,
-  customers, newCustPhone, onCustPhoneChange, phoneWarning, onPhoneWarningChange,
+  customers, sortedCustomers, filteredCustomers, customerSearch, onCustomerSearchChange,
+  newCustPhone, onCustPhoneChange, phoneWarning, onPhoneWarningChange,
   saleType, onSaleTypeChange, onSubmit, submitting, handleCameraNewSalePay }) => {
   const { t } = useLanguage()
   const today = new Date(); const pad = n => String(n).padStart(2, '0')
@@ -531,6 +555,16 @@ const NewSaleModal = ({ show, onClose, form, setForm, set, payments, setPayments
                   <div className="space-y-4">
                     <div>
                       <label className="label">{t('selectExistingCustomer')}</label>
+                      <div className="relative mb-2">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          className="input-field pl-9"
+                          placeholder={t('searchCustomers') || 'Search by name or phone...'}
+                          value={customerSearch}
+                          onChange={e => onCustomerSearchChange(e.target.value)}
+                        />
+                      </div>
                       <select className="input-field" value={selectedCustomerId} onChange={e => {
                         onCustomerSelect(e.target.value); onPhoneWarningChange('')
                         if (e.target.value) {
@@ -539,8 +573,14 @@ const NewSaleModal = ({ show, onClose, form, setForm, set, payments, setPayments
                         }
                       }}>
                         <option value="">{t('newCustomer')}</option>
-                        {customers.map(c => <option key={c.id} value={c.id}>{capitalizeName(c.full_name)} ({c.phone})</option>)}
+                        {filteredCustomers.map(c => <option key={c.id} value={c.id}>{capitalizeName(c.full_name)} ({c.phone})</option>)}
                       </select>
+                      {customerSearch.trim() && filteredCustomers.length === 0 && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">{t('noCustomersMatch') || 'No customers match your search'}</p>
+                      )}
+                      {customerSearch.trim() && filteredCustomers.length > 0 && (
+                        <p className="text-xs text-slate-400 mt-1.5">{filteredCustomers.length} / {sortedCustomers.length}</p>
+                      )}
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div><label className="label">{t('fullName')}</label><input type="text" name="customer_name" required className="input-field" placeholder="Abebe Kebede" /></div>

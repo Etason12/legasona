@@ -7,6 +7,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
+from werkzeug.exceptions import HTTPException
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -120,9 +121,19 @@ def create_app(config_class=Config):
         return response
 
     # ── Global Error Handlers ─────────────────────────────────────────
+    @app.errorhandler(HTTPException)
+    def handle_http_exception(e):
+        """HTTP errors (400, 401, 405, 429, ...) keep their own status code
+        and return a safe description instead of being masked as 500s."""
+        return jsonify({'message': e.description}), e.code if e.code else 500
+
     @app.errorhandler(Exception)
     def handle_exception(e):
         logger.error(f"Unhandled exception: {e}", exc_info=True)
+        # In development, surface the real error for debugging; in
+        # production always keep the message generic (no details leaked).
+        if app.config.get('DEBUG'):
+            return jsonify({'message': f'Internal server error: {e}'}), 500
         return jsonify({'message': 'Internal server error'}), 500
 
     @app.errorhandler(413)

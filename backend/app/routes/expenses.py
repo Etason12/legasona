@@ -45,7 +45,7 @@ def get_expenses():
     category   = request.args.get('category')
     user_id    = request.args.get('user_id')
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
 
     query = Expense.query.join(User, Expense.user_id == User.id).add_columns(User.username.label('user_name'))
 
@@ -75,7 +75,7 @@ def get_expenses():
 @jwt_required()
 def get_expense_users():
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     query = User.query
     if current_user.role != 'admin':
         query = query.filter(User.id == current_user_id)
@@ -93,7 +93,7 @@ def update_budget():
         return jsonify({'message': 'monthly_budget is required'}), 400
 
     if branch_id:
-        branch = Branch.query.get(branch_id)
+        branch = db.session.get(Branch, branch_id)
         if not branch:
             return jsonify({'message': 'Branch not found'}), 404
         branch.monthly_budget = float(monthly_budget)
@@ -110,7 +110,7 @@ def update_budget():
 @jwt_required()
 def get_budget():
     user_id = get_jwt_identity()
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     # Use explicit branch_id from args if provided, otherwise default to user's assigned branch
     branch_id = request.args.get('branch_id') or user.branch_id
 
@@ -133,7 +133,7 @@ def get_budget():
     total_spent = total_spent.scalar() or 0
 
     if branch_id:
-        branch = Branch.query.get(branch_id)
+        branch = db.session.get(Branch, branch_id)
         budget = branch.monthly_budget or 150000.0 if branch else 150000.0
     elif user.role == 'admin':
         budget = db.session.query(db.func.sum(Branch.monthly_budget)).scalar() or 150000.0
@@ -150,7 +150,7 @@ def get_budget():
 @jwt_required()
 @role_required('admin', 'manager')
 def delete_expense(id):
-    expense = Expense.query.get_or_404(id)
+    expense = db.get_or_404(Expense, id)
     db.session.delete(expense)
     db.session.commit()
     return jsonify({'message': 'Expense deleted'}), 200

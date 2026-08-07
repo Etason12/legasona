@@ -49,10 +49,10 @@ def test_fulfill_order_creates_sale_and_payment(client, auth_headers, db):
     assert payment.account_holder == 'TEWELDE'
     assert payment.transaction_reference == 'TX-123'
 
-    updated_vehicle = Vehicle.query.get(vehicle.id)
+    updated_vehicle = db.session.get(Vehicle, vehicle.id)
     assert updated_vehicle.status == 'reserved'
 
-    updated_order = Order.query.get(order.id)
+    updated_order = db.session.get(Order, order.id)
     assert updated_order.status == 'fulfilled'
     assert updated_order.sale_id == sale.id
 
@@ -81,7 +81,7 @@ def test_fulfill_order_full_payment(client, auth_headers, db):
 
     sale = Sale.query.filter_by(order_id=order.id).first()
     assert sale.status == 'completed'
-    assert Vehicle.query.get(vehicle.id).status == 'sold'
+    assert db.session.get(Vehicle, vehicle.id).status == 'sold'
 
 
 def test_fulfill_order_rejects_wrong_branch(client, auth_headers, db):
@@ -197,7 +197,7 @@ def test_deposit_with_receipt(client, auth_headers, db):
                        follow_redirects=True)
     assert resp.status_code == 200
 
-    updated = Order.query.get(order.id)
+    updated = db.session.get(Order, order.id)
     assert float(updated.deposit_amount) == 100000
     assert updated.deposit_method == 'bank'
     assert updated.deposit_bank == 'CBE'
@@ -221,7 +221,7 @@ def test_deposit_json_without_receipt(client, auth_headers, db):
     resp = client.post(f'/api/orders/{order.id}/deposit', headers=auth_headers,
                        json={'amount': 50000, 'method': 'cash'})
     assert resp.status_code == 200
-    updated = Order.query.get(order.id)
+    updated = db.session.get(Order, order.id)
     assert float(updated.deposit_amount) == 50000
 
 
@@ -406,11 +406,14 @@ def test_cannot_fulfill_non_waiting_order(client, auth_headers, db):
     resp = client.post(f'/api/orders/{order.id}/fulfill', headers=auth_headers,
                        json={'vehicle_id': 1})
     assert resp.status_code == 400
-    assert 'not in waiting' in resp.get_json()['message']
+    assert 'not in waiting' in resp.get_json()['message']# ── Order Not Found ────────────────────────────────────────────────
+def test_fulfill_order_nonexistent_order_returns_404(client, auth_headers, db):
+    """Fulfilling a nonexistent order should return 404, not 500."""
+    resp = client.post('/api/orders/999999/fulfill', headers=auth_headers, json={'vehicle_id': 1})
+    assert resp.status_code == 404
 
 
 # ── Vehicle Not Found ───────────────────────────────────────────────
-
 def test_fulfill_order_invalid_vehicle(client, auth_headers, db):
     """Fulfilling with a nonexistent vehicle should return 404."""
     from app.models import Branch, Order

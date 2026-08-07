@@ -18,7 +18,7 @@ def get_vehicles():
     branch_id = request.args.get('branch_id')
     status = request.args.get('status')
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     page = safe_int(request.args.get('page', 1), default=1, min_val=1)
     per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=10000)
     query = Vehicle.query
@@ -95,7 +95,7 @@ def add_vehicle():
 @jwt_required()
 @role_required('admin', 'manager', 'storekeeper')
 def update_vehicle(id):
-    v = Vehicle.query.get_or_404(id)
+    v = db.get_or_404(Vehicle, id)
     if request.content_type and 'multipart' in request.content_type:
         data = request.form
         image_file = request.files.get('image')
@@ -126,7 +126,7 @@ def update_vehicle(id):
 @jwt_required()
 @role_required('admin', 'manager')
 def delete_vehicle(id):
-    v = Vehicle.query.get_or_404(id)
+    v = db.get_or_404(Vehicle, id)
     db.session.delete(v)
     db.session.commit()
     return jsonify({'message': 'Vehicle deleted'}), 200
@@ -137,7 +137,7 @@ def delete_vehicle(id):
 def get_spare_parts():
     branch_id = request.args.get('branch_id')
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     page = safe_int(request.args.get('page', 1), default=1, min_val=1)
     per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=10000)
     query = SparePart.query
@@ -208,7 +208,7 @@ def add_spare_part():
 @jwt_required()
 @role_required('admin', 'manager', 'storekeeper')
 def update_spare_part(id):
-    p = SparePart.query.get_or_404(id)
+    p = db.get_or_404(SparePart, id)
     if request.content_type and 'multipart' in request.content_type:
         data = request.form
         image_file = request.files.get('image')
@@ -231,7 +231,7 @@ def update_spare_part(id):
 def get_vehicle_stats():
     branch_id = request.args.get('branch_id')
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     query = db.session.query(Vehicle.status, db.func.count(Vehicle.id))
     branch_id = effective_branch_id(current_user, branch_id)
     if branch_id:
@@ -249,7 +249,7 @@ def get_vehicle_stats():
 @jwt_required()
 @role_required('admin', 'manager')
 def delete_spare_part(id):
-    p = SparePart.query.get_or_404(id)
+    p = db.get_or_404(SparePart, id)
     db.session.delete(p)
     db.session.commit()
     return jsonify({'message': 'Spare part deleted'}), 200
@@ -259,7 +259,7 @@ def delete_spare_part(id):
 def get_spare_part_categories():
     branch_id = request.args.get('branch_id')
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     branch_id = effective_branch_id(current_user, branch_id)
     query = db.session.query(SparePart.category).filter(SparePart.category.isnot(None), SparePart.category != '')
     if branch_id:

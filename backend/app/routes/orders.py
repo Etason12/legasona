@@ -1,6 +1,8 @@
+import logging
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from werkzeug.exceptions import HTTPException
 from app.models import Order, Customer, User, Branch, Sale, Payment, Vehicle, db
 from app.utils.auth import role_required
 from app.utils.logging import log_activity
@@ -9,6 +11,7 @@ from app.utils.validation import safe_int
 from app.utils.image_utils import compress_to_base64
 
 orders_bp = Blueprint('orders', __name__)
+logger = logging.getLogger(__name__)
 
 def _ensure_customer(data, branch_id):
     customer_id = data.get('customer_id')
@@ -31,7 +34,7 @@ def _ensure_customer(data, branch_id):
 def create_order():
     data = request.get_json()
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     
     # Determine branch_id
     # Admins can always select a branch. Restricted users are forced to their assigned branch.
@@ -83,7 +86,7 @@ def create_order():
 @jwt_required()
 def get_orders():
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     branch_id = request.args.get('branch_id')
     
     page = safe_int(request.args.get('page', 1), default=1, min_val=1)
@@ -170,7 +173,7 @@ def get_available_vehicles():
 @jwt_required()
 @role_required('admin', 'manager', 'cashier')
 def add_deposit(id):
-    order = Order.query.get_or_404(id)
+    order = db.get_or_404(Order, id)
     if request.content_type and 'multipart' in request.content_type:
         amount = float(request.form.get('amount', 0))
         method = request.form.get('method', 'cash')
@@ -206,10 +209,21 @@ def add_deposit(id):
 @jwt_required()
 @role_required('admin', 'manager')
 def fulfill_order(id):
+    try:
+        return _fulfill_order(id)
+    except HTTPException:
+        raise  # keep proper status codes (e.g. 404 from get_or_404)
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"fulfill_order failed for order {id}: {e}", exc_info=True)
+        return jsonify({'message': 'Failed to fulfill order. Please try again.'}), 500
+
+
+def _fulfill_order(id):
     from sqlalchemy import func
     import secrets
 
-    order = Order.query.get_or_404(id)
+    order = db.get_or_404(Order, id)
     if order.status != 'waiting':
         return jsonify({'message': 'Order is not in waiting status'}), 400
 
@@ -218,7 +232,7 @@ def fulfill_order(id):
     if not vehicle_id:
         return jsonify({'message': 'Vehicle ID is required'}), 400
 
-    vehicle = Vehicle.query.get(vehicle_id)
+    vehicle = db.session.get(Vehicle, vehicle_id)
     if not vehicle:
         return jsonify({'message': 'Vehicle not found'}), 404
     if vehicle.status != 'available':
@@ -299,7 +313,7 @@ def fulfill_order(id):
 @jwt_required()
 @role_required('admin', 'manager')
 def cancel_order(id):
-    order = Order.query.get_or_404(id)
+    order = db.get_or_404(Order, id)
     if order.status == 'cancelled':
         return jsonify({'message': 'Order is already cancelled'}), 400
     if order.status == 'fulfilled':
@@ -354,7 +368,7 @@ def reorder_orders():
     if not order_id or direction not in ('up', 'down'):
         return jsonify({'message': 'id and direction (up/down) are required'}), 400
 
-    order = Order.query.get_or_404(order_id)
+    order = db.get_or_404(Order, order_id)
     branch_id = order.branch_id
 
     adjacent = Order.query.filter(
@@ -378,9 +392,9 @@ def reorder_orders():
 @jwt_required()
 @role_required('admin', 'manager', 'cashier')
 def update_order(id):
-    order = Order.query.get_or_404(id)
+    order = db.get_or_404(Order, id)
     data = request.get_json()
-    current_user = User.query.get(get_jwt_identity())
+    current_user = db.session.get(User, get_jwt_identity())
     
     if 'customer_name' in data:
         order.customer_name = (data['customer_name'] or '').strip().title()
@@ -409,7 +423,7 @@ def update_order(id):
 @jwt_required()
 @role_required('admin', 'manager')
 def delete_order(id):
-    order = Order.query.get_or_404(id)
+    order = db.get_or_404(Order, id)
     db.session.delete(order)
     db.session.commit()
     return jsonify({'message': 'Order deleted'}), 200

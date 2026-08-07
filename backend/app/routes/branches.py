@@ -45,7 +45,7 @@ def add_branch():
 @jwt_required()
 @admin_required
 def update_branch(id):
-    b    = Branch.query.get_or_404(id)
+    b    = db.get_or_404(Branch, id)
     data = request.get_json()
     b.name     = data.get('name', b.name)
     b.location = data.get('location', b.location)
@@ -60,7 +60,7 @@ def update_branch(id):
 @jwt_required()
 @role_required('admin', 'manager')
 def update_branch_budget(id):
-    b = Branch.query.get_or_404(id)
+    b = db.get_or_404(Branch, id)
     data = request.get_json()
     b.monthly_budget = data.get('monthly_budget', b.monthly_budget)
     db.session.commit()
@@ -71,7 +71,7 @@ def update_branch_budget(id):
 @jwt_required()
 @admin_required
 def delete_branch(id):
-    b = Branch.query.get_or_404(id)
+    b = db.get_or_404(Branch, id)
     db.session.delete(b)
     db.session.commit()
     invalidate_cache('get_branches')

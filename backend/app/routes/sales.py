@@ -50,6 +50,15 @@ def _ensure_customer(data, item_branch_id=None):
 @jwt_required()
 @role_required('admin', 'manager', 'cashier')
 def record_vehicle_sale():
+    try:
+        return _record_vehicle_sale()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"record_vehicle_sale failed: {e}", exc_info=True)
+        return jsonify({'message': 'Failed to record sale. Please try again.'}), 500
+
+
+def _record_vehicle_sale():
     if request.content_type and 'multipart' in request.content_type:
         data = request.form
         payments_raw = data.get('payments', '[]')
@@ -60,7 +69,7 @@ def record_vehicle_sale():
         payments_data = body.get('payments', [])
 
     vehicle_id = data.get('vehicle_id')
-    vehicle = Vehicle.query.get(vehicle_id)
+    vehicle = db.session.get(Vehicle, vehicle_id)
 
     if not vehicle or vehicle.status not in ['available', 'reserved']:
         return jsonify({'message': 'Vehicle not available'}), 400
@@ -142,9 +151,18 @@ def record_vehicle_sale():
 @jwt_required()
 @role_required('admin', 'manager', 'cashier')
 def record_spare_part_sale():
+    try:
+        return _record_spare_part_sale()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"record_spare_part_sale failed: {e}", exc_info=True)
+        return jsonify({'message': 'Failed to record sale. Please try again.'}), 500
+
+
+def _record_spare_part_sale():
     data = request.get_json()
     part_id = data.get('part_id')
-    part = SparePart.query.get(part_id)
+    part = db.session.get(SparePart, part_id)
     if not part:
         return jsonify({'message': 'Spare part not found'}), 404
 
@@ -214,7 +232,7 @@ def record_spare_part_sale():
 @sales_bp.route('/<int:id>/payments', methods=['GET'])
 @jwt_required()
 def get_sale_payments(id):
-    sale = Sale.query.get(id)
+    sale = db.session.get(Sale, id)
     if not sale:
         return jsonify({'message': 'Sale not found'}), 404
 
@@ -239,11 +257,11 @@ def get_sale_payments(id):
 @jwt_required()
 @admin_required
 def update_payment(sale_id, payment_id):
-    sale = Sale.query.get(sale_id)
+    sale = db.session.get(Sale, sale_id)
     if not sale:
         return jsonify({'message': 'Sale not found'}), 404
 
-    payment = Payment.query.get(payment_id)
+    payment = db.session.get(Payment, payment_id)
     if not payment or payment.sale_id != sale_id:
         return jsonify({'message': 'Payment not found'}), 404
 
@@ -301,13 +319,13 @@ def update_payment(sale_id, payment_id):
     if total_paid >= sale.total_amount:
         sale.status = 'completed'
         if sale.sale_type == 'vehicle':
-            v = Vehicle.query.get(sale.item_id)
+            v = db.session.get(Vehicle, sale.item_id)
             if v:
                 v.status = 'sold'
     else:
         sale.status = 'pending'
         if sale.sale_type == 'vehicle':
-            v = Vehicle.query.get(sale.item_id)
+            v = db.session.get(Vehicle, sale.item_id)
             if v and v.status == 'sold':
                 v.status = 'reserved'
 
@@ -323,11 +341,11 @@ def update_payment(sale_id, payment_id):
 @jwt_required()
 @admin_required
 def delete_payment(sale_id, payment_id):
-    sale = Sale.query.get(sale_id)
+    sale = db.session.get(Sale, sale_id)
     if not sale:
         return jsonify({'message': 'Sale not found'}), 404
 
-    payment = Payment.query.get(payment_id)
+    payment = db.session.get(Payment, payment_id)
     if not payment or payment.sale_id != sale_id:
         return jsonify({'message': 'Payment not found'}), 404
 
@@ -341,7 +359,7 @@ def delete_payment(sale_id, payment_id):
     else:
         sale.status = 'pending'
         if sale.sale_type == 'vehicle':
-            v = Vehicle.query.get(sale.item_id)
+            v = db.session.get(Vehicle, sale.item_id)
             if v and v.status == 'sold':
                 v.status = 'reserved'
 
@@ -357,7 +375,7 @@ def delete_payment(sale_id, payment_id):
 @jwt_required()
 @role_required('admin', 'manager', 'cashier')
 def add_payment(id):
-    sale = Sale.query.get(id)
+    sale = db.session.get(Sale, id)
     if not sale:
         return jsonify({'message': 'Sale not found'}), 404
     if sale.status == 'completed':
@@ -396,7 +414,7 @@ def add_payment(id):
         if total_paid >= sale.total_amount:
             sale.status = 'completed'
             if sale.sale_type == 'vehicle':
-                v = Vehicle.query.get(sale.item_id)
+                v = db.session.get(Vehicle, sale.item_id)
                 if v:
                     v.status = 'sold'
 
@@ -420,7 +438,7 @@ def add_payment(id):
 @jwt_required()
 @admin_required
 def update_sale(id):
-    sale = Sale.query.get_or_404(id)
+    sale = db.get_or_404(Sale, id)
     data = request.get_json()
     if not data:
         return jsonify({'message': 'No data provided'}), 400
@@ -452,16 +470,16 @@ def update_sale(id):
 @jwt_required()
 @role_required('admin', 'manager')
 def cancel_sale(id):
-    sale = Sale.query.get_or_404(id)
+    sale = db.get_or_404(Sale, id)
     if sale.status == 'cancelled':
         return jsonify({'message': 'Sale is already cancelled'}), 400
     sale.status = 'cancelled'
     if sale.sale_type == 'vehicle':
-        v = Vehicle.query.get(sale.item_id)
+        v = db.session.get(Vehicle, sale.item_id)
         if v:
             v.status = 'available'
     elif sale.sale_type == 'spare_part':
-        part = SparePart.query.get(sale.item_id)
+        part = db.session.get(SparePart, sale.item_id)
         if part:
             part.quantity = (part.quantity or 0) + (sale.quantity or 1)
     for p in Payment.query.filter_by(sale_id=sale.id).all():
@@ -473,7 +491,7 @@ def cancel_sale(id):
 @jwt_required()
 @admin_required
 def hard_delete_sale(id):
-    sale = Sale.query.get_or_404(id)
+    sale = db.get_or_404(Sale, id)
     if sale.status != 'cancelled':
         return jsonify({'message': 'Only cancelled sales can be permanently deleted'}), 400
     Payment.query.filter_by(sale_id=sale.id).delete()
@@ -491,7 +509,7 @@ def get_sales():
     end_date = request.args.get('end_date', '')
     branch_id = request.args.get('branch_id')
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
 
     # Implement pagination parameters
     page = safe_int(request.args.get('page', 1), default=1, min_val=1)

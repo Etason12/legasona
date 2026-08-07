@@ -122,7 +122,7 @@ def import_excel_vehicles():
     except Exception as e:
         db.session.rollback()
         logger.error(f'Import excel vehicles failed: {e}', exc_info=True)
-        return jsonify({'message': f'Import failed: {str(e)}'}), 500
+        return jsonify({'message': 'Import failed. Please check the file format and try again.'}), 500
 
 @system_bp.route('/reset-database', methods=['POST'])
 @jwt_required()
@@ -253,4 +253,4 @@ def import_spare_parts():
     except Exception as e:
         db.session.rollback()
         logger.error(f'Import spare parts failed: {e}', exc_info=True)
-        return jsonify({'message': f'Import failed: {str(e)}'}), 500
+        return jsonify({'message': 'Import failed. Please try again.'}), 500

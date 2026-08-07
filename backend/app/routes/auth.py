@@ -3,6 +3,7 @@ import logging
 import os
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from werkzeug.exceptions import HTTPException
 from app.models import User, Branch
 from app import db
 from app.utils.rate_limit import is_rate_limited, record_attempt, get_client_ip
@@ -60,16 +61,18 @@ def login():
                 }), 200
         record_attempt(f'login:{client_ip}')
         return jsonify({'message': 'Invalid credentials'}), 401
+    except HTTPException:
+        raise  # let global handlers return the proper status (e.g. 413, 400)
     except Exception as e:
         logger.error(f'Login failed: {e}', exc_info=True)
-        return jsonify({'message': f'Login error: {str(e)}'}), 500
+        return jsonify({'message': 'Login failed. Please try again.'}), 500
 
 @auth_bp.route('/me', methods=['GET'])
 @jwt_required()
 def get_me():
     """Lightweight token-validation endpoint called on app load."""
     user_id = get_jwt_identity()
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return jsonify({'message': 'User not found'}), 404
     branch_name = user.branch.name if user.branch else "All"
@@ -85,7 +88,7 @@ def get_me():
 @jwt_required()
 def get_user():
     user_id = get_jwt_identity()
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if user:
         return jsonify({
             'id': user.id,
@@ -146,7 +149,7 @@ def create_admin():
 @jwt_required()
 def change_password():
     user_id = get_jwt_identity()
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
 
     client_ip = get_client_ip()
     if is_rate_limited(f'change-pw:{user_id}:{client_ip}', 5, 60):

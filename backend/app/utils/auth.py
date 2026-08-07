@@ -1,6 +1,7 @@
 from functools import wraps
 from flask import jsonify
 from flask_jwt_extended import get_jwt_identity
+from app import db
 from app.models import User
 
 
@@ -9,7 +10,7 @@ def _current_user():
     if user_id is None:
         return None
     try:
-        user = User.query.get(int(user_id))
+        user = db.session.get(User, int(user_id))
     except (ValueError, TypeError):
         return None
     if user and user.status != 'active':

@@ -96,7 +96,33 @@ def run_migrations_online():
 
     connectable = get_engine()
 
+    # Fresh database bootstrap: the app runs db.create_all() on startup, so a
+    # brand-new database already has the complete current schema. Stamp the head
+    # revision instead of replaying the full migration history onto an
+    # up-to-date schema (which would fail with duplicate columns). Inspect the
+    # ENGINE (its own connection) so we don't open a transaction on the shared
+    # migration connection, which would later be rolled back.
+    from sqlalchemy import inspect as sa_inspect, text
+    from alembic.script import ScriptDirectory
+
+    insp = sa_inspect(connectable)
+
     with connectable.connect() as connection:
+        if 'alembic_version' not in insp.get_table_names():
+            head = ScriptDirectory.from_config(config).get_current_head()
+            connection.execute(text(
+                'CREATE TABLE alembic_version '
+                '(version_num VARCHAR(32) NOT NULL, '
+                'CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))'
+            ))
+            connection.execute(
+                text('INSERT INTO alembic_version (version_num) VALUES (:v)'),
+                {'v': head}
+            )
+            connection.commit()
+            logger.info('Fresh database detected — stamped to head %s (schema created by db.create_all)', head)
+            return
+
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),

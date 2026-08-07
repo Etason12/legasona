@@ -167,6 +167,32 @@ def test_request_too_large(client):
                        data='x' * (11 * 1024 * 1024),  # 11MB
                        content_type='application/json')
     assert resp.status_code == 413
+    assert 'exceeds' not in str(resp.get_json())  # raw error must not leak
+
+
+def test_method_not_allowed_returns_405(client):
+    """HTTP errors like 405 must keep their status code, not become 500s."""
+    resp = client.delete('/api/branches')
+    assert resp.status_code == 405
+    assert resp.get_json()['message']
+
+
+def test_unhandled_exception_generic_message():
+    """Unhandled exceptions return a generic 500 without leaking details."""
+    from app import create_app
+    from tests.conftest import TestConfig
+
+    fresh = create_app(TestConfig)
+
+    @fresh.route('/api/__test_crash')
+    def _crash():
+        raise ValueError('secret-internal-detail')
+
+    resp = fresh.test_client().get('/api/__test_crash')
+    assert resp.status_code == 500
+    body = resp.get_json()
+    assert 'secret-internal-detail' not in str(body)
+    assert body['message'] == 'Internal server error'
 
 
 # ── Branches Pagination ──────────────────────────────────────────────

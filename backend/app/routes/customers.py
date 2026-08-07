@@ -14,7 +14,7 @@ def get_customers():
     search = request.args.get('search', '')
     branch_id = request.args.get('branch_id')
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     page = safe_int(request.args.get('page', 1), default=1, min_val=1)
     per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=100)
     query  = Customer.query
@@ -64,7 +64,7 @@ def add_customer():
 @customers_bp.route('/<int:id>', methods=['GET'])
 @jwt_required()
 def get_customer_details(id):
-    c      = Customer.query.get_or_404(id)
+    c      = db.get_or_404(Customer, id)
     sales  = Sale.query.filter_by(customer_id=id).all()
     orders = Order.query.filter_by(customer_id=id).all()
 
@@ -73,12 +73,12 @@ def get_customer_details(id):
         item_name = None
         item_detail = None
         if s.sale_type == 'vehicle' and s.item_id:
-            v = Vehicle.query.get(s.item_id)
+            v = db.session.get(Vehicle, s.item_id)
             if v:
                 item_name = v.model
                 item_detail = v.vin
         elif s.sale_type == 'spare_part' and s.item_id:
-            p = SparePart.query.get(s.item_id)
+            p = db.session.get(SparePart, s.item_id)
             if p:
                 item_name = p.name
                 item_detail = p.part_number
@@ -103,7 +103,7 @@ def get_customer_details(id):
 @jwt_required()
 @role_required('admin', 'manager', 'cashier')
 def update_customer(id):
-    c    = Customer.query.get_or_404(id)
+    c    = db.get_or_404(Customer, id)
     data = request.get_json()
     c.full_name     = (data.get('full_name') or '').strip().title()
     c.email         = data.get('email', c.email)
@@ -117,7 +117,7 @@ def update_customer(id):
 @jwt_required()
 @admin_required
 def delete_customer(id):
-    c = Customer.query.get_or_404(id)
+    c = db.get_or_404(Customer, id)
     db.session.delete(c)
     db.session.commit()
     return jsonify({'message': 'Customer deleted'}), 200

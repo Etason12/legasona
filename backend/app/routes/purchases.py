@@ -12,7 +12,7 @@ purchases_bp = Blueprint('purchases', __name__)
 @jwt_required()
 def get_purchases():
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     branch_id = request.args.get('branch_id')
     query = Purchase.query
     branch_id = effective_branch_id(current_user, branch_id)
@@ -70,12 +70,12 @@ def record_purchase():
         ))
 
         if data.get('item_type') == 'spare_part' and existing_id:
-            part = SparePart.query.get(existing_id)
+            part = db.session.get(SparePart, existing_id)
             if part:
                 part.quantity  += quantity
                 part.cost_price = unit_cost
         elif data.get('item_type') == 'vehicle' and existing_id:
-            veh = Vehicle.query.get(existing_id)
+            veh = db.session.get(Vehicle, existing_id)
             if veh:
                 veh.cost_price = unit_cost
 
@@ -86,7 +86,7 @@ def record_purchase():
 @jwt_required()
 @role_required('admin', 'manager')
 def delete_purchase(id):
-    purchase = Purchase.query.get_or_404(id)
+    purchase = db.get_or_404(Purchase, id)
     PurchaseItem.query.filter_by(purchase_id=id).delete()
     db.session.delete(purchase)
     db.session.commit()

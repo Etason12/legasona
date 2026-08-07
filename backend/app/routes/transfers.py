@@ -17,11 +17,11 @@ def request_transfer():
     from_branch_id = data.get('from_branch_id')
 
     if item_type == 'spare_part':
-        part = SparePart.query.get(item_id)
+        part = db.session.get(SparePart, item_id)
         if not part or part.branch_id != int(from_branch_id) or part.quantity < quantity:
             return jsonify({'message': 'Insufficient stock in source branch'}), 400
     elif item_type == 'vehicle':
-        veh = Vehicle.query.get(item_id)
+        veh = db.session.get(Vehicle, item_id)
         if not veh or veh.branch_id != int(from_branch_id) or veh.status != 'available':
             return jsonify({'message': 'Vehicle not available in source branch'}), 400
 
@@ -49,12 +49,12 @@ def get_transfers():
 @jwt_required()
 @role_required('admin', 'manager')
 def approve_transfer(id):
-    transfer = Transfer.query.get_or_404(id)
+    transfer = db.get_or_404(Transfer, id)
     if transfer.approval_status != 'pending':
         return jsonify({'message': 'Transfer already processed'}), 400
 
     if transfer.item_type == 'vehicle':
-        vehicle = Vehicle.query.get(transfer.item_id)
+        vehicle = db.session.get(Vehicle, transfer.item_id)
         if vehicle and vehicle.branch_id == transfer.from_branch_id:
             vehicle.branch_id = transfer.to_branch_id
         else:

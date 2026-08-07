@@ -22,7 +22,7 @@ def get_dashboard_stats():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     branch_id = effective_branch_id(current_user, branch_id)
 
     sales_q   = db.session.query(func.sum(Sale.total_amount))
@@ -137,7 +137,7 @@ def get_profit_analysis():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     branch_id = effective_branch_id(current_user, branch_id)
 
     sales_q    = db.session.query(
@@ -178,7 +178,7 @@ def get_payment_report():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     branch_id = effective_branch_id(current_user, branch_id)
 
     query = db.session.query(Payment, Sale).join(Sale, Payment.sale_id == Sale.id)
@@ -225,7 +225,7 @@ def get_branch_comparison():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     branch_id = effective_branch_id(current_user, branch_id)
     branches = Branch.query.all()
     result = []
@@ -256,7 +256,7 @@ def get_branch_comparison():
 def get_inventory_distribution():
     branch_id = request.args.get('branch_id')
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     branch_id = effective_branch_id(current_user, branch_id)
 
     vehicle_q = db.session.query(Vehicle.type, func.count(Vehicle.id))
@@ -284,7 +284,7 @@ def get_inventory_distribution():
 def get_activity_log():
     """Recent activity log for the dashboard feed."""
     current_user_id = get_jwt_identity()
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
 
     limit     = safe_int(request.args.get('limit', 10), default=10, min_val=1, max_val=100)
 
@@ -306,7 +306,7 @@ def get_activity_log():
 
     result = []
     for log in logs:
-        user = User.query.get(log.user_id)
+        user = db.session.get(User, log.user_id)
         result.append({
             'id':          log.id,
             'action':      log.action,

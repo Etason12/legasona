@@ -42,7 +42,7 @@ def create_user():
 @jwt_required()
 @admin_required
 def update_user(id):
-    user = User.query.get_or_404(id)
+    user = db.get_or_404(User, id)
     data = request.get_json()
     user.role      = data.get('role', user.role)
     user.branch_id = data.get('branch_id') or None
@@ -56,7 +56,7 @@ def update_user(id):
 @jwt_required()
 @admin_required
 def delete_user(id):
-    user = User.query.get_or_404(id)
+    user = db.get_or_404(User, id)
     db.session.delete(user)
     db.session.commit()
     return jsonify({'message': 'User deleted'}), 200

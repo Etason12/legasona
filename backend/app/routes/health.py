@@ -1,6 +1,8 @@
+import logging
 from flask import Blueprint, jsonify
 
 health_bp = Blueprint('health', __name__)
+logger = logging.getLogger(__name__)
 
 @health_bp.route('/health', methods=['GET'])
 def health_check():
@@ -13,4 +15,5 @@ def health_check():
         tables = insp.get_table_names()
         return jsonify({'status': 'ok', 'db': 'connected', 'tables': tables}), 200
     except Exception as e:
-        return jsonify({'status': 'error', 'db': str(e)}), 500
+        logger.error(f'Health check failed: {e}', exc_info=True)
+        return jsonify({'status': 'error', 'db': 'unavailable'}), 500

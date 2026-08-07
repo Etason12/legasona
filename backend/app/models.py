@@ -74,7 +74,7 @@ class SparePart(db.Model):
 class Sale(db.Model):
     __tablename__ = 'sales'
     id = db.Column(db.Integer, primary_key=True)
-    sale_number = db.Column(db.String(20), unique=True, nullable=False)
+    sale_number = db.Column(db.String(40), unique=True, nullable=False)
     sale_type = db.Column(db.String(20))  # vehicle, spare_part
     item_id = db.Column(db.Integer)  # ID of vehicle or spare part
     quantity = db.Column(db.Integer, default=1)  # units sold (spare parts)

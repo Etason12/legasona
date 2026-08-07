@@ -470,7 +470,10 @@ def add_payment(id):
     if not sale:
         return jsonify({'message': 'Sale not found'}), 404
     if sale.status == 'completed':
-        return jsonify({'message': 'Sale already fully paid'}), 400
+        # Only admins may adjust payments on a fully-paid sale
+        user = db.session.get(User, int(get_jwt_identity()))
+        if not user or user.role != 'admin':
+            return jsonify({'message': 'Sale already fully paid'}), 400
 
     try:
         amount_raw = request.form.get('amount')

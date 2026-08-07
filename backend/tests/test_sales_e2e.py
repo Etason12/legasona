@@ -82,11 +82,12 @@ def test_e2e_vehicle_sale_lifecycle(client, auth_headers, db):
     assert resp.get_json()['status'] == 'completed'
     assert db.session.get(Vehicle, vehicle_id).status == 'sold'
 
-    # 5. Cannot add a payment to an already fully paid sale
+    # 5. An admin may still add a payment to an already fully paid sale
     resp = client.post(f'/api/sales/{sale_id}/add-payment', headers=auth_headers,
                        data={'amount': '100', 'method': 'cash'},
                        content_type='multipart/form-data')
-    assert resp.status_code == 400
+    assert resp.status_code == 200, resp.get_json()
+    assert resp.get_json()['status'] == 'completed'
 
     # 6. Lowering a payment drops the sale back to pending
     resp = client.put(f'/api/sales/{sale_id}/payments/{payment_id}',

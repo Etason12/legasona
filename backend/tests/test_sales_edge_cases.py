@@ -241,6 +241,45 @@ def test_vehicle_sale_edit_completed_only(client, auth_headers, db):
     assert db.session.get(Sale, cid).remark == 'ok'
 
 
+def test_admin_add_payment_to_completed_sale(client, auth_headers, db):
+    """An admin can add a payment to an already-completed sale."""
+    from app.models import Sale
+    vehicle = _create_vehicle(client, auth_headers, db)
+    resp = client.post('/api/sales/vehicle', headers=auth_headers, json={
+        'vehicle_id': vehicle.id, 'customer_name': 'Test', 'customer_phone': '+251911000992',
+        'payments': [{'method': 'cash', 'amount': '2500000'}],
+    })
+    assert resp.status_code == 201 and resp.get_json()['status'] == 'completed'
+    sale_id = resp.get_json()['sale_id']
+    resp = client.post(f'/api/sales/{sale_id}/add-payment', headers=auth_headers,
+                       data={'amount': '100', 'method': 'cash'}, content_type='multipart/form-data')
+    assert resp.status_code == 200, resp.get_json()
+    assert db.session.get(Sale, sale_id).status == 'completed'
+
+
+def test_non_admin_cannot_add_payment_to_completed_sale(client, auth_headers, db, app):
+    """A cashier cannot add a payment to a completed sale (admin-only)."""
+    from app.models import User
+    with app.app_context():
+        cashier = User(username='cashier01', role='cashier', status='active')
+        cashier.set_password('cashpass')
+        db.session.add(cashier)
+        db.session.commit()
+    login = client.post('/api/auth/login', json={'username': 'cashier01', 'password': 'cashpass'})
+    assert login.status_code == 200
+    h = {'Authorization': f"Bearer {login.get_json()['token']}"}
+
+    vehicle = _create_vehicle(client, auth_headers, db)
+    resp = client.post('/api/sales/vehicle', headers=auth_headers, json={
+        'vehicle_id': vehicle.id, 'customer_name': 'Test', 'customer_phone': '+251911000991',
+        'payments': [{'method': 'cash', 'amount': '2500000'}],
+    })
+    sale_id = resp.get_json()['sale_id']
+    resp = client.post(f'/api/sales/{sale_id}/add-payment', headers=h,
+                       data={'amount': '100', 'method': 'cash'}, content_type='multipart/form-data')
+    assert resp.status_code == 400, resp.get_json()
+
+
 def test_vehicle_sale_payments_null(client, auth_headers, db):
     """payments=null must be treated as empty list, not crash with a 500."""
     vehicle = _create_vehicle(client, auth_headers, db)

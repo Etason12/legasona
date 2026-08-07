@@ -102,8 +102,8 @@ const SalesTable = ({ sales, loading, user, onPreviewImage, onViewPayments, onCo
                       <button onClick={() => onViewPayments(sale)} className="p-2.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-slate-600 dark:text-slate-300 rounded-xl border border-neutral-200 dark:border-neutral-700 transition-colors" title="View Payments">
                         <Eye size={18} />
                       </button>
-                      {sale.status === 'pending' && (
-                        <button onClick={() => onCollectPayment(sale)} className="p-2.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl border border-amber-200 dark:border-amber-800 transition-colors" title="Collect Payment">
+                      {(sale.status === 'pending' || (sale.status === 'completed' && isAdmin(user))) && (
+                        <button onClick={() => onCollectPayment(sale)} className="p-2.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl border border-amber-200 dark:border-amber-800 transition-colors" title="Collect / Add Payment">
                           <CreditCard size={18} />
                         </button>
                       )}

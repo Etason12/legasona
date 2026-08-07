@@ -174,3 +174,51 @@ def test_spare_part_sale_empty_amount_returns_400(client, auth_headers, db):
         'payments': [{'method': 'cash', 'amount': ''}],
     })
     assert resp.status_code == 400, f"Expected 400, got {resp.status_code}: {resp.get_json()}"
+
+
+# ── Postgres column-capacity hardening ─────────────────────────────
+# These would raise a DataError (500) on Postgres (which enforces VARCHAR
+# lengths and Numeric(12,2) ranges) but not SQLite, so they are covered here.
+
+def test_vehicle_sale_long_phone_and_name(client, auth_headers, db):
+    """Over-long customer_phone/name/motor_number must truncate, not 500."""
+    vehicle = _create_vehicle(client, auth_headers, db)
+    long_phone = '+2519' + '1' * 40  # > String(20)
+    long_name = 'X' * 300            # > String(100)
+    resp = client.post('/api/sales/vehicle', headers=auth_headers, json={
+        'vehicle_id': vehicle.id,
+        'customer_name': long_name,
+        'customer_phone': long_phone,
+        'motor_number': 'M' * 200,  # > String(50)
+        'payments': [{'method': 'cash', 'amount': ''}],
+    })
+    assert resp.status_code == 201, f"Expected 201, got {resp.status_code}: {resp.get_json()}"
+
+    from app.models import Sale
+    sale = Sale.query.filter_by(sale_type='vehicle').order_by(Sale.id.desc()).first()
+    assert sale is not None
+    assert len(sale.customer_name) == 100, "customer_name should be truncated to 100"
+    assert len(sale.customer_phone) == 20
+    assert len(sale.motor_number) == 50
+
+
+def test_vehicle_sale_payments_null(client, auth_headers, db):
+    """payments=null must be treated as empty list, not crash with a 500."""
+    vehicle = _create_vehicle(client, auth_headers, db)
+    resp = client.post('/api/sales/vehicle', headers=auth_headers, json={
+        'vehicle_id': vehicle.id, 'customer_name': 'Test', 'customer_phone': '+251911000998',
+        'payments': None,
+    })
+    assert resp.status_code == 201, f"Expected 201, got {resp.status_code}: {resp.get_json()}"
+    assert resp.get_json()['status'] == 'pending'
+
+
+def test_vehicle_sale_amount_overflow_returns_400(client, auth_headers, db):
+    """An amount exceeding Numeric(12,2) must return 400, not 500."""
+    vehicle = _create_vehicle(client, auth_headers, db)
+    resp = client.post('/api/sales/vehicle', headers=auth_headers, json={
+        'vehicle_id': vehicle.id, 'customer_name': 'Test', 'customer_phone': '+251911000997',
+        'payments': [{'method': 'cash', 'amount': '999999999999999'}],
+    })
+    assert resp.status_code == 400, f"Expected 400, got {resp.status_code}: {resp.get_json()}"
+    assert 'too large' in resp.get_json()['message']

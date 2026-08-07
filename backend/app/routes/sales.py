@@ -7,6 +7,7 @@ from app.utils.image_utils import compress_to_base64
 from app.utils.validation import safe_int
 from app.utils.sanitization import sanitize_search
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from sqlalchemy import func, or_
 from app.models import Sale, Payment, Vehicle, SparePart, User, Customer, db
 from app.utils.logging import log_activity
@@ -33,6 +34,59 @@ def _safe_float(value, field_name='amount'):
     except (ValueError, TypeError):
         raise ValueError(f'Invalid {field_name}: "{value}" — please enter a numeric value')
 
+# Postgres enforces VARCHAR lengths and Numeric(12,2) ranges that SQLite ignores,
+# so user-entered values that exceed a column's capacity would otherwise 500.
+# These helpers guarantee the value fits its column.
+
+AMOUNT_MAX = Decimal('9999999999.99')
+
+def _truncate(value, max_len, field_name='value'):
+    """Coerce a user-entered value to a string, trimmed to fit a VARCHAR column.
+    Returns None for blank/missing values."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    if len(s) > max_len:
+        s = s[:max_len]
+    return s
+
+
+def _payment_amount(value, field_name='payment amount'):
+    """Parse a money value and ensure it fits the Numeric(12,2) column range."""
+    amount = _safe_float(value, field_name)
+    try:
+        if Decimal(str(amount)) > AMOUNT_MAX:
+            raise ValueError(f'{field_name} is too large — maximum is 9,999,999,999.99')
+    except InvalidOperation:
+        raise ValueError(f'Invalid {field_name}: "{value}" — please enter a numeric value')
+    return amount
+
+
+def _payments_list(raw):
+    """Normalize a payments payload into a list, tolerating JSON strings or
+    missing/null values that would otherwise crash iteration with a 500."""
+    if not raw:
+        return []
+    if isinstance(raw, (str, bytes, bytearray)):
+        try:
+            parsed = json.loads(raw)
+        except (ValueError, TypeError):
+            return []
+    else:
+        parsed = raw
+    return parsed if isinstance(parsed, list) else []
+
+
+def _customer_fields(data):
+    """Build truncated customer_name/customer_phone values that fit their columns."""
+    name = _truncate(data.get('customer_name'), 100, 'customer name')
+    phone = _truncate(data.get('customer_phone'), 20, 'customer phone')
+    if name:
+        name = name.strip().title()
+    return name, phone
+
 def _generate_sale_number(prefix):
     """Build a unique sale number using a timestamp plus a random suffix."""
     import secrets
@@ -49,8 +103,7 @@ def _ensure_customer(data, item_branch_id=None):
        Uses item_branch_id (inventory location) when creating a new customer.
        Returns the customer_id to link to the sale."""
     customer_id = data.get('customer_id')
-    name = (data.get('customer_name') or '').strip().title()
-    phone = (data.get('customer_phone') or '').strip()
+    name, phone = _customer_fields(data)
     branch_id = item_branch_id or data.get('branch_id')
     if not customer_id and name and phone:
         existing = Customer.query.filter_by(phone=phone).first()
@@ -83,11 +136,11 @@ def _record_vehicle_sale():
     if request.content_type and 'multipart' in request.content_type:
         data = request.form
         payments_raw = data.get('payments', '[]')
-        payments_data = json.loads(payments_raw) if isinstance(payments_raw, str) else payments_raw
+        payments_data = _payments_list(payments_raw)
     else:
         body = request.get_json() or {}
         data = body
-        payments_data = body.get('payments', [])
+        payments_data = _payments_list(body.get('payments'))
 
     vehicle_id = data.get('vehicle_id')
     vehicle = db.session.get(Vehicle, vehicle_id)
@@ -99,21 +152,22 @@ def _record_vehicle_sale():
     if selling_price <= 0:
         return jsonify({'message': 'Vehicle has no selling price set in inventory'}), 400
     total_amount = selling_price
-    paid_amount = sum(_safe_float(p.get('amount'), 'payment amount') for p in payments_data)
+    paid_amount = sum(_payment_amount(p.get('amount')) for p in payments_data)
     status = 'completed' if paid_amount >= total_amount else 'pending'
     sale_number = _generate_sale_number('VS')
     sale_date_str = (data.get('sale_date') or '').strip()
     sale_date = datetime.fromisoformat(sale_date_str) if sale_date_str else datetime.now(timezone.utc)
 
+    customer_name, customer_phone = _customer_fields(data)
     customer_id = _ensure_customer(data, item_branch_id=vehicle.branch_id) or data.get('customer_id') or None
     current_user_id = int(get_jwt_identity())
 
     new_sale = Sale(
         sale_number=sale_number, sale_type='vehicle', item_id=vehicle_id,
-        customer_name=(data.get('customer_name') or '').strip().title(), customer_phone=data.get('customer_phone'),
+        customer_name=customer_name, customer_phone=customer_phone,
         customer_id=customer_id,
         total_amount=total_amount,
-        chassis_number=vehicle.vin, motor_number=data.get('motor_number'),
+        chassis_number=vehicle.vin, motor_number=_truncate(data.get('motor_number'), 50, 'motor number'),
         status=status, branch_id=vehicle.branch_id,
         user_id=current_user_id,
         sale_date=sale_date,
@@ -125,13 +179,15 @@ def _record_vehicle_sale():
     db.session.flush()
 
     for idx, p in enumerate(payments_data):
-        method = p.get('method')
-        ref = p.get('reference')
+        method = _truncate(p.get('method'), 20, 'payment method') or 'cash'
+        bank = _truncate(p.get('bank'), 50, 'bank name')
+        account_holder = _truncate(p.get('accountHolder'), 50, 'account holder')
+        ref = _truncate(p.get('reference'), 100, 'transaction reference')
         if method == 'bank':
-            if not p.get('bank'):
+            if not bank:
                 db.session.rollback()
                 return jsonify({'message': 'Bank name is required for bank payments'}), 400
-            if not p.get('accountHolder'):
+            if not account_holder:
                 db.session.rollback()
                 return jsonify({'message': 'Account holder is required for bank payments'}), 400
             if not ref:
@@ -146,8 +202,8 @@ def _record_vehicle_sale():
 
         db.session.add(Payment(
             sale_id=new_sale.id, payment_method=method,
-            bank_name=p.get('bank', '').upper(), account_holder=p.get('accountHolder', '').upper(),
-            amount=_safe_float(p.get('amount'), 'payment amount'),
+            bank_name=bank.upper() if bank else None, account_holder=account_holder.upper() if account_holder else None,
+            amount=_payment_amount(p.get('amount')),
             transaction_reference=ref.upper() if ref else None, receipt_image=receipt_data,
             payment_date=sale_date
         ))
@@ -197,19 +253,20 @@ def _record_spare_part_sale():
     total_amount = _safe_float(data.get('total_amount'), 'total amount')
     if total_amount <= 0:
         return jsonify({'message': 'Total amount must be greater than zero'}), 400
-    payments_data = data.get('payments', [])
-    paid_amount = sum(_safe_float(p.get('amount'), 'payment amount') for p in payments_data)
+    payments_data = _payments_list(data.get('payments'))
+    paid_amount = sum(_payment_amount(p.get('amount')) for p in payments_data)
     status = 'completed' if paid_amount >= total_amount else 'pending'
     sale_number = _generate_sale_number('SP')
     sale_date_str = (data.get('sale_date') or '').strip()
     sale_date = datetime.fromisoformat(sale_date_str) if sale_date_str else datetime.now(timezone.utc)
 
+    customer_name, customer_phone = _customer_fields(data)
     customer_id = _ensure_customer(data, item_branch_id=part.branch_id) or data.get('customer_id') or None
     current_user_id = int(get_jwt_identity())
 
     new_sale = Sale(
         sale_number=sale_number, sale_type='spare_part', item_id=part_id, quantity=qty,
-        customer_name=(data.get('customer_name') or '').strip().title(), customer_phone=data.get('customer_phone'),
+        customer_name=customer_name, customer_phone=customer_phone,
         customer_id=customer_id,
         total_amount=total_amount, status=status,
         category=part.category,
@@ -222,12 +279,14 @@ def _record_spare_part_sale():
     db.session.flush()
 
     for p in payments_data:
-        method = p.get('method')
-        ref = p.get('reference')
+        method = _truncate(p.get('method'), 20, 'payment method') or 'cash'
+        bank = _truncate(p.get('bank'), 50, 'bank name')
+        account_holder = _truncate(p.get('accountHolder'), 50, 'account holder')
+        ref = _truncate(p.get('reference'), 100, 'transaction reference')
         if method == 'bank':
-            if not p.get('bank'):
+            if not bank:
                 return jsonify({'message': 'Bank name is required for bank payments'}), 400
-            if not p.get('accountHolder'):
+            if not account_holder:
                 return jsonify({'message': 'Account holder is required for bank payments'}), 400
             if not ref:
                 return jsonify({'message': 'Transaction reference is required for bank payments'}), 400
@@ -236,8 +295,8 @@ def _record_spare_part_sale():
 
         db.session.add(Payment(
             sale_id=new_sale.id, payment_method=method,
-            bank_name=p.get('bank', '').upper(), account_holder=p.get('accountHolder', '').upper(),
-            amount=_safe_float(p.get('amount'), 'payment amount'),
+            bank_name=bank.upper() if bank else None, account_holder=account_holder.upper() if account_holder else None,
+            amount=_payment_amount(p.get('amount')),
             transaction_reference=ref.upper() if ref else None,
             payment_date=sale_date
         ))

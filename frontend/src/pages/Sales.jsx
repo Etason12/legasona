@@ -60,6 +60,7 @@ const Sales = ({ user }) => {
   const [selectedVehicleId, setSelectedVehicleId] = useState('')
   const [vehicleSearch, setVehicleSearch] = useState('')
   const [selectedPartId, setSelectedPartId] = useState('')
+  const [partSearch, setPartSearch] = useState('')
   const [partQuantity, setPartQuantity] = useState(1)
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
   const [newCustPhone, setNewCustPhone] = useState('')
@@ -92,6 +93,24 @@ const Sales = ({ user }) => {
     return matched
   }, [sortedVehicles, vehicleSearch, selectedVehicleId])
 
+  // Spare parts shown in the sale dropdown: filtered by the search box, with
+  // the currently selected part kept visible even if it doesn't match.
+  const filteredParts = useMemo(() => {
+    const q = partSearch.trim().toLowerCase()
+    if (!q) return sortedParts
+    const matched = sortedParts.filter(p =>
+      (p.name || '').toLowerCase().includes(q) ||
+      (p.part_number || '').toLowerCase().includes(q) ||
+      (p.name_tigrinya || '').toLowerCase().includes(q) ||
+      (p.category || '').toLowerCase().includes(q)
+    )
+    const selected = sortedParts.find(p => p.id === parseInt(selectedPartId, 10))
+    if (selected && !matched.some(p => p.id === selected.id)) {
+      return [selected, ...matched]
+    }
+    return matched
+  }, [sortedParts, partSearch, selectedPartId])
+
   useEffect(() => { const t = setTimeout(() => setDebouncedSearch(searchQuery), 350); return () => clearTimeout(t) }, [searchQuery])
   useEffect(() => { fetchData() }, [statusFilter, debouncedSearch, startDate, endDate, page, selectedBranchId])
 
@@ -107,6 +126,7 @@ const Sales = ({ user }) => {
       setSelectedVehicleId('')
       setVehicleSearch('')
       setSelectedPartId('')
+      setPartSearch('')
       setPartQuantity(1)
       setSelectedCustomerId('')
       setNewCustPhone('')
@@ -289,7 +309,7 @@ const Sales = ({ user }) => {
       toast.success('Sale recorded successfully!')
       setShowNewSale(false); setForm({})
       setPayments([{ id: 1, method: 'cash', amount: '', bank: '', reference: '', accountHolder: '' }])
-      setSelectedCustomerId(''); setSelectedVehicleId(''); setSelectedPartId(''); setPartQuantity(1)
+      setSelectedCustomerId(''); setSelectedVehicleId(''); setSelectedPartId(''); setPartSearch(''); setPartQuantity(1)
       fetchData()
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to record sale')
@@ -445,7 +465,9 @@ const Sales = ({ user }) => {
           filteredVehicles={filteredVehicles}
           vehicleSearch={vehicleSearch} onVehicleSearchChange={setVehicleSearch}
           selectedPartId={selectedPartId} onPartSelect={setSelectedPartId}
-          sortedParts={sortedParts} partQuantity={partQuantity} onPartQuantityChange={setPartQuantity}
+          sortedParts={sortedParts} filteredParts={filteredParts}
+          partSearch={partSearch} onPartSearchChange={setPartSearch}
+          partQuantity={partQuantity} onPartQuantityChange={setPartQuantity}
           availableParts={availableParts}
           selectedCustomerId={selectedCustomerId} onCustomerSelect={setSelectedCustomerId}
           customers={customers}
@@ -475,7 +497,7 @@ const Sales = ({ user }) => {
 // NewSaleModal - inline since it's complex but tightly coupled to Sales state
 const NewSaleModal = ({ show, onClose, form, setForm, set, payments, setPayments, addPaymentRow, removePaymentRow,
   selectedVehicleId, onVehicleSelect, sortedVehicles, filteredVehicles, vehicleSearch, onVehicleSearchChange,
-  selectedPartId, onPartSelect, sortedParts,
+  selectedPartId, onPartSelect, sortedParts, filteredParts, partSearch, onPartSearchChange,
   partQuantity, onPartQuantityChange, availableParts, selectedCustomerId, onCustomerSelect,
   customers, newCustPhone, onCustPhoneChange, phoneWarning, onPhoneWarningChange,
   saleType, onSaleTypeChange, onSubmit, submitting, handleCameraNewSalePay }) => {
@@ -583,12 +605,28 @@ const NewSaleModal = ({ show, onClose, form, setForm, set, payments, setPayments
                     <div className="space-y-4">
                       <div>
                         <label className="label">{t('sparePart')} *</label>
+                        <div className="relative mb-2">
+                          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          <input
+                            type="text"
+                            className="input-field pl-9"
+                            placeholder={t('searchParts') || 'Search by name, part number, or category...'}
+                            value={partSearch}
+                            onChange={e => onPartSearchChange(e.target.value)}
+                          />
+                        </div>
                         <select name="part_id" required className="input-field" value={selectedPartId} onChange={e => onPartSelect(e.target.value)}>
                           <option value="">{t('selectItem')}</option>
-                          {sortedParts.map(p => (
-                            <option key={p.id} value={p.id}>{p.name.toUpperCase()} — {p.part_number || ''} — ETB {Number(p.unit_price).toLocaleString()} — Stock: {p.quantity}</option>
+                          {filteredParts.map(p => (
+                            <option key={p.id} value={p.id}>{(p.name || '').toUpperCase()} — {p.part_number || ''} — ETB {Number(p.unit_price).toLocaleString()} — Stock: {p.quantity}</option>
                           ))}
                         </select>
+                        {partSearch.trim() && filteredParts.length === 0 && (
+                          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">{t('noPartsMatch') || 'No spare parts match your search'}</p>
+                        )}
+                        {partSearch.trim() && filteredParts.length > 0 && (
+                          <p className="text-xs text-slate-400 mt-1.5">{filteredParts.length} / {sortedParts.length}</p>
+                        )}
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div><label className="label">{t('quantity')}</label><input type="number" name="quantity" min="1" required className="input-field" value={partQuantity} onChange={e => onPartQuantityChange(e.target.value)} /></div>

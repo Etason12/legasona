@@ -3,146 +3,34 @@ import json
 import pytest
 
 
-# ── Order Fulfillment → Sale + Payment ───────────────────────────────
+# ── Order Fulfillment ───────────────────────────────────────────────
 
-def test_fulfill_order_creates_sale_and_payment(client, auth_headers, db):
-    """Fulfilling an order should create a Sale, Payment, and update Vehicle status."""
-    from app.models import Branch, Vehicle, Order, Sale, Payment
+def test_fulfill_order_marks_fulfilled(client, auth_headers, db):
+    """Fulfilling an order should simply mark it as fulfilled without creating a sale."""
+    from app.models import Branch, Order, Sale, Payment, Vehicle
 
     branch = Branch(name='Shire', location='Shire')
     db.session.add(branch)
     db.session.flush()
 
-    vehicle = Vehicle(vin='VIN-001', type='4-wheel', model='Toyota', branch_id=branch.id,
-                      status='available', selling_price=2500000, cost_price=1800000)
     order = Order(customer_name='John', customer_phone='+251911000001', vehicle_specs='Toyota Hilux',
                   sequence_number=1, deposit_amount=500000, deposit_method='bank',
                   deposit_bank='CBE', deposit_account_holder='TEWELDE', deposit_transaction_reference='TX-123',
                   branch_id=branch.id, status='waiting')
-    db.session.add_all([vehicle, order])
-    db.session.commit()
-
-    resp = client.post(f'/api/orders/{order.id}/fulfill', headers=auth_headers,
-                       json={'vehicle_id': vehicle.id})
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert data['status'] == 'pending'  # 500k deposit < 2.5M price
-    assert 'sale_number' in data
-
-    sale = Sale.query.filter_by(order_id=order.id).first()
-    assert sale is not None
-    assert sale.sale_type == 'vehicle'
-    assert sale.item_id == vehicle.id
-    assert sale.customer_name == 'John'
-    assert sale.customer_phone == '+251911000001'
-    assert float(sale.total_amount) == 2500000
-    assert float(sale.cost_at_sale) == 1800000
-    assert sale.chassis_number == 'VIN-001'
-    assert sale.status == 'pending'
-    assert sale.branch_id == branch.id
-
-    payment = Payment.query.filter_by(sale_id=sale.id).first()
-    assert payment is not None
-    assert float(payment.amount) == 500000
-    assert payment.payment_method == 'bank'
-    assert payment.bank_name == 'CBE'
-    assert payment.account_holder == 'TEWELDE'
-    assert payment.transaction_reference == 'TX-123'
-
-    updated_vehicle = db.session.get(Vehicle, vehicle.id)
-    assert updated_vehicle.status == 'reserved'
-
-    updated_order = db.session.get(Order, order.id)
-    assert updated_order.status == 'fulfilled'
-    assert updated_order.sale_id == sale.id
-
-
-def test_fulfill_order_full_payment(client, auth_headers, db):
-    """If deposit >= price, sale status should be 'completed' and vehicle 'sold'."""
-    from app.models import Branch, Vehicle, Order, Sale
-
-    branch = Branch(name='Shire', location='Shire')
-    db.session.add(branch)
-    db.session.flush()
-
-    vehicle = Vehicle(vin='VIN-002', type='3-wheel', model='Foton', branch_id=branch.id,
-                      status='available', selling_price=1000000, cost_price=700000)
-    order = Order(customer_name='Jane', customer_phone='+251911000002', vehicle_specs='Foton',
-                  sequence_number=1, deposit_amount=1000000, deposit_method='cash',
-                  branch_id=branch.id, status='waiting')
-    db.session.add_all([vehicle, order])
-    db.session.commit()
-
-    resp = client.post(f'/api/orders/{order.id}/fulfill', headers=auth_headers,
-                       json={'vehicle_id': vehicle.id})
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert data['status'] == 'completed'
-
-    sale = Sale.query.filter_by(order_id=order.id).first()
-    assert sale.status == 'completed'
-    assert db.session.get(Vehicle, vehicle.id).status == 'sold'
-
-
-def test_fulfill_order_rejects_wrong_branch(client, auth_headers, db):
-    """Cannot fulfill with a vehicle from a different branch."""
-    from app.models import Branch, Vehicle, Order
-
-    branch1 = Branch(name='Shire', location='Shire')
-    branch2 = Branch(name='Mekelle', location='Mekelle')
-    db.session.add_all([branch1, branch2])
-    db.session.flush()
-
-    vehicle = Vehicle(vin='VIN-003', type='4-wheel', model='Toyota', branch_id=branch2.id,
-                      status='available', selling_price=2000000)
-    order = Order(customer_name='Test', customer_phone='+251911000003',
-                  sequence_number=1, deposit_amount=100000, branch_id=branch1.id, status='waiting')
-    db.session.add_all([vehicle, order])
-    db.session.commit()
-
-    resp = client.post(f'/api/orders/{order.id}/fulfill', headers=auth_headers,
-                       json={'vehicle_id': vehicle.id})
-    assert resp.status_code == 400
-    assert 'same branch' in resp.get_json()['message']
-
-
-def test_fulfill_order_rejects_sold_vehicle(client, auth_headers, db):
-    """Cannot fulfill with a vehicle that is already sold."""
-    from app.models import Branch, Vehicle, Order
-
-    branch = Branch(name='Shire', location='Shire')
-    db.session.add(branch)
-    db.session.flush()
-
-    vehicle = Vehicle(vin='VIN-004', type='4-wheel', model='Toyota', branch_id=branch.id,
-                      status='sold', selling_price=2000000)
-    order = Order(customer_name='Test', customer_phone='+251911000004',
-                  sequence_number=1, deposit_amount=100000, branch_id=branch.id, status='waiting')
-    db.session.add_all([vehicle, order])
-    db.session.commit()
-
-    resp = client.post(f'/api/orders/{order.id}/fulfill', headers=auth_headers,
-                       json={'vehicle_id': vehicle.id})
-    assert resp.status_code == 400
-    assert 'not available' in resp.get_json()['message']
-
-
-def test_fulfill_order_requires_vehicle_id(client, auth_headers, db):
-    """Fulfilling without vehicle_id should return 400."""
-    from app.models import Branch, Order
-
-    branch = Branch(name='Shire', location='Shire')
-    db.session.add(branch)
-    db.session.flush()
-
-    order = Order(customer_name='Test', customer_phone='+251911000005',
-                  sequence_number=1, deposit_amount=100000, branch_id=branch.id, status='waiting')
     db.session.add(order)
     db.session.commit()
 
-    resp = client.post(f'/api/orders/{order.id}/fulfill', headers=auth_headers, json={})
-    assert resp.status_code == 400
-    assert 'Vehicle ID' in resp.get_json()['message']
+    resp = client.post(f'/api/orders/{order.id}/fulfill', headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data['status'] == 'fulfilled'
+
+    updated_order = db.session.get(Order, order.id)
+    assert updated_order.status == 'fulfilled'
+
+    assert Sale.query.count() == 0
+    assert Payment.query.count() == 0
+    assert Vehicle.query.count() == 0
 
 
 # ── Available Vehicles Endpoint ──────────────────────────────────────
@@ -403,19 +291,18 @@ def test_cannot_fulfill_non_waiting_order(client, auth_headers, db):
     db.session.add(order)
     db.session.commit()
 
-    resp = client.post(f'/api/orders/{order.id}/fulfill', headers=auth_headers,
-                       json={'vehicle_id': 1})
+    resp = client.post(f'/api/orders/{order.id}/fulfill', headers=auth_headers)
     assert resp.status_code == 400
     assert 'not in waiting' in resp.get_json()['message']# ── Order Not Found ────────────────────────────────────────────────
 def test_fulfill_order_nonexistent_order_returns_404(client, auth_headers, db):
     """Fulfilling a nonexistent order should return 404, not 500."""
-    resp = client.post('/api/orders/999999/fulfill', headers=auth_headers, json={'vehicle_id': 1})
+    resp = client.post('/api/orders/999999/fulfill', headers=auth_headers)
     assert resp.status_code == 404
 
 
-# ── Vehicle Not Found ───────────────────────────────────────────────
-def test_fulfill_order_invalid_vehicle(client, auth_headers, db):
-    """Fulfilling with a nonexistent vehicle should return 404."""
+# ── Fulfill Waiting Order With No Vehicle Required ──────────────────
+def test_fulfill_waiting_order_no_vehicle_needed(client, auth_headers, db):
+    """Fulfilling a waiting order should succeed without any vehicle."""
     from app.models import Branch, Order
 
     branch = Branch(name='Shire', location='Shire')
@@ -428,7 +315,6 @@ def test_fulfill_order_invalid_vehicle(client, auth_headers, db):
     db.session.add(order)
     db.session.commit()
 
-    resp = client.post(f'/api/orders/{order.id}/fulfill', headers=auth_headers,
-                       json={'vehicle_id': 99999})
-    assert resp.status_code == 404
-    assert 'not found' in resp.get_json()['message'].lower()
+    resp = client.post(f'/api/orders/{order.id}/fulfill', headers=auth_headers)
+    assert resp.status_code == 200
+    assert db.session.get(Order, order.id).status == 'fulfilled'

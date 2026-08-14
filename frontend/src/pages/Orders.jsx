@@ -137,10 +137,10 @@ const Orders = ({ user }) => {
     setShowFulfillModal(true)
   }
 
-  const handleFulfillSubmit = async (orderId, vehicleId) => {
+  const handleFulfillSubmit = async (orderId) => {
     setSubmitting(true)
     try {
-      const res = await api.post(`/orders/${orderId}/fulfill`, { vehicle_id: vehicleId })
+      const res = await api.post(`/orders/${orderId}/fulfill`)
       toast.success(res.data.message || 'Order fulfilled successfully')
       setShowFulfillModal(false)
       setFulfillOrder(null)

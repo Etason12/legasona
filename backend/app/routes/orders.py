@@ -220,94 +220,23 @@ def fulfill_order(id):
 
 
 def _fulfill_order(id):
-    from sqlalchemy import func
-    import secrets
-
     order = db.get_or_404(Order, id)
     if order.status != 'waiting':
         return jsonify({'message': 'Order is not in waiting status'}), 400
 
-    data = request.get_json() or {}
-    vehicle_id = data.get('vehicle_id')
-    if not vehicle_id:
-        return jsonify({'message': 'Vehicle ID is required'}), 400
-
-    vehicle = db.session.get(Vehicle, vehicle_id)
-    if not vehicle:
-        return jsonify({'message': 'Vehicle not found'}), 404
-    if vehicle.status != 'available':
-        return jsonify({'message': 'Vehicle is not available'}), 400
-    if vehicle.branch_id != order.branch_id:
-        return jsonify({'message': 'Vehicle is not in the same branch as the order'}), 400
-
-    selling_price = float(vehicle.selling_price or 0)
-    if selling_price <= 0:
-        return jsonify({'message': 'Vehicle has no selling price set'}), 400
-
-    deposit = float(order.deposit_amount or 0)
-    status = 'completed' if deposit >= selling_price else 'pending'
-
-    sale_number = None
-    for _ in range(10):
-        stamp = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
-        suffix = f"{secrets.randbelow(10000):04d}"
-        candidate = f"VS-{stamp}-{suffix}"
-        if not Sale.query.filter_by(sale_number=candidate).first():
-            sale_number = candidate
-            break
-    if not sale_number:
-        return jsonify({'message': 'Could not generate sale number'}), 500
+    order.status = 'fulfilled'
 
     current_user_id = int(get_jwt_identity())
-
-    new_sale = Sale(
-        sale_number=sale_number, sale_type='vehicle', item_id=vehicle_id,
-        customer_name=order.customer_name, customer_phone=order.customer_phone,
-        customer_id=order.customer_id,
-        total_amount=selling_price,
-        cost_at_sale=float(vehicle.cost_price or 0),
-        chassis_number=vehicle.vin,
-        status=status, branch_id=vehicle.branch_id,
-        user_id=current_user_id,
-        sale_date=datetime.now(timezone.utc),
-        category='Vehicle',
-        remark=order.remark,
-        order_id=order.id
-    )
-    db.session.add(new_sale)
-    db.session.flush()
-
-    if deposit > 0:
-        db.session.add(Payment(
-            sale_id=new_sale.id,
-            payment_method=order.deposit_method or 'cash',
-            bank_name=(order.deposit_bank or '').upper(),
-            account_holder=(order.deposit_account_holder or '').upper(),
-            amount=deposit,
-            transaction_reference=(order.deposit_transaction_reference or '').upper() or None,
-            receipt_image=order.deposit_receipt_image,
-            payment_date=datetime.now(timezone.utc)
-        ))
-
-    vehicle.status = 'sold' if status == 'completed' else 'reserved'
-    order.status = 'fulfilled'
-    order.sale_id = new_sale.id
-
     log_activity(current_user_id, 'FULFILL_ORDER',
-        f"Fulfilled order #{order.sequence_number}, created sale {sale_number} for {order.customer_name} - ETB {selling_price}")
+        f"Fulfilled order #{order.sequence_number} for {order.customer_name}")
 
     db.session.commit()
     send_notification(
         'Order Fulfilled',
-        f'Order #{order.sequence_number} fulfilled — {sale_number} for {order.customer_name}',
-        {'type': 'order_fulfilled', 'sale_number': sale_number}
+        f'Order #{order.sequence_number} fulfilled for {order.customer_name}',
+        {'type': 'order_fulfilled'}
     )
-    return jsonify({
-        'message': f'Order fulfilled. Sale {sale_number} created as {status}',
-        'sale_id': new_sale.id,
-        'sale_number': sale_number,
-        'status': status
-    }), 200
+    return jsonify({'message': 'Order fulfilled successfully', 'status': 'fulfilled'}), 200
 
 @orders_bp.route('/<int:id>/cancel', methods=['POST'])
 @jwt_required()

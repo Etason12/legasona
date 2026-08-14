@@ -49,6 +49,10 @@ export const translations = {
     userCreated: 'User created successfully',
     userUpdated: 'User updated successfully',
     userDeleted: 'User deleted',
+    resetPassword: 'Reset Password',
+    resetPasswordFor: 'Reset Password for {username}',
+    passwordReset: 'Password reset successfully',
+    passwordRequired: 'New password is required',
     langApplied: 'Language updated to English',
 
     // Dashboard
@@ -460,6 +464,10 @@ export const translations = {
     userCreated: 'ተጠቃሚ በተሳካ ሁኔታ ተፈጥሯል',
     userUpdated: 'ተጠቃሚ ተዘምኗል',
     userDeleted: 'ተጠቃሚ ተሰርዟል',
+    resetPassword: 'የይለፍ ቃል ዳግም አስጀምር',
+    resetPasswordFor: 'የይለፍ ቃል ዳግም ማስጀመር — {username}',
+    passwordReset: 'የይለፍ ቃል በተሳካ ሁኔታ ተቀይሯል',
+    passwordRequired: 'አዲስ የይለፍ ቃል ያስፈልጋል',
     langApplied: 'ቋንቋ ወደ አማርኛ ተቀናብሯል',
 
     // Dashboard
@@ -870,6 +878,10 @@ export const translations = {
     userCreated: 'ተጠቃሚ ብሰላም ተፈጢሩ',
     userUpdated: 'ተጠቃሚ ተመሓይሹ',
     userDeleted: 'ተጠቃሚ ተሰሪዙ',
+    resetPassword: 'መሕለፊ ቃል ከድገም ጀምር',
+    resetPasswordFor: 'መሕለፊ ቃል ከድገም ምጅማር — {username}',
+    passwordReset: 'መሕለፊ ቃል ብሰላም ተቐይሩ',
+    passwordRequired: 'ሓዱሽ መሕለፊ ቃል የድልዩ',
     langApplied: 'ቁንቋ ናብ ትግርኛ ተቐይሩ',
 
     // Dashboard

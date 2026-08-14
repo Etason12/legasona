@@ -41,6 +41,9 @@ const Settings = ({ user }) => {
  const [showAddUser, setShowAddUser] = useState(false)
  const [editingUser, setEditingUser] = useState(null)
  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'cashier', branch_id: null })
+ const [resetPwUser, setResetPwUser] = useState(null)
+ const [resetPwValue, setResetPwValue] = useState('')
+ const [resettingPw, setResettingPw] = useState(false)
  
  // Branch management state
  const [branches, setBranches] = useState([])
@@ -137,6 +140,24 @@ const Settings = ({ user }) => {
    fetchUsers()
   } catch {
    toast.error('Failed to delete user')
+  }
+ }
+
+ const handleResetPassword = async () => {
+  if (!resetPwValue.trim()) {
+   toast.error(t('passwordRequired'))
+   return
+  }
+  setResettingPw(true)
+  try {
+   await api.put(`/users/${resetPwUser.id}`, { password: resetPwValue })
+   toast.success(t('passwordReset'))
+   setResetPwUser(null)
+   setResetPwValue('')
+  } catch {
+   toast.error('Failed to reset password')
+  } finally {
+   setResettingPw(false)
   }
  }
 
@@ -469,6 +490,7 @@ const Settings = ({ user }) => {
                 <td className="px-5 py-3 text-right">
                  <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={() => setEditingUser({ ...u })} className="p-2 bg-slate-800 text-slate-400 hover:text-slate-900 dark:text-white rounded-lg transition-colors" title="Edit"><Edit3 size={16} /></button>
+                  <button onClick={() => { setResetPwValue(''); setResetPwUser(u) }} className="p-2 bg-slate-800 text-slate-400 hover:text-slate-900 dark:text-white rounded-lg transition-colors" title={t('resetPassword')}><Key size={16} /></button>
                   {u.id !== user?.id && (
                    <button onClick={() => handleDeleteUser(u.id)} className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:bg-rose-900/50 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button>
                   )}
@@ -767,6 +789,34 @@ const Settings = ({ user }) => {
      </div>
     </div>
    </div>
+
+   {resetPwUser && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => { if (!resettingPw) setResetPwUser(null) }}>
+     <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
+      <h3 className="text-lg font-bold text-slate-900 dark:text-white">{t('resetPasswordFor').replace('{username}', resetPwUser.username)}</h3>
+      <p className="text-sm text-slate-500 mt-1">Set a new password for this account. The user will need to sign in with the new password.</p>
+      <div className="mt-4">
+       <label className="block text-xs font-bold text-slate-500 mb-1">{t('newPassword')}</label>
+       <input
+        type="password"
+        className="input-field py-2 text-sm"
+        value={resetPwValue}
+        onChange={e => setResetPwValue(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleResetPassword() } }}
+        placeholder="••••••••"
+        autoFocus
+       />
+      </div>
+      <div className="flex gap-3 justify-end mt-6">
+       <button type="button" onClick={() => setResetPwUser(null)} disabled={resettingPw} className="text-sm text-slate-400 hover:text-slate-900 dark:text-white px-4 py-2">{t('cancel')}</button>
+       <button type="button" onClick={handleResetPassword} disabled={resettingPw} className="btn-primary text-sm px-5 py-2 flex items-center gap-2">
+        {resettingPw ? <Loader2 size={16} className="animate-spin" /> : <Key size={16} />}
+        {t('resetPassword')}
+       </button>
+      </div>
+     </div>
+    </div>
+   )}
   </div>
  )
 }

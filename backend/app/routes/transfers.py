@@ -38,13 +38,20 @@ def request_transfer():
 @transfers_bp.route('', methods=['GET'])
 @jwt_required()
 def get_transfers():
-    transfers = Transfer.query.order_by(Transfer.request_date.desc()).all()
-    return jsonify([{
-        'id': t.id, 'from_branch': t.from_branch_id, 'to_branch': t.to_branch_id,
-        'item_type': t.item_type, 'item_id': t.item_id,
-        'quantity': t.quantity, 'status': t.approval_status,
-        'date': t.request_date.isoformat()
-    } for t in transfers]), 200
+    page = safe_int(request.args.get('page', 1), default=1, min_val=1)
+    per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=200)
+    paginated = Transfer.query.order_by(Transfer.request_date.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    return jsonify({
+        'items': [{
+            'id': t.id, 'from_branch': t.from_branch_id, 'to_branch': t.to_branch_id,
+            'item_type': t.item_type, 'item_id': t.item_id,
+            'quantity': t.quantity, 'status': t.approval_status,
+            'date': t.request_date.isoformat()
+        } for t in paginated.items],
+        'total': paginated.total,
+        'pages': paginated.pages,
+        'current_page': page
+    }), 200
 
 @transfers_bp.route('/<int:id>/approve', methods=['PUT'])
 @jwt_required()

@@ -1,9 +1,28 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import User, db
 from app.utils.auth import admin_required
 
 users_bp = Blueprint('users', __name__)
+
+@users_bp.route('/me', methods=['PUT'])
+@jwt_required()
+def update_profile():
+    user_id = get_jwt_identity()
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'message': 'User not found'}), 404
+    data = request.get_json()
+    username = (data.get('username') or '').strip()
+    if not username:
+        return jsonify({'message': 'Username is required'}), 400
+    if username != user.username and User.query.filter_by(username=username).first():
+        return jsonify({'message': 'Username already exists'}), 409
+    user.username = username
+    if data.get('password'):
+        user.set_password(data['password'])
+    db.session.commit()
+    return jsonify({'message': 'Profile updated', 'username': user.username}), 200
 
 @users_bp.route('', methods=['GET'])
 @jwt_required()

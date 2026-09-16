@@ -24,7 +24,7 @@ const Transfers = ({ user }) => {
   setLoading(true)
   try {
    const res = await api.get('/transfers')
-   setTransfers(res.data)
+    setTransfers(res.data.items || res.data)
   } catch (error) {
    toast.error('Failed to fetch transfers')
   } finally {

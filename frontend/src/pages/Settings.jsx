@@ -180,11 +180,15 @@ const Settings = ({ user }) => {
     }
     return
    }
-   setSaving(true)
-   setTimeout(() => {
-    setSaving(false)
-    toast.success(t('saveChanges') + ' ✓')
-   }, 800)
+    setSaving(true)
+    try {
+     await api.put('/users/me', { username: user?.username })
+     toast.success(t('saveChanges') + ' ✓')
+    } catch (err) {
+     toast.error(err.response?.data?.message || 'Failed to save profile')
+    } finally {
+     setSaving(false)
+    }
   }
 
   const fetchOnesignalConfig = async () => {
@@ -349,14 +353,6 @@ const Settings = ({ user }) => {
          <div className="relative">
           <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
           <input type="password" className="input-field pl-10" placeholder="••••••••" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
-         </div>
-        </div>
-        <div className="pt-4 p-4 rounded-xl bg-primary-500/5 border border-blue-100 dark:border-blue-800 flex gap-4">
-         <Shield className="text-blue-600 dark:text-blue-400 flex-shrink-0" size={24} />
-         <div>
-          <p className="text-sm font-bold text-slate-900 dark:text-white">Two-Factor Authentication</p>
-          <p className="text-xs text-slate-500 mt-1">Enable 2FA to add an extra security layer to your account.</p>
-          <button className="mt-3 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-primary-300 ">Enable Now</button>
          </div>
         </div>
        </div>

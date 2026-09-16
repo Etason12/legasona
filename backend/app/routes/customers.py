@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Customer, Sale, Order, Vehicle, SparePart, User, db
 from app.utils.auth import admin_required, role_required, effective_branch_id
-from app.utils.validation import safe_int
+from app.utils.validation import safe_int, safe_float
 from app.utils.sanitization import sanitize_string, sanitize_search
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
@@ -55,7 +55,7 @@ def add_customer():
         full_name=(data.get('full_name') or '').strip().title(), phone=data.get('phone'),
         email=data.get('email'), address=data.get('address'),
         customer_type=data.get('type', 'individual'),
-        credit_limit=float(data.get('credit_limit', 0)),
+        credit_limit=safe_float(data.get('credit_limit'), default=0),
         branch_id=data.get('branch_id')
     )
     db.session.add(c)
@@ -70,16 +70,23 @@ def get_customer_details(id):
     orders = Order.query.filter_by(customer_id=id).all()
 
     sales_data = []
+
+    # Batch-load vehicles and spare parts to avoid N+1 queries
+    vehicle_ids = {s.item_id for s in sales if s.sale_type == 'vehicle' and s.item_id}
+    spare_part_ids = {s.item_id for s in sales if s.sale_type == 'spare_part' and s.item_id}
+    vehicles = {v.id: v for v in Vehicle.query.filter(Vehicle.id.in_(vehicle_ids)).all()} if vehicle_ids else {}
+    spare_parts = {p.id: p for p in SparePart.query.filter(SparePart.id.in_(spare_part_ids)).all()} if spare_part_ids else {}
+
     for s in sales:
         item_name = None
         item_detail = None
         if s.sale_type == 'vehicle' and s.item_id:
-            v = db.session.get(Vehicle, s.item_id)
+            v = vehicles.get(s.item_id)
             if v:
                 item_name = v.model
                 item_detail = v.vin
         elif s.sale_type == 'spare_part' and s.item_id:
-            p = db.session.get(SparePart, s.item_id)
+            p = spare_parts.get(s.item_id)
             if p:
                 item_name = p.name
                 item_detail = p.part_number

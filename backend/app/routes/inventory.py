@@ -5,7 +5,8 @@ from app.utils.auth import role_required, effective_branch_id
 from app.utils.image_utils import compress_to_base64
 from app.utils.logging import log_activity
 from app.utils.notifications import send_notification
-from app.utils.validation import safe_int
+from app.utils.validation import safe_int, safe_float
+from app.utils.sanitization import sanitize_search
 from sqlalchemy import or_
 import time
 
@@ -32,7 +33,7 @@ def get_vehicles():
             query = query.filter(Vehicle.status.in_(statuses))
     search = (request.args.get('search') or '').strip()
     if search:
-        like = f'%{search}%'
+        like = f'%{sanitize_search(search)}%'
         query = query.filter(or_(
             Vehicle.model.ilike(like),
             Vehicle.vin.ilike(like),
@@ -78,9 +79,9 @@ def add_vehicle():
         vin=vin, type=request.form.get('type'), power_type=request.form.get('power_type'),
         model=request.form.get('model'), color=request.form.get('color'),
         chassis_number=vin, engine_number=request.form.get('engine_number'),
-        cost_price=float(request.form.get('cost_price', 0) or 0),
-        selling_price=float(request.form.get('selling_price', 0) or 0),
-        branch_id=request.form.get('branch_id'), status='available', image=image_data
+        cost_price=safe_float(request.form.get('cost_price', 0) or 0, default=0),
+        selling_price=safe_float(request.form.get('selling_price', 0) or 0, default=0),
+        branch_id=safe_int(request.form.get('branch_id')), status='available', image=image_data
     )
     db.session.add(v)
     db.session.flush()
@@ -110,8 +111,8 @@ def update_vehicle(id):
     v.type = data.get('type', v.type)
     v.power_type = data.get('power_type', v.power_type)
     v.color = data.get('color', v.color)
-    v.cost_price = float(data['cost_price']) if data.get('cost_price') not in (None, '') else v.cost_price
-    v.selling_price = float(data['selling_price']) if data.get('selling_price') not in (None, '') else v.selling_price
+    v.cost_price = safe_float(data.get('cost_price'), default=v.cost_price) if data.get('cost_price') not in (None, '') else v.cost_price
+    v.selling_price = safe_float(data.get('selling_price'), default=v.selling_price) if data.get('selling_price') not in (None, '') else v.selling_price
     v.status = data.get('status', v.status)
     v.branch_id = data.get('branch_id', v.branch_id)
     if data.get('vin'):
@@ -149,7 +150,7 @@ def get_spare_parts():
         query = query.filter_by(branch_id=branch_id)
     search = (request.args.get('search') or '').strip()
     if search:
-        like = f'%{search}%'
+        like = f'%{sanitize_search(search)}%'
         query = query.filter(or_(
             SparePart.name.ilike(like),
             SparePart.part_number.ilike(like),
@@ -190,10 +191,10 @@ def add_spare_part():
         part_number=part_number, name=request.form.get('name'),
         name_tigrinya=request.form.get('name_tigrinya'),
         category=request.form.get('category'),
-        unit_price=float(request.form.get('unit_price', 0) or 0),
-        cost_price=float(request.form.get('cost_price', 0) or 0),
-        quantity=int(request.form.get('quantity', 0) or 0),
-        branch_id=request.form.get('branch_id'), image=image_data
+        unit_price=safe_float(request.form.get('unit_price', 0) or 0, default=0),
+        cost_price=safe_float(request.form.get('cost_price', 0) or 0, default=0),
+        quantity=safe_int(request.form.get('quantity', 0) or 0, default=0),
+        branch_id=safe_int(request.form.get('branch_id')), image=image_data
     )
     db.session.add(p)
     db.session.flush()
@@ -223,9 +224,9 @@ def update_spare_part(id):
     p.name_tigrinya = data.get('name_tigrinya', p.name_tigrinya)
     p.part_number = data.get('part_number', p.part_number)
     p.category = data.get('category', p.category)
-    p.unit_price = float(data['unit_price']) if data.get('unit_price') not in (None, '') else p.unit_price
-    p.cost_price = float(data['cost_price']) if data.get('cost_price') not in (None, '') else p.cost_price
-    p.quantity = int(data['quantity']) if data.get('quantity') not in (None, '') else p.quantity
+    p.unit_price = safe_float(data.get('unit_price'), default=p.unit_price) if data.get('unit_price') not in (None, '') else p.unit_price
+    p.cost_price = safe_float(data.get('cost_price'), default=p.cost_price) if data.get('cost_price') not in (None, '') else p.cost_price
+    p.quantity = safe_int(data.get('quantity'), default=p.quantity) if data.get('quantity') not in (None, '') else p.quantity
     db.session.commit()
     return jsonify({'message': 'Spare part updated'}), 200
 

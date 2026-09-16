@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Purchase, PurchaseItem, SparePart, Vehicle, User, db
 from app.utils.auth import role_required, effective_branch_id
 from app.utils.image_utils import compress_to_base64
+from app.utils.validation import safe_int, safe_float
 from datetime import datetime, timezone
 import json
 
@@ -20,8 +21,16 @@ def get_purchases():
         query = query.filter(Purchase.branch_id == branch_id)
     purchases = query.order_by(Purchase.purchase_date.desc()).all()
     result = []
+
+    # Batch-load purchase items to avoid N+1 queries
+    purchase_ids = [pu.id for pu in purchases]
+    all_items = PurchaseItem.query.filter(PurchaseItem.purchase_id.in_(purchase_ids)).all() if purchase_ids else []
+    items_by_purchase = {}
+    for it in all_items:
+        items_by_purchase.setdefault(it.purchase_id, []).append(it)
+
     for pu in purchases:
-        items = PurchaseItem.query.filter_by(purchase_id=pu.id).all()
+        items = items_by_purchase.get(pu.id, [])
         result.append({
             'id': pu.id, 'supplier_name': pu.supplier_name,
             'item_type': pu.item_type, 'total_amount': pu.total_amount,
@@ -45,7 +54,7 @@ def record_purchase():
         file = None
 
     items_data = data.get('items', [])
-    total = sum(float(i.get('quantity', 0)) * float(i.get('unit_cost', 0)) for i in items_data)
+    total = sum(safe_float(i.get('quantity'), default=0) * safe_float(i.get('unit_cost'), default=0) for i in items_data)
 
     receipt_data = compress_to_base64(file)
     current_user_id = int(get_jwt_identity())
@@ -60,8 +69,8 @@ def record_purchase():
     db.session.flush()
 
     for item in items_data:
-        quantity    = int(item.get('quantity', 1))
-        unit_cost   = float(item.get('unit_cost', 0))
+        quantity    = safe_int(item.get('quantity'), default=1, min_val=1)
+        unit_cost   = safe_float(item.get('unit_cost'), default=0, min_val=0)
         existing_id = item.get('existing_id')
 
         db.session.add(PurchaseItem(

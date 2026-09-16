@@ -7,7 +7,7 @@ from app.models import Order, Customer, User, Branch, Sale, Payment, Vehicle, db
 from app.utils.auth import role_required
 from app.utils.logging import log_activity
 from app.utils.notifications import send_notification
-from app.utils.validation import safe_int
+from app.utils.validation import safe_int, safe_float
 from app.utils.image_utils import compress_to_base64
 
 orders_bp = Blueprint('orders', __name__)
@@ -175,7 +175,7 @@ def get_available_vehicles():
 def add_deposit(id):
     order = db.get_or_404(Order, id)
     if request.content_type and 'multipart' in request.content_type:
-        amount = float(request.form.get('amount', 0))
+        amount = safe_float(request.form.get('amount', 0), default=0, min_val=0)
         method = request.form.get('method', 'cash')
         bank = request.form.get('bank', '')
         account_holder = request.form.get('account_holder', '')
@@ -183,7 +183,7 @@ def add_deposit(id):
         receipt_file = request.files.get('receipt')
     else:
         data = request.get_json() or {}
-        amount = float(data.get('amount', 0))
+        amount = safe_float(data.get('amount', 0), default=0, min_val=0)
         method = data.get('method', 'cash')
         bank = data.get('bank', '')
         account_holder = data.get('account_holder', '')

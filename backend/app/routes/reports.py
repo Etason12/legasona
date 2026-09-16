@@ -190,15 +190,21 @@ def get_payment_report():
 
     query = query.order_by(Payment.payment_date.desc()).all()
 
+    # Batch-load vehicles and spare parts to avoid N+1 queries
+    vehicle_ids = {sale.item_id for _, sale in query if sale.sale_type == 'vehicle' and sale.item_id}
+    spare_part_ids = {sale.item_id for _, sale in query if sale.sale_type == 'spare_part' and sale.item_id}
+    vehicles = {v.id: v for v in Vehicle.query.filter(Vehicle.id.in_(vehicle_ids)).all()} if vehicle_ids else {}
+    spare_parts = {p.id: p for p in SparePart.query.filter(SparePart.id.in_(spare_part_ids)).all()} if spare_part_ids else {}
+
     result = []
     for payment, sale in query:
         item_name = None
         if sale.sale_type == 'vehicle':
-            v = db.session.get(Vehicle, sale.item_id)
+            v = vehicles.get(sale.item_id)
             if v:
                 item_name = v.model
         else:
-            p = db.session.get(SparePart, sale.item_id)
+            p = spare_parts.get(sale.item_id)
             if p:
                 item_name = p.name
         result.append({
@@ -305,8 +311,13 @@ def get_activity_log():
         logs = query.limit(limit).all()
 
     result = []
+
+    # Batch-load users to avoid N+1 queries
+    user_ids = {log.user_id for log in logs if log.user_id}
+    users = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
+
     for log in logs:
-        user = db.session.get(User, log.user_id)
+        user = users.get(log.user_id)
         result.append({
             'id':          log.id,
             'action':      log.action,

@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.auth import admin_required, role_required, effective_branch_id
 from app.utils.image_utils import compress_to_base64
-from app.utils.validation import safe_int
+from app.utils.validation import safe_int, safe_float
 from app.utils.sanitization import sanitize_search
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -252,7 +252,7 @@ def _record_spare_part_sale():
     if not part:
         return jsonify({'message': 'Spare part not found'}), 404
 
-    qty = int(data.get('quantity', 1))
+    qty = safe_int(data.get('quantity', 1), default=1, min_val=1)
     if part.quantity < qty:
         return jsonify({'message': 'Insufficient stock'}), 400
 

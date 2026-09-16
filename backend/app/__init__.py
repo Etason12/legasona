@@ -91,14 +91,17 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    allowed_origins = os.environ.get('CORS_ORIGINS', '*').split(',')
+    raw_origins = os.environ.get('CORS_ORIGINS', '').strip()
+    allowed_origins = [o.strip() for o in raw_origins.split(',') if o.strip()]
+    if not allowed_origins:
+        allowed_origins = ['*'] if app.config.get('DEBUG') else []
     CORS(app, resources={r"/api/*": {"origins": allowed_origins}}, supports_credentials=True)
 
     # ── Security Headers ──────────────────────────────────────────────
     @app.after_request
     def set_security_headers(response):
-        origin = request.headers.get('Origin', '*')
-        if '*' in allowed_origins or origin in allowed_origins:
+        origin = request.headers.get('Origin', '')
+        if origin and (origin in allowed_origins or '*' in allowed_origins):
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
@@ -115,7 +118,7 @@ def create_app(config_class=Config):
             "img-src 'self' data: blob:; "
             "media-src 'self' blob: data:; "
             "font-src 'self' data:; "
-            "connect-src 'self' https://legasonaimporter.onrender.com; "
+            "connect-src 'self'; "
             "frame-src 'self' blob:"
         )
         return response

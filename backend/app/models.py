@@ -58,6 +58,10 @@ class Vehicle(db.Model):
     received_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     image = db.Column(db.Text)
 
+    __table_args__ = (
+        db.Index('ix_vehicles_branch_status', 'branch_id', 'status'),
+    )
+
 class SparePart(db.Model):
     __tablename__ = 'spare_parts'
     id = db.Column(db.Integer, primary_key=True)
@@ -70,6 +74,10 @@ class SparePart(db.Model):
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))
     quantity = db.Column(db.Integer, default=0)
     image = db.Column(db.Text)
+
+    __table_args__ = (
+        db.Index('ix_spare_parts_branch_id', 'branch_id'),
+    )
 
 class Sale(db.Model):
     __tablename__ = 'sales'
@@ -116,6 +124,10 @@ class Payment(db.Model):
     receipt_image = db.Column(db.Text)
     payment_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        db.Index('ix_payments_sale_id', 'sale_id'),
+    )
 
 class Order(db.Model):
     __tablename__ = 'orders'
@@ -209,6 +221,10 @@ class ActivityLog(db.Model):
     action = db.Column(db.String(100))
     description = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    __table_args__ = (
+        db.Index('ix_activity_logs_user_id', 'user_id'),
+    )
 
 class OneSignalConfig(db.Model):
     __tablename__ = 'onesignal_config'

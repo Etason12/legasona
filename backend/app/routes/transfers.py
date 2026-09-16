@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from app.models import Transfer, Vehicle, SparePart, db
 from app.utils.auth import role_required
+from app.utils.validation import safe_int
 from datetime import datetime, timezone
 
 transfers_bp = Blueprint('transfers', __name__)
@@ -13,7 +14,7 @@ def request_transfer():
     data        = request.get_json()
     item_type   = data.get('item_type')
     item_id     = data.get('item_id')
-    quantity    = int(data.get('quantity', 1))
+    quantity    = safe_int(data.get('quantity'), default=1, min_val=1)
     from_branch_id = data.get('from_branch_id')
 
     if item_type == 'spare_part':

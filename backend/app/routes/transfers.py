@@ -15,15 +15,15 @@ def request_transfer():
     item_type   = data.get('item_type')
     item_id     = data.get('item_id')
     quantity    = safe_int(data.get('quantity'), default=1, min_val=1)
-    from_branch_id = data.get('from_branch_id')
+    from_branch_id = safe_int(data.get('from_branch_id'))
 
     if item_type == 'spare_part':
         part = db.session.get(SparePart, item_id)
-        if not part or part.branch_id != int(from_branch_id) or part.quantity < quantity:
+        if not part or part.branch_id != from_branch_id or part.quantity < quantity:
             return jsonify({'message': 'Insufficient stock in source branch'}), 400
     elif item_type == 'vehicle':
         veh = db.session.get(Vehicle, item_id)
-        if not veh or veh.branch_id != int(from_branch_id) or veh.status != 'available':
+        if not veh or veh.branch_id != from_branch_id or veh.status != 'available':
             return jsonify({'message': 'Vehicle not available in source branch'}), 400
 
     new_transfer = Transfer(

@@ -47,7 +47,7 @@ def get_expenses():
     current_user_id = get_jwt_identity()
     current_user = db.session.get(User, current_user_id)
 
-    query = Expense.query.join(User, Expense.user_id == User.id).add_columns(User.username.label('user_name'))
+    query = Expense.query.outerjoin(User, Expense.user_id == User.id).add_columns(User.username.label('user_name'))
 
     branch_id = effective_branch_id(current_user, branch_id)
     if branch_id:
@@ -134,7 +134,7 @@ def get_budget():
 
     if branch_id:
         branch = db.session.get(Branch, branch_id)
-        budget = branch.monthly_budget or 150000.0 if branch else 150000.0
+        budget = float(branch.monthly_budget) if branch and branch.monthly_budget is not None else 150000.0
     elif user.role == 'admin':
         budget = db.session.query(db.func.sum(Branch.monthly_budget)).scalar() or 150000.0
     else:

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { FileText, Plus, Search, DollarSign, Calendar, Tag, MoreVertical, Loader2, Trash2, Image as ImageIcon, X, Check } from 'lucide-react'
 import api from '../services/api'
-import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useLanguage } from '../i18n/LanguageContext'
 import { formatDate, daysAgo } from '../utils/format'

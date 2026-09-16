@@ -4,7 +4,6 @@ import {
   ChevronDown, ChevronUp, Package, Truck, Image as ImageIcon, Camera
 } from 'lucide-react'
 import api from '../services/api'
-import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useLanguage } from '../i18n/LanguageContext'
 import { useImagePicker } from '../hooks/useImagePicker'

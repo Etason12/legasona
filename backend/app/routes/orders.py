@@ -76,7 +76,7 @@ def get_orders():
     branch_id = request.args.get('branch_id')
     
     page = safe_int(request.args.get('page', 1), default=1, min_val=1)
-    per_page = safe_int(request.args.get('per_page', 20), default=20, min_val=1, max_val=10000)
+    per_page = safe_int(request.args.get('per_page', 20), default=20, min_val=1, max_val=200)
     
     query = Order.query
     
@@ -140,11 +140,12 @@ def get_orders():
 
 @orders_bp.route('/available-vehicles', methods=['GET'])
 @jwt_required()
+@role_required('admin', 'manager', 'cashier')
 def get_available_vehicles():
     branch_id = request.args.get('branch_id')
     query = Vehicle.query.filter(Vehicle.status == 'available')
     if branch_id:
-        query = query.filter(Vehicle.branch_id == int(branch_id))
+        query = query.filter(Vehicle.branch_id == safe_int(branch_id))
     vehicles = query.order_by(Vehicle.model).all()
     return jsonify([{
         'id': v.id, 'vin': v.vin, 'model': v.model, 'color': v.color,

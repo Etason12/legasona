@@ -305,6 +305,7 @@ def _record_spare_part_sale():
 # ── Get Payment History for a Sale ──────────────────────────────────
 @sales_bp.route('/<int:id>/payments', methods=['GET'])
 @jwt_required()
+@role_required('admin', 'manager', 'accountant')
 def get_sale_payments(id):
     sale = db.session.get(Sale, id)
     if not sale:

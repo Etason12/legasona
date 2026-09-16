@@ -154,7 +154,7 @@ def reset_database():
         db.session.flush()
 
         admin = User(username='admin', role='admin', branch_id=shire.id)
-        admin.set_password(data.get('new_password') or 'admin123')
+        admin.set_password(data.get('new_password') or 'change-me-now')
         db.session.add(admin)
 
         vehicles = [

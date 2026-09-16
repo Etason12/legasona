@@ -9,24 +9,10 @@ from app.utils.logging import log_activity
 from app.utils.notifications import send_notification
 from app.utils.validation import safe_int, safe_float
 from app.utils.image_utils import compress_to_base64
+from app.utils.customer import ensure_customer
 
 orders_bp = Blueprint('orders', __name__)
 logger = logging.getLogger(__name__)
-
-def _ensure_customer(data, branch_id):
-    customer_id = data.get('customer_id')
-    name = (data.get('customer_name') or '').strip().title()
-    phone = (data.get('customer_phone') or '').strip()
-    if not customer_id and name and phone:
-        existing = Customer.query.filter_by(phone=phone).first()
-        if existing:
-            customer_id = existing.id
-        else:
-            customer = Customer(full_name=name, phone=phone, branch_id=branch_id)
-            db.session.add(customer)
-            db.session.flush()
-            customer_id = customer.id
-    return customer_id
 
 @orders_bp.route('', methods=['POST'])
 @jwt_required()
@@ -52,7 +38,7 @@ def create_order():
     last_order = db.session.query(func.coalesce(func.max(Order.sequence_number), 0)).scalar()
     next_seq = last_order + 1
 
-    customer_id = _ensure_customer(data, branch_id) or data.get('customer_id') or None
+    customer_id = ensure_customer(data, branch_id=branch_id) or data.get('customer_id') or None
 
     deposit_method = data.get('deposit_method', 'cash')
     new_order = Order(

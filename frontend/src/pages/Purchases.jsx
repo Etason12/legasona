@@ -189,7 +189,7 @@ const Purchases = ({ user }) => {
    </div>
    
    <div className="flex justify-end">
-    <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-300 dark:border-slate-700 px-4 py-2 rounded-xl w-full md:w-64">
+    <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 px-4 py-2 rounded-xl w-full md:w-64">
      <Search size={18} className="text-slate-500" />
      <input 
       type="text" 
@@ -251,10 +251,10 @@ const Purchases = ({ user }) => {
        </div>
       </div>
       {expanded === pu.id && pu.items?.length > 0 && (
-       <div className="border-t border-slate-300 dark:border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+       <div className="border-t border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
         <table className="w-full text-left">
          <thead>
-          <tr className="text-xs font-bold text-slate-500 border-b border-slate-300 dark:border-slate-300 dark:border-slate-700">
+          <tr className="text-xs font-bold text-slate-500 border-b border-slate-300 dark:border-slate-700">
            <th className="px-6 py-3">{t('descSelect')}</th>
            <th className="px-6 py-3">{t('qty')}</th>
            <th className="px-6 py-3">{t('unitCost')}</th>

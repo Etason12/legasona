@@ -149,7 +149,7 @@ import { formatDate, capitalizeName } from '../utils/format'
     <input 
      type="text" 
      placeholder={t('searchCustomer')} 
-     className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-300 dark:border-slate-700 rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-900 dark:text-white focus:border-primary-500 outline-none transition-colors"
+     className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-900 dark:text-white focus:border-primary-500 outline-none transition-colors"
      value={search}
       onChange={(e) => { setSearch(e.target.value); setPage(1) }}
     />
@@ -267,7 +267,7 @@ import { formatDate, capitalizeName } from '../utils/format'
 
       <div className="modal-body custom-scrollbar">
        <div className="space-y-10">
-        <div className="p-8 bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] border border-slate-200 dark:border-slate-300 dark:border-slate-700 ">
+        <div className="p-8 bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] border border-slate-200 dark:border-slate-700 ">
          <div className="flex items-center gap-6 mb-8">
           <div className="w-20 h-20 rounded-[2rem] bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 shadow-2xl">
            <UserIcon size={40} />
@@ -298,11 +298,11 @@ import { formatDate, capitalizeName } from '../utils/format'
          
          <div className="space-y-4">
           {customerDetails.history.sales.length === 0 ? (
-           <div className="p-10 rounded-3xl bg-slate-50 dark:bg-slate-200 dark:bg-slate-700 border border-dashed border-slate-300 dark:border-slate-300 dark:border-slate-700 text-center">
+           <div className="p-10 rounded-3xl bg-slate-50 dark:bg-slate-700 border border-dashed border-slate-300 dark:border-slate-700 text-center">
              <p className="text-slate-600 text-sm font-bold ">{t('noTransactionHistory')}</p>
            </div>
           ) : customerDetails.history.sales.map(s => (
-           <div key={s.id} className="p-6 rounded-[2rem] bg-slate-50 dark:bg-slate-200 dark:bg-slate-700 border border-slate-200 dark:border-slate-300 dark:border-slate-700 flex items-center justify-between hover:border-primary-500/30 transition-colors group">
+           <div key={s.id} className="p-6 rounded-[2rem] bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-700 flex items-center justify-between hover:border-primary-500/30 transition-colors group">
             <div className="flex items-center gap-4">
              <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-500 group-hover:text-blue-600 dark:text-blue-400 transition-colors">
               <CreditCard size={18} />

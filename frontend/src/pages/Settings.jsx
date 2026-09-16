@@ -21,7 +21,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import api from '../services/api'
-import axios from 'axios'
 import { useLanguage } from '../i18n/LanguageContext'
 import { supportedLanguages } from '../i18n/translations'
 
@@ -286,7 +285,7 @@ const Settings = ({ user }) => {
        className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-colors group ${
         activeTab === section.id 
          ? 'bg-primary-600 text-slate-900 dark:text-white shadow-lg shadow-primary-600/20' 
-         : 'bg-white dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:bg-slate-700 hover:text-slate-900 dark:text-white border border-slate-200 dark:border-slate-300 dark:border-slate-700'
+         : 'bg-white dark:bg-slate-700 text-slate-400 hover:bg-slate-200 hover:text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700'
        }`}
       >
        <section.icon size={20} />
@@ -426,10 +425,10 @@ const Settings = ({ user }) => {
         {loadingUsers ? (
          <div className="flex justify-center py-12"><Loader2 className="animate-spin text-blue-600 dark:text-blue-400" size={32} /></div>
         ) : (
-         <div className="overflow-x-auto rounded-2xl border border-slate-300 dark:border-slate-300 dark:border-slate-700">
+         <div className="overflow-x-auto rounded-2xl border border-slate-300 dark:border-slate-700">
           <table className="w-full text-left min-w-[640px]">
            <thead>
-            <tr className="bg-slate-900/80 text-xs font-bold text-slate-500 border-b border-slate-300 dark:border-slate-300 dark:border-slate-700">
+            <tr className="bg-slate-900/80 text-xs font-bold text-slate-500 border-b border-slate-300 dark:border-slate-700">
              <th className="px-5 py-3">{t('username')}</th>
              <th className="px-5 py-3">{t('role')}</th>
              <th className="px-5 py-3">{t('branch')}</th>
@@ -538,7 +537,7 @@ const Settings = ({ user }) => {
         ) : (
          <div className="grid grid-cols-1 gap-4">
           {branches.map(branch => (
-           <div key={branch.id} className="p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-300 dark:border-slate-700 flex items-center justify-between hover:bg-slate-200 dark:bg-slate-700 transition-colors group">
+            <div key={branch.id} className="p-5 rounded-2xl bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-700 flex items-center justify-between hover:bg-slate-200 transition-colors group">
             {isAdmin && editingBranch?.id === branch.id ? (
               <div className="flex-1 grid grid-cols-4 gap-3">
                <input className="input-field py-1 text-xs" value={editingBranch.name} onChange={e=>setEditingBranch({...editingBranch, name: e.target.value})}/>
@@ -765,7 +764,7 @@ const Settings = ({ user }) => {
            className={`p-5 rounded-2xl border-2 text-left transition-colors duration-200 ${
             lang === l.code
              ? 'border-primary-500 bg-blue-100 dark:bg-blue-900/30 shadow-lg shadow-primary-500/10'
-             : 'border-slate-300 dark:border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-600'
+             : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-600'
            }`}
           >
            <div className="flex items-center justify-between mb-3">

@@ -120,7 +120,7 @@ const Transfers = ({ user }) => {
     ) : (
      <table className="w-full text-left">
       <thead>
-       <tr className="bg-white/5 border-b border-slate-200 dark:border-slate-300 dark:border-slate-700 text-xs text-slate-400 uppercase">
+       <tr className="bg-white/5 border-b border-slate-200 dark:border-slate-700 text-xs text-slate-400 uppercase">
         <th className="px-6 py-4">{t('date')}</th>
         <th className="px-6 py-4">{t('fromBranch')}</th>
         <th className="px-6 py-4">{t('toBranch')}</th>

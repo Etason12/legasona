@@ -12,6 +12,7 @@ from sqlalchemy import func, or_
 from app.models import Sale, Payment, Vehicle, SparePart, User, Customer, db
 from app.utils.logging import log_activity
 from app.utils.notifications import send_notification
+from app.utils.customer import ensure_customer
 
 sales_bp = Blueprint('sales', __name__)
 logger = logging.getLogger(__name__)
@@ -104,24 +105,6 @@ def _generate_sale_number(prefix):
             return number
     raise RuntimeError('Could not generate a unique sale number')
 
-def _ensure_customer(data, item_branch_id=None):
-    """Create a Customer record if one doesn't exist for this phone number.
-       Uses item_branch_id (inventory location) when creating a new customer.
-       Returns the customer_id to link to the sale."""
-    customer_id = data.get('customer_id')
-    name, phone = _customer_fields(data)
-    branch_id = item_branch_id or data.get('branch_id')
-    if not customer_id and name and phone:
-        existing = Customer.query.filter_by(phone=phone).first()
-        if existing:
-            customer_id = existing.id
-        else:
-            customer = Customer(full_name=name, phone=phone, branch_id=branch_id)
-            db.session.add(customer)
-            db.session.flush()
-            customer_id = customer.id
-    return customer_id
-
 # ── Record Vehicle Sale ──────────────────────────────────────────────
 @sales_bp.route('/vehicle', methods=['POST'])
 @jwt_required()
@@ -165,7 +148,7 @@ def _record_vehicle_sale():
     sale_date = datetime.fromisoformat(sale_date_str) if sale_date_str else datetime.now(timezone.utc)
 
     customer_name, customer_phone = _customer_fields(data)
-    customer_id = _ensure_customer(data, item_branch_id=vehicle.branch_id) or data.get('customer_id') or None
+    customer_id = ensure_customer(data, branch_id=vehicle.branch_id) or data.get('customer_id') or None
     current_user_id = int(get_jwt_identity())
 
     new_sale = Sale(
@@ -267,7 +250,7 @@ def _record_spare_part_sale():
     sale_date = datetime.fromisoformat(sale_date_str) if sale_date_str else datetime.now(timezone.utc)
 
     customer_name, customer_phone = _customer_fields(data)
-    customer_id = _ensure_customer(data, item_branch_id=part.branch_id) or data.get('customer_id') or None
+    customer_id = ensure_customer(data, branch_id=part.branch_id) or data.get('customer_id') or None
     current_user_id = int(get_jwt_identity())
 
     new_sale = Sale(

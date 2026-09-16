@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Customer, Sale, Order, Vehicle, SparePart, User, db
+from app.models import Customer, Sale, Order, Vehicle, SparePart, User, Payment, db
 from app.utils.auth import admin_required, role_required, effective_branch_id
 from app.utils.validation import safe_int, safe_float
 from app.utils.sanitization import sanitize_string, sanitize_search
@@ -137,3 +137,27 @@ def delete_customer(id):
         db.session.rollback()
         return jsonify({'message': 'Cannot delete this customer because they have linked sales or orders'}), 400
     return jsonify({'message': 'Customer deleted'}), 200
+
+
+@customers_bp.route('/<int:id>/deposits', methods=['GET'])
+@jwt_required()
+def get_customer_deposits(id):
+    db.get_or_404(Customer, id)
+    orders = Order.query.filter_by(customer_id=id).order_by(Order.order_date.desc()).all()
+    deposits = []
+    for o in orders:
+        if o.deposit_amount and float(o.deposit_amount) > 0:
+            deposits.append({
+                'amount': float(o.deposit_amount),
+                'method': o.deposit_method or 'cash',
+                'date': o.order_date.isoformat() if o.order_date else None,
+            })
+    payments = Payment.query.join(Sale).filter(Sale.customer_id == id).order_by(Payment.created_at.desc()).all()
+    for p in payments:
+        deposits.append({
+            'amount': float(p.amount),
+            'method': p.payment_method or 'cash',
+            'date': p.created_at.isoformat() if p.created_at else None,
+        })
+    deposits.sort(key=lambda d: d.get('date') or '', reverse=True)
+    return jsonify(deposits), 200

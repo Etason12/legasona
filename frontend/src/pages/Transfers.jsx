@@ -147,7 +147,7 @@ const Transfers = ({ user }) => {
           </span>
          </td>
          <td className="px-6 py-4 text-right">
-          {transfer.status === 'pending' && user?.role === 'admin' && (
+          {transfer.status === 'pending' && (user?.role === 'admin' || user?.role === 'manager') && (
            <button 
             onClick={() => handleApprove(transfer.id)}
             className="text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:bg-emerald-900/50 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800 transition-colors"

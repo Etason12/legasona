@@ -413,7 +413,7 @@ const Sales = ({ user }) => {
           <p className="text-slate-400 mt-1 font-medium">{t('salesDesc')}</p>
         </div>
         <div className="flex gap-3">
-          <button onClick={() => exportSalesToExcel(sales, t)} className="px-4 py-2.5 bg-slate-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-2">
+          <button onClick={() => { try { exportSalesToExcel(sales, t) } catch { toast.error('Export failed') } }} className="px-4 py-2.5 bg-slate-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-2">
             <Download size={18} />{t('exportReport')}
           </button>
           <button onClick={() => setShowNewSale(true)} className="btn-primary flex items-center gap-2">

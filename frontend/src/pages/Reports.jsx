@@ -147,7 +147,7 @@ const Reports = ({ user }) => {
                className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-full sm:w-32" />
            </div>
            <button
-             onClick={() => exportReportsToExcel(payments, data, profit, t)}
+             onClick={() => { try { exportReportsToExcel(payments, data, profit, t) } catch { toast.error('Export failed') } }}
              className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
            >
              <Download size={18} />

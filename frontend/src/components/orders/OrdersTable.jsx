@@ -136,14 +136,16 @@ const OrdersTable = ({ orders, onSelectOrder, onDeposit, onFulfill, onCancel, on
                     >
                       <Edit3 size={16} />
                     </button>
-                  )}
-                  <button
-                    onClick={() => onDelete(order.id)}
-                    className="p-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl border border-rose-200 dark:border-rose-800 transition-colors"
-                    title={t('delete')}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                   )}
+                   {(user?.role === 'admin' || user?.role === 'manager') && (
+                   <button
+                     onClick={() => onDelete(order.id)}
+                     className="p-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl border border-rose-200 dark:border-rose-800 transition-colors"
+                     title={t('delete')}
+                   >
+                     <Trash2 size={16} />
+                   </button>
+                   )}
                 </div>
               </td>
             </tr>

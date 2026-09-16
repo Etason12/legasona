@@ -297,7 +297,7 @@ const Orders = ({ user }) => {
         onSearchChange={setSearch}
       />
 
-      <div className="glass-card overflow-hidden">
+      <div className="glass-card overflow-x-auto">
         {loading ? (
           <div className="p-12 text-center">
             <Loader2 className="animate-spin inline-block text-blue-600 dark:text-blue-400 mb-2" size={32} />

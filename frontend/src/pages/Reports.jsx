@@ -141,10 +141,10 @@ const Reports = ({ user }) => {
            </div>
            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5">
              <input type="date" value={startDate} onKeyDown={e => e.preventDefault()} onChange={e => setStartDate(e.target.value)}
-               className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-32" />
-             <span className="text-slate-400">—</span>
+               className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-full sm:w-32" />
+             <span className="text-slate-400 hidden sm:inline">—</span>
              <input type="date" value={endDate} onKeyDown={e => e.preventDefault()} onChange={e => setEndDate(e.target.value)}
-               className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-32" />
+               className="bg-transparent text-sm font-semibold text-slate-600 dark:text-slate-300 outline-none w-full sm:w-32" />
            </div>
            <button
              onClick={() => exportReportsToExcel(payments, data, profit, t)}
@@ -378,13 +378,13 @@ const Reports = ({ user }) => {
               <tr className="border-b border-slate-200 dark:border-slate-700">
                 <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Customer Name</th>
                 <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Type</th>
-                <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Item</th>
+                <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider hidden md:table-cell">Item</th>
                 <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Sale Date</th>
-                <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Created On</th>
+                <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider hidden lg:table-cell">Created On</th>
                 <th className="text-right py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Amount (ETB)</th>
-                <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Bank Name</th>
-                <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Account Holder</th>
-                <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider">Transaction Ref</th>
+                <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider hidden lg:table-cell">Bank Name</th>
+                <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider hidden lg:table-cell">Account Holder</th>
+                <th className="text-left py-3 px-2 text-slate-500 font-semibold text-xs uppercase tracking-wider hidden lg:table-cell">Transaction Ref</th>
               </tr>
             </thead>
             <tbody>
@@ -405,13 +405,13 @@ const Reports = ({ user }) => {
                           <span className="inline-block px-2 py-0.5 rounded-lg text-xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">SPARE PART</span>
                         )}
                       </td>
-                      <td className="py-3 px-2 text-slate-500 text-xs max-w-[120px] truncate">{p.item_name || '—'}</td>
+                      <td className="py-3 px-2 text-slate-500 text-xs max-w-[120px] truncate hidden md:table-cell">{p.item_name || '—'}</td>
                       <td className="py-3 px-2 text-slate-500">{p.sale_date ? formatDate(p.sale_date) : '—'}</td>
-                      <td className="py-3 px-2 text-slate-500">{p.created_at ? formatDate(p.created_at) : formatDate(new Date().toISOString())}</td>
+                      <td className="py-3 px-2 text-slate-500 hidden lg:table-cell">{p.created_at ? formatDate(p.created_at) : formatDate(new Date().toISOString())}</td>
                       <td className="py-3 px-2 text-right text-slate-900 dark:text-white font-semibold">{p.amount.toLocaleString()}</td>
-                      <td className="py-3 px-2 text-slate-500 uppercase">{(p.bank_name || '—').toUpperCase()}</td>
-                      <td className="py-3 px-2 text-slate-500 uppercase">{(p.account_holder || '—').toUpperCase()}</td>
-                      <td className="py-3 px-2 text-slate-500 font-mono text-xs uppercase">{(p.transaction_reference || '—').toUpperCase()}</td>
+                      <td className="py-3 px-2 text-slate-500 uppercase hidden lg:table-cell">{(p.bank_name || '—').toUpperCase()}</td>
+                      <td className="py-3 px-2 text-slate-500 uppercase hidden lg:table-cell">{(p.account_holder || '—').toUpperCase()}</td>
+                      <td className="py-3 px-2 text-slate-500 font-mono text-xs uppercase hidden lg:table-cell">{(p.transaction_reference || '—').toUpperCase()}</td>
                     </tr>
                   ))
                 )

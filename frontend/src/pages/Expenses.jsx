@@ -155,9 +155,9 @@ const Expenses = ({ user }) => {
      <h3 className="text-lg font-bold text-slate-900 dark:text-white">{t('transactionHistory')}</h3>
        <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
         <div className="flex items-center gap-2 w-full md:w-auto">
-         <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="input-field py-1.5 text-sm" />
-         <span className="text-slate-500">-</span>
-         <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="input-field py-1.5 text-sm" />
+         <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="input-field py-1.5 text-sm w-full md:w-auto" />
+         <span className="text-slate-500 hidden sm:inline">-</span>
+         <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="input-field py-1.5 text-sm w-full md:w-auto" />
         </div>
         <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="input-field py-1.5 text-sm w-full md:w-44">
          <option value="">{t('allCategories')}</option>
@@ -280,13 +280,13 @@ const Expenses = ({ user }) => {
          <div className="flex items-center justify-end gap-2 pt-1 border-t border-neutral-100 dark:border-neutral-800">
           {expense.receipt_attachment && (
            <button onClick={() => setPreviewImage(expense.receipt_attachment)}
-             className="p-2 hover:bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl transition-colors">
+             className="p-2.5 hover:bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl transition-colors">
             <ImageIcon size={16} />
            </button>
           )}
           {(user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'manager') && (
            <button onClick={() => handleDelete(expense.id)}
-             className="p-2 hover:bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl transition-colors">
+             className="p-2.5 hover:bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl transition-colors">
             <Trash2 size={16} />
            </button>
           )}

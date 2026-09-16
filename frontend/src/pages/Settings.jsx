@@ -381,7 +381,7 @@ const Settings = ({ user }) => {
         {showAddUser && (
          <form onSubmit={handleCreateUser} className="p-5 rounded-2xl bg-primary-500/5 border border-blue-200 dark:border-blue-800 space-y-4">
           <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400 ">New Staff Account</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
            <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">{t('username')}</label>
             <input
@@ -487,7 +487,7 @@ const Settings = ({ user }) => {
                  }`}>{u.status}</span>
                 </td>
                 <td className="px-5 py-3 text-right">
-                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                 <div className="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <button onClick={() => setEditingUser({ ...u })} className="p-2 bg-slate-800 text-slate-400 hover:text-slate-900 dark:text-white rounded-lg transition-colors" title="Edit"><Edit3 size={16} /></button>
                   <button onClick={() => { setResetPwValue(''); setResetPwUser(u) }} className="p-2 bg-slate-800 text-slate-400 hover:text-slate-900 dark:text-white rounded-lg transition-colors" title={t('resetPassword')}><Key size={16} /></button>
                   {u.id !== user?.id && (
@@ -519,7 +519,7 @@ const Settings = ({ user }) => {
 
         {isAdmin && showAddBranch && (
           <form onSubmit={handleCreateBranch} className="p-6 rounded-2xl bg-primary-500/5 border border-blue-200 dark:border-blue-800 space-y-4">
-           <div className="grid grid-cols-2 gap-4">
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
              <div><label className="label">Branch Name</label><input required className="input-field" value={newBranch.name} onChange={e=>setNewBranch({...newBranch, name: e.target.value})}/></div>
              <div><label className="label">Location</label><input className="input-field" value={newBranch.location} onChange={e=>setNewBranch({...newBranch, location: e.target.value})}/></div>
              <div><label className="label">Address</label><input className="input-field" value={newBranch.address} onChange={e=>setNewBranch({...newBranch, address: e.target.value})}/></div>
@@ -539,7 +539,7 @@ const Settings = ({ user }) => {
           {branches.map(branch => (
             <div key={branch.id} className="p-5 rounded-2xl bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-700 flex items-center justify-between hover:bg-slate-200 transition-colors group">
             {isAdmin && editingBranch?.id === branch.id ? (
-              <div className="flex-1 grid grid-cols-4 gap-3">
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                <input className="input-field py-1 text-xs" value={editingBranch.name} onChange={e=>setEditingBranch({...editingBranch, name: e.target.value})}/>
                <input className="input-field py-1 text-xs" value={editingBranch.location} onChange={e=>setEditingBranch({...editingBranch, location: e.target.value})}/>
                <input className="input-field py-1 text-xs" value={editingBranch.phone} onChange={e=>setEditingBranch({...editingBranch, phone: e.target.value})}/>
@@ -560,7 +560,7 @@ const Settings = ({ user }) => {
                </div>
               </div>
               {isAdmin ? (
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-colors">
+              <div className="flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-colors">
                <button onClick={()=>setEditingBranch({...branch})} className="p-2 text-slate-400 hover:text-slate-900 dark:text-white"><Edit3 size={18}/></button>
                <button onClick={()=>handleDeleteBranch(branch.id)} className="p-2 text-rose-600 dark:text-rose-400 hover:text-rose-300"><Trash2 size={18}/></button>
               </div>

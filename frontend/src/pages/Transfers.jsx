@@ -112,13 +112,13 @@ const Transfers = ({ user }) => {
     </button>
    </div>
 
-   <div className="glass-card overflow-hidden">
+   <div className="glass-card overflow-x-auto">
     {loading ? (
      <div className="flex flex-col items-center justify-center py-20">
       <Loader2 className="animate-spin text-blue-600 dark:text-blue-400" size={40} />
      </div>
     ) : (
-     <table className="w-full text-left">
+     <table className="w-full text-left min-w-[700px]">
       <thead>
        <tr className="bg-white/5 border-b border-slate-200 dark:border-slate-700 text-xs text-slate-400 uppercase">
         <th className="px-6 py-4">{t('date')}</th>

@@ -342,7 +342,7 @@ const Inventory = ({ user }) => {
       <div className="flex border-b border-neutral-200 dark:border-neutral-800">
         {[{ key: 'vehicles', label: t('vehicles'), icon: Car }, { key: 'parts', label: t('spareParts'), icon: Package }].map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-8 py-4 font-semibold text-sm transition-colors relative ${
+            className={`flex items-center gap-2 px-4 sm:px-8 py-4 font-semibold text-sm transition-colors relative ${
               activeTab === tab.key ? 'text-brand-600' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
             }`}
           >

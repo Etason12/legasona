@@ -195,11 +195,12 @@ body {
 .modal-body {
   flex: 1;
   overflow-y: auto;
-  padding: 2rem 1.5rem;
+  padding: 1rem;
   max-width: 72rem;
   width: 100%;
   margin: 0 auto;
 }
+@media (min-width: 640px)  { .modal-body { padding: 1.5rem; } }
 @media (min-width: 768px)  { .modal-body { padding: 2.5rem 3rem; } }
 @media (min-width: 1024px) { .modal-body { padding: 3rem 6rem; } }
 

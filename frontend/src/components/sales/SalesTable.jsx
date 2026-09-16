@@ -33,8 +33,7 @@ const SalesTable = ({ sales, loading, user, onPreviewImage, onViewPayments, onCo
   }
 
   return (
-    <div className="glass-card overflow-hidden">
-      <div className="overflow-x-auto custom-scrollbar">
+    <div className="glass-card overflow-x-auto custom-scrollbar">
         <table className="w-full text-left min-w-[1000px]">
           <thead>
             <tr className="bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 text-xs font-bold text-slate-500">
@@ -157,7 +156,6 @@ const SalesTable = ({ sales, loading, user, onPreviewImage, onViewPayments, onCo
             )}
           </tbody>
         </table>
-      </div>
     </div>
   )
 }

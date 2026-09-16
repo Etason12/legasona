@@ -250,9 +250,9 @@ const Purchases = ({ user }) => {
         {expanded === pu.id ? <ChevronUp size={18} className="text-slate-500"/> : <ChevronDown size={18} className="text-slate-500"/>}
        </div>
       </div>
-      {expanded === pu.id && pu.items?.length > 0 && (
-       <div className="border-t border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
-        <table className="w-full text-left">
+       {expanded === pu.id && pu.items?.length > 0 && (
+        <div className="border-t border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 overflow-x-auto">
+         <table className="w-full text-left min-w-[500px]">
          <thead>
           <tr className="text-xs font-bold text-slate-500 border-b border-slate-300 dark:border-slate-700">
            <th className="px-6 py-3">{t('descSelect')}</th>
@@ -356,8 +356,8 @@ const Purchases = ({ user }) => {
           <div className="space-y-3">
            {form.items.map((item, idx) => (
             <div key={idx} className="p-5 rounded-2xl bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">
-             <div className="grid grid-cols-12 gap-3 items-end">
-              <div className="col-span-12 sm:col-span-5">
+             <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+              <div className="col-span-1 sm:col-span-5">
                <label className="label text-[10px]">{t('descSelect')}</label>
                <div className="flex gap-1.5">
                 <input className="input-field py-2 text-sm flex-1 min-w-0" placeholder={t('descSelect')} value={item.description} onChange={e => setItem(idx, 'description', e.target.value)}/>
@@ -378,15 +378,15 @@ const Purchases = ({ user }) => {
                 </select>
                </div>
               </div>
-              <div className="col-span-4 sm:col-span-2">
+              <div className="col-span-1 sm:col-span-2">
                <label className="label text-[10px]">{t('qty')}</label>
                <input type="number" className="input-field py-2 text-sm" placeholder="1" min="1" value={item.quantity} onChange={e => setItem(idx, 'quantity', e.target.value)}/>
               </div>
-              <div className="col-span-5 sm:col-span-3">
+              <div className="col-span-1 sm:col-span-3">
                <label className="label text-[10px]">{t('unitCost')}</label>
                <input type="number" className="input-field py-2 text-sm" placeholder="0.00" value={item.unit_cost} onChange={e => setItem(idx, 'unit_cost', e.target.value)}/>
               </div>
-              <div className="col-span-3 sm:col-span-2 flex items-end justify-end gap-1 pb-0.5">
+              <div className="col-span-1 sm:col-span-2 flex items-end justify-end gap-1 pb-0.5">
                <div className="text-right mr-2 hidden sm:block">
                  <p className="text-[10px] text-neutral-500 font-medium">{t('subtotal')}</p>
                  <p className="text-sm font-bold text-neutral-900 dark:text-white">ETB {(parseFloat(item.quantity || 0) * parseFloat(item.unit_cost || 0)).toLocaleString()}</p>

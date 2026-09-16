@@ -62,6 +62,7 @@ const Settings = ({ user }) => {
 
   const [backupFile, setBackupFile] = useState(null)
   const [importing, setImporting] = useState(false)
+  const [backingUp, setBackingUp] = useState(false)
   const backupFileRef = useRef(null)
 
  const isAdmin = user?.role?.toLowerCase() === 'admin'
@@ -588,32 +589,39 @@ const Settings = ({ user }) => {
            </p>
           </div>
          </div>
-         <div className="mt-6 flex items-center gap-4">
-          <button
-           onClick={async () => {
-            try {
-             const res = await api.get('/backup/export', { responseType: 'blob' })
-             const blob = new Blob([res.data], { type: 'application/json' })
-             const url = URL.createObjectURL(blob)
-             const a = document.createElement('a')
-             a.href = url
-             const ts = new Date().toISOString().replace(/[:.]/g, '-')
-             a.download = `legasona-backup-${ts}.json`
-             document.body.appendChild(a)
-             a.click()
-             document.body.removeChild(a)
-             URL.revokeObjectURL(url)
-             toast.success('Backup downloaded successfully')
-            } catch (err) {
-             toast.error(err.response?.data?.message || 'Backup failed')
-            }
-           }}
-           className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-colors flex items-center gap-2"
-          >
-           <Download size={18} />
-           Download Backup
-          </button>
-         </div>
+          <div className="mt-6 flex items-center gap-4">
+           <button
+            disabled={backingUp}
+            onClick={async () => {
+             setBackingUp(true)
+             try {
+              const res = await api.get('/backup/export', { responseType: 'blob', timeout: 120000 })
+              const blob = new Blob([res.data], { type: 'application/json' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              const ts = new Date().toISOString().replace(/[:.]/g, '-')
+              a.download = `legasona-backup-${ts}.json`
+              document.body.appendChild(a)
+              a.click()
+              document.body.removeChild(a)
+              URL.revokeObjectURL(url)
+              toast.success('Backup downloaded successfully')
+             } catch (err) {
+              const msg = err.response?.data instanceof Blob
+                ? 'Backup failed'
+                : err.response?.data?.message || err.message || 'Backup failed'
+              toast.error(msg)
+             } finally {
+              setBackingUp(false)
+             }
+            }}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+           >
+            <Download size={18} />
+            {backingUp ? 'Backing up...' : 'Download Backup'}
+           </button>
+          </div>
         </div>
 
         <div className="p-6 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10">

@@ -42,15 +42,15 @@ const OrdersTable = ({ orders, onSelectOrder, onDeposit, onFulfill, onCancel, on
                       <button
                         onClick={() => onReorder && onReorder(order.id, 'up')}
                         disabled={idx === 0}
-                        className={`p-0.5 leading-none rounded ${idx === 0 ? 'text-slate-300' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'}`}
+                        className={`p-1 leading-none rounded ${idx === 0 ? 'text-slate-300' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'}`}
                         title="Move up"
                       >
-                        <ChevronUp size={12} />
+                        <ChevronUp size={14} />
                       </button>
                       <button
                         onClick={() => onReorder && onReorder(order.id, 'down')}
                         disabled={idx === orders.length - 1}
-                        className={`p-0.5 leading-none rounded ${idx === orders.length - 1 ? 'text-slate-300' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'}`}
+                        className={`p-1 leading-none rounded ${idx === orders.length - 1 ? 'text-slate-300' : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'}`}
                         title="Move down"
                       >
                         <ChevronDown size={12} />
@@ -63,7 +63,7 @@ const OrdersTable = ({ orders, onSelectOrder, onDeposit, onFulfill, onCancel, on
                 <button onClick={() => onSelectOrder(order)} className="text-left group">
                   <p className="text-slate-700 dark:text-slate-200 font-bold group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-1.5">
                     {capitalizeName(order.customer_name)}
-                    <Eye size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-500" />
+                    <Eye size={14} className="text-blue-500 opacity-60" />
                   </p>
                   <p className="text-xs text-slate-500 mt-1">{order.customer_phone}</p>
                 </button>

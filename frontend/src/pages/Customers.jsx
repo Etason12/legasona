@@ -210,16 +210,16 @@ import { formatDate, capitalizeName } from '../utils/format'
             </span>
            </td>
            <td className="px-6 py-4 text-right">
-            <div className="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-end gap-2 transition-opacity" onClick={e => e.stopPropagation()}>
               <button
                onClick={() => { setSelectedCustomer(c); setForm({ full_name: c.full_name, phone: c.phone, email: c.email || '', address: c.address || '', type: c.type, credit_limit: c.credit_limit || 0 }); setPhoneError(''); setShowModal(true) }}
-              className="p-2 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              className="p-2.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
               title={t('edit')}
              ><Edit3 size={15}/></button>
              {isAdmin(user) && (
-              <button onClick={(e) => handleDelete(c.id, e)} className="p-2 bg-rose-100 dark:bg-rose-900/30 hover:bg-rose-200 dark:hover:bg-rose-900/50 rounded-lg text-rose-600 transition-colors" title={t('delete')}><Trash2 size={15}/></button>
+              <button onClick={(e) => handleDelete(c.id, e)} className="p-2.5 bg-rose-100 dark:bg-rose-900/30 hover:bg-rose-200 dark:hover:bg-rose-900/50 rounded-lg text-rose-600 transition-colors" title={t('delete')}><Trash2 size={15}/></button>
              )}
-             <button onClick={() => fetchDetails(c.id)} className="p-2 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-lg text-blue-600 dark:text-blue-400 transition-colors" title={t('viewHistory')}><ExternalLink size={15}/></button>
+             <button onClick={() => fetchDetails(c.id)} className="p-2.5 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-lg text-blue-600 dark:text-blue-400 transition-colors" title={t('viewHistory')}><ExternalLink size={15}/></button>
             </div>
            </td>
           </tr>

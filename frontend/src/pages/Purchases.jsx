@@ -234,7 +234,7 @@ const Purchases = ({ user }) => {
             e.stopPropagation();
             setPreviewImage(pu.receipt_attachment);
            }}
-           className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:bg-blue-900/50 rounded-xl transition-colors"
+           className="p-2.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:bg-blue-900/50 rounded-xl transition-colors"
            title="View Receipt"
           >
            <ImageIcon size={16}/>
@@ -243,7 +243,7 @@ const Purchases = ({ user }) => {
         {canDelete(role) && (
          <button
           onClick={e => { e.stopPropagation(); handleDelete(pu.id) }}
-          className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:bg-rose-900/50 rounded-xl transition-colors"
+          className="p-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:bg-rose-900/50 rounded-xl transition-colors"
          ><Trash2 size={16}/></button>
         )}
         {expanded === pu.id ? <ChevronUp size={18} className="text-slate-500"/> : <ChevronDown size={18} className="text-slate-500"/>}
@@ -391,7 +391,7 @@ const Purchases = ({ user }) => {
                  <p className="text-sm font-bold text-neutral-900 dark:text-white">ETB {(parseFloat(item.quantity || 0) * parseFloat(item.unit_cost || 0)).toLocaleString()}</p>
                </div>
                {form.items.length > 1 && (
-                <button type="button" onClick={() => removeLineItem(idx)} className="p-2 text-rose-400 hover:text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:bg-rose-900/30 rounded-xl transition-colors"><Trash2 size={15}/></button>
+                <button type="button" onClick={() => removeLineItem(idx)} className="p-2.5 text-rose-400 hover:text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:bg-rose-900/30 rounded-xl transition-colors"><Trash2 size={15}/></button>
                )}
               </div>
              </div>

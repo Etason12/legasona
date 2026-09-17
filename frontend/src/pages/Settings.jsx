@@ -484,11 +484,11 @@ const Settings = ({ user }) => {
                  }`}>{u.status}</span>
                 </td>
                 <td className="px-5 py-3 text-right">
-                 <div className="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => setEditingUser({ ...u })} className="p-2 bg-slate-800 text-slate-400 hover:text-slate-900 dark:text-white rounded-lg transition-colors" title="Edit"><Edit3 size={16} /></button>
-                  <button onClick={() => { setResetPwValue(''); setResetPwUser(u) }} className="p-2 bg-slate-800 text-slate-400 hover:text-slate-900 dark:text-white rounded-lg transition-colors" title={t('resetPassword')}><Key size={16} /></button>
+                 <div className="flex items-center justify-end gap-2 transition-opacity">
+                  <button onClick={() => setEditingUser({ ...u })} className="p-2.5 bg-slate-800 text-slate-400 hover:text-slate-900 dark:text-white rounded-lg transition-colors" title="Edit"><Edit3 size={16} /></button>
+                  <button onClick={() => { setResetPwValue(''); setResetPwUser(u) }} className="p-2.5 bg-slate-800 text-slate-400 hover:text-slate-900 dark:text-white rounded-lg transition-colors" title={t('resetPassword')}><Key size={16} /></button>
                   {u.id !== user?.id && (
-                   <button onClick={() => handleDeleteUser(u.id)} className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:bg-rose-900/50 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button>
+                   <button onClick={() => handleDeleteUser(u.id)} className="p-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:bg-rose-900/50 rounded-lg transition-colors" title="Delete"><Trash2 size={16} /></button>
                   )}
                  </div>
                 </td>
@@ -557,9 +557,9 @@ const Settings = ({ user }) => {
                </div>
               </div>
               {isAdmin ? (
-              <div className="flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-colors">
-               <button onClick={()=>setEditingBranch({...branch})} className="p-2 text-slate-400 hover:text-slate-900 dark:text-white"><Edit3 size={18}/></button>
-               <button onClick={()=>handleDeleteBranch(branch.id)} className="p-2 text-rose-600 dark:text-rose-400 hover:text-rose-300"><Trash2 size={18}/></button>
+              <div className="flex items-center gap-2 transition-colors">
+               <button onClick={()=>setEditingBranch({...branch})} className="p-2.5 text-slate-400 hover:text-slate-900 dark:text-white"><Edit3 size={18}/></button>
+               <button onClick={()=>handleDeleteBranch(branch.id)} className="p-2.5 text-rose-600 dark:text-rose-400 hover:text-rose-300"><Trash2 size={18}/></button>
               </div>
               ) : null}
              </>

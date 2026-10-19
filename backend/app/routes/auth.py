@@ -25,9 +25,11 @@ def _valid_reset_key(reset_key):
 @auth_bp.route('/login', methods=['POST'])
 def login():
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         username = data.get('username')
         password = data.get('password')
+        if not username or not password:
+            return jsonify({'message': 'Username and password are required'}), 400
 
         try:
             client_ip = get_client_ip()
@@ -43,9 +45,12 @@ def login():
             return jsonify({'message': 'Invalid credentials'}), 401
         if user:
             if not user.password_hash:
-                logger.error(f"User '{username}' has no password_hash — re-seeding password")
-                user.set_password(os.environ.get('ADMIN_DEFAULT_PASSWORD', 'admin123'))
-                db.session.commit()
+                # A user without a password (e.g. restored from a backup that
+                # excludes hashes) must be reset by an admin. Never silently
+                # assign a default password here — that was a login bypass.
+                logger.error(f"Login refused for '{username}': no password set")
+                record_attempt(f'login:{client_ip}')
+                return jsonify({'message': 'Invalid credentials'}), 401
             if user.check_password(password):
                 access_token = create_access_token(identity=str(user.id))
                 branch_name = user.branch.name if user.branch else "All"
@@ -155,7 +160,7 @@ def change_password():
     if is_rate_limited(f'change-pw:{user_id}:{client_ip}', 5, 60):
         return jsonify({'message': 'Too many attempts. Please try again later.'}), 429
 
-    data = request.get_json()
+    data = request.get_json() or {}
     current_password = data.get('current_password', '')
     new_password = data.get('new_password', '')
 

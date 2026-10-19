@@ -1,4 +1,5 @@
 from app.models import Customer, db
+from app.utils.validation import truncate
 
 
 def ensure_customer(data, branch_id=None):
@@ -8,10 +9,10 @@ def ensure_customer(data, branch_id=None):
     created, uses the provided branch_id. Returns the customer_id or None.
     """
     customer_id = data.get('customer_id')
-    name = (data.get('customer_name') or '').strip()
+    name = truncate(data.get('customer_name'), 100)
     if name:
         name = name.title()
-    phone = (data.get('customer_phone') or '').strip()
+    phone = truncate(data.get('customer_phone'), 20)
     if not customer_id and name and phone:
         existing = Customer.query.filter_by(phone=phone).first()
         if existing:

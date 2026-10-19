@@ -1,4 +1,5 @@
 import os
+import secrets
 import logging
 from decimal import Decimal
 from flask import Flask, send_from_directory, jsonify, request
@@ -16,6 +17,22 @@ logger = logging.getLogger(__name__)
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
+
+
+@jwt.token_in_blocklist_loader
+def _is_token_revoked(jwt_header, jwt_payload):
+    """Revoke tokens whose user has been deleted or deactivated.
+
+    This runs for every ``@jwt_required()`` request, so deactivating a user
+    takes effect immediately instead of leaving an already-issued (8h) token
+    usable on endpoints that only check for authentication, not a role.
+    """
+    from app.models import User
+    try:
+        user = db.session.get(User, int(jwt_payload.get('sub')))
+    except (TypeError, ValueError):
+        return True
+    return user is None or user.status != 'active'
 
 
 class SafeJSONProvider(DefaultJSONProvider):
@@ -95,7 +112,7 @@ def create_app(config_class=Config):
     allowed_origins = [o.strip() for o in raw_origins.split(',') if o.strip()]
     if not allowed_origins:
         allowed_origins = ['*'] if app.config.get('DEBUG') else []
-    CORS(app, resources={r"/api/*": {"origins": allowed_origins}}, supports_credentials=True)
+    CORS(app, resources={r"/api/*": {"origins": allowed_origins}}, supports_credentials=False)
 
     # ── Security Headers ──────────────────────────────────────────────
     @app.after_request
@@ -182,6 +199,24 @@ def create_app(config_class=Config):
     app.register_blueprint(backup_bp, url_prefix='/api')
     app.register_blueprint(notifications_bp, url_prefix='/api')
 
+    def _initial_admin_password():
+        """Password for the auto-seeded admin on a fresh database.
+
+        Never falls back to a hard-coded value in production: if
+        ADMIN_DEFAULT_PASSWORD is unset we generate a random one and log it so
+        the operator can sign in and change it.
+        """
+        configured = os.environ.get('ADMIN_DEFAULT_PASSWORD')
+        if configured:
+            return configured
+        if app.config.get('DEBUG'):
+            return 'admin123'
+        generated = secrets.token_urlsafe(18)
+        logger.warning(
+            'ADMIN_DEFAULT_PASSWORD is not set — seeded admin user with a '
+            'random password: %s (change it after logging in)', generated)
+        return generated
+
     def _seed_database():
         with app.app_context():
             from app.models import User, Branch, Vehicle, SparePart
@@ -198,7 +233,7 @@ def create_app(config_class=Config):
             admin = User.query.filter_by(username='admin').first()
             if not admin:
                 admin = User(username='admin', role='admin')
-                admin.set_password(os.environ.get('ADMIN_DEFAULT_PASSWORD', 'admin123'))
+                admin.set_password(_initial_admin_password())
                 db.session.add(admin)
 
             if not Vehicle.query.first():
@@ -224,27 +259,37 @@ def create_app(config_class=Config):
         """Seed the database with initial branches, admin user, and sample data."""
         _seed_database()
 
-    # Ensure tables exist (safe, idempotent)
+    # Ensure tables exist (safe, idempotent).
+    #
+    # This ad-hoc DDL is deliberately skipped inside the gunicorn workers
+    # (start.sh exports LEGASONA_SKIP_BOOTSTRAP=1 right before launching them).
+    # `flask db upgrade` already ran this once, sequentially, before the
+    # workers start; letting every worker repeat it caused concurrent
+    # CREATE/ALTER statements and lock contention at boot.
     with app.app_context():
-        try:
-            db.create_all()
-            logger.info('db.create_all() completed.')
-        except Exception as e:
-            logger.error(f'db.create_all() failed: {e}', exc_info=True)
+        if os.environ.get('LEGASONA_SKIP_BOOTSTRAP') == '1':
+            logger.info('LEGASONA_SKIP_BOOTSTRAP=1 — skipping schema bootstrap '
+                        '(already applied by `flask db upgrade`).')
+        else:
+            try:
+                db.create_all()
+                logger.info('db.create_all() completed.')
+            except Exception as e:
+                logger.error(f'db.create_all() failed: {e}', exc_info=True)
 
-        # ── Auto-migrate: add columns that may be missing ──────────
-        try:
-            _migrate_columns(db)
-        except Exception as e:
-            logger.error(f'_migrate_columns() failed: {e}', exc_info=True)
+            # ── Auto-migrate: add columns that may be missing ──────────
+            try:
+                _migrate_columns(db)
+            except Exception as e:
+                logger.error(f'_migrate_columns() failed: {e}', exc_info=True)
 
-        # ── Auto-seed on fresh database (e.g. new Neon DB) ─────────
-        try:
-            from app.models import User as _User
-            if not db.session.query(_User).first():
-                _seed_database()
-        except Exception as e:
-            logger.error(f'Auto-seed failed: {e}', exc_info=True)
+            # ── Auto-seed on fresh database (e.g. new Neon DB) ─────────
+            try:
+                from app.models import User as _User
+                if not db.session.query(_User).first():
+                    _seed_database()
+            except Exception as e:
+                logger.error(f'Auto-seed failed: {e}', exc_info=True)
 
     # Serve React frontend (built files) for any route not matched by API
     @app.route('/', defaults={'path': ''})

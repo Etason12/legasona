@@ -131,6 +131,9 @@ def reset_database():
     data = request.get_json() or {}
     if not _valid_reset_key(data.get('reset_key', '')):
         return jsonify({'message': 'Invalid reset key'}), 401
+    new_password = data.get('new_password')
+    if not new_password or len(str(new_password)) < 8:
+        return jsonify({'message': 'A new_password of at least 8 characters is required'}), 400
     from app import db
     try:
         Payment.query.delete()
@@ -154,7 +157,7 @@ def reset_database():
         db.session.flush()
 
         admin = User(username='admin', role='admin', branch_id=shire.id)
-        admin.set_password(data.get('new_password') or 'change-me-now')
+        admin.set_password(str(new_password))
         db.session.add(admin)
 
         vehicles = [

@@ -28,6 +28,19 @@ def effective_branch_id(user, requested_branch_id):
     return user.branch_id
 
 
+def user_can_access_branch(user, branch_id):
+    """Whether ``user`` may read/write a record that belongs to ``branch_id``.
+
+    Admins can touch any branch. Everyone else is confined to the branch they
+    are assigned to; a non-admin with no branch assignment gets nothing.
+    """
+    if user is None:
+        return False
+    if user.role == 'admin':
+        return True
+    return user.branch_id is not None and branch_id == user.branch_id
+
+
 def admin_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):

@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
-from app.models import Transfer, Vehicle, SparePart, db
-from app.utils.auth import role_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.models import Transfer, Vehicle, SparePart, Branch, User, db
+from app.utils.auth import role_required, effective_branch_id, user_can_access_branch
 from app.utils.validation import safe_int
 from datetime import datetime, timezone
+from sqlalchemy import or_
 
 transfers_bp = Blueprint('transfers', __name__)
 
@@ -11,11 +12,25 @@ transfers_bp = Blueprint('transfers', __name__)
 @jwt_required()
 @role_required('admin', 'manager', 'storekeeper')
 def request_transfer():
-    data        = request.get_json()
+    data        = request.get_json() or {}
     item_type   = data.get('item_type')
-    item_id     = data.get('item_id')
+    item_id     = safe_int(data.get('item_id'))
     quantity    = safe_int(data.get('quantity'), default=1, min_val=1)
-    from_branch_id = safe_int(data.get('from_branch_id'))
+    current_user = db.session.get(User, get_jwt_identity())
+
+    # Non-admins may only move stock out of their own branch.
+    from_branch_id = effective_branch_id(current_user, data.get('from_branch_id'))
+    from_branch_id = safe_int(from_branch_id)
+    to_branch_id   = safe_int(data.get('to_branch_id'))
+
+    if item_type not in ('vehicle', 'spare_part'):
+        return jsonify({'message': 'item_type must be vehicle or spare_part'}), 400
+    if not from_branch_id or not db.session.get(Branch, from_branch_id):
+        return jsonify({'message': 'A valid source branch is required'}), 400
+    if not to_branch_id or not db.session.get(Branch, to_branch_id):
+        return jsonify({'message': 'A valid destination branch is required'}), 400
+    if to_branch_id == from_branch_id:
+        return jsonify({'message': 'Source and destination branches must differ'}), 400
 
     if item_type == 'spare_part':
         part = db.session.get(SparePart, item_id)
@@ -27,7 +42,7 @@ def request_transfer():
             return jsonify({'message': 'Vehicle not available in source branch'}), 400
 
     new_transfer = Transfer(
-        from_branch_id=from_branch_id, to_branch_id=data.get('to_branch_id'),
+        from_branch_id=from_branch_id, to_branch_id=to_branch_id,
         item_type=item_type, item_id=item_id, quantity=quantity,
         requested_by=int(get_jwt_identity()), approval_status='pending'
     )
@@ -40,7 +55,16 @@ def request_transfer():
 def get_transfers():
     page = safe_int(request.args.get('page', 1), default=1, min_val=1)
     per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=200)
-    paginated = Transfer.query.order_by(Transfer.request_date.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    current_user = db.session.get(User, get_jwt_identity())
+    branch_id = effective_branch_id(current_user, request.args.get('branch_id'))
+    query = Transfer.query
+    if branch_id:
+        branch_id = safe_int(branch_id)
+        query = query.filter(or_(
+            Transfer.from_branch_id == branch_id,
+            Transfer.to_branch_id == branch_id,
+        ))
+    paginated = query.order_by(Transfer.request_date.desc()).paginate(page=page, per_page=per_page, error_out=False)
     return jsonify({
         'items': [{
             'id': t.id, 'from_branch': t.from_branch_id, 'to_branch': t.to_branch_id,
@@ -58,6 +82,10 @@ def get_transfers():
 @role_required('admin', 'manager')
 def approve_transfer(id):
     transfer = db.get_or_404(Transfer, id)
+    current_user = db.session.get(User, get_jwt_identity())
+    if not (user_can_access_branch(current_user, transfer.from_branch_id)
+            or user_can_access_branch(current_user, transfer.to_branch_id)):
+        return jsonify({'message': 'Transfer not found'}), 404
     if transfer.approval_status != 'pending':
         return jsonify({'message': 'Transfer already processed'}), 400
 

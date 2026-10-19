@@ -11,7 +11,7 @@ from decimal import Decimal, InvalidOperation
 from sqlalchemy import func, or_
 from app.models import Sale, Payment, Vehicle, SparePart, User, Customer, db
 from app.utils.logging import log_activity
-from app.utils.notifications import send_notification
+from app.utils.notifications import dispatch_notification, send_notification
 from app.utils.customer import ensure_customer
 
 sales_bp = Blueprint('sales', __name__)
@@ -202,7 +202,7 @@ def _record_vehicle_sale():
     log_activity(current_user_id, 'VEHICLE_SALE', f"Recorded sale {sale_number} for {data.get('customer_name')} - ETB {total_amount}")
 
     db.session.commit()
-    send_notification(
+    dispatch_notification(
         'Vehicle Sale Completed',
         f'{data.get("customer_name")} purchased {vehicle.model} — ETB {total_amount:,.0f}',
         {'type': 'sale', 'sale_type': 'vehicle', 'sale_number': sale_number}
@@ -295,7 +295,7 @@ def _record_spare_part_sale():
     log_activity(current_user_id, 'SPARE_PART_SALE', f"Recorded sale {sale_number} for {data.get('customer_name')} - ETB {total_amount}")
 
     db.session.commit()
-    send_notification(
+    dispatch_notification(
         'Spare Part Sale Completed',
         f'{data.get("customer_name")} purchased {part.name} — ETB {total_amount:,.0f}',
         {'type': 'sale', 'sale_type': 'spare_part', 'sale_number': sale_number}
@@ -503,7 +503,7 @@ def add_payment(id):
         log_activity(user_id, 'ADD_PAYMENT', f"Added ETB {amount} to sale {sale.sale_number}")
 
         db.session.commit()
-        send_notification(
+        dispatch_notification(
             'Payment Received',
             f'ETB {amount:,.0f} added to sale {sale.sale_number} ({sale.customer_name})',
             {'type': 'payment', 'sale_number': sale.sale_number, 'amount': amount}

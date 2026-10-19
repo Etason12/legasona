@@ -4,10 +4,10 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.exceptions import HTTPException
 from app.models import Order, Customer, User, Branch, Sale, Payment, Vehicle, db
-from app.utils.auth import role_required
+from app.utils.auth import role_required, effective_branch_id, user_can_access_branch
 from app.utils.logging import log_activity
-from app.utils.notifications import send_notification
-from app.utils.validation import safe_int, safe_float
+from app.utils.notifications import dispatch_notification, send_notification
+from app.utils.validation import safe_int, safe_float, truncate
 from app.utils.image_utils import compress_to_base64
 from app.utils.customer import ensure_customer
 
@@ -18,10 +18,10 @@ logger = logging.getLogger(__name__)
 @jwt_required()
 @role_required('admin', 'manager', 'cashier')
 def create_order():
-    data = request.get_json()
+    data = request.get_json() or {}
     current_user_id = get_jwt_identity()
     current_user = db.session.get(User, current_user_id)
-    
+
     # Determine branch_id
     # Admins can always select a branch. Restricted users are forced to their assigned branch.
     if current_user.role == 'admin':
@@ -33,6 +33,9 @@ def create_order():
 
     if not branch_id:
         return jsonify({'message': 'Branch ID is required'}), 400
+    branch_id = safe_int(branch_id)
+    if not branch_id or not db.session.get(Branch, branch_id):
+        return jsonify({'message': 'Branch not found'}), 404
 
     from sqlalchemy import func, text
     last_order = db.session.query(func.coalesce(func.max(Order.sequence_number), 0)).scalar()
@@ -40,30 +43,31 @@ def create_order():
 
     customer_id = ensure_customer(data, branch_id=branch_id) or data.get('customer_id') or None
 
-    deposit_method = data.get('deposit_method', 'cash')
+    deposit_method = truncate(data.get('deposit_method'), 20, 'cash') or 'cash'
+    deposit_amount = safe_float(data.get('deposit_amount', 0), default=0, min_val=0)
     new_order = Order(
-        customer_name=(data.get('customer_name') or '').strip().title(),
-        customer_phone=data.get('customer_phone'),
+        customer_name=(truncate(data.get('customer_name'), 100) or '').title(),
+        customer_phone=truncate(data.get('customer_phone'), 20),
         customer_id=customer_id,
         vehicle_specs=data.get('vehicle_specs'),
         sequence_number=next_seq,
-        deposit_amount=data.get('deposit_amount', 0),
+        deposit_amount=deposit_amount,
         deposit_method=deposit_method,
         branch_id=branch_id,
         remark=data.get('remark')
     )
     if deposit_method == 'bank':
-        new_order.deposit_bank = data.get('deposit_bank', '').upper()
-        new_order.deposit_account_holder = data.get('deposit_account_holder', '').upper()
-        new_order.deposit_transaction_reference = data.get('deposit_transaction_reference', '').upper()
+        new_order.deposit_bank = (truncate(data.get('deposit_bank'), 50) or '').upper()
+        new_order.deposit_account_holder = (truncate(data.get('deposit_account_holder'), 50) or '').upper()
+        new_order.deposit_transaction_reference = (truncate(data.get('deposit_transaction_reference'), 100) or '').upper()
     db.session.add(new_order)
     db.session.flush()
     user_id = get_jwt_identity()
-    log_activity(user_id, 'CREATE_ORDER', f"Order #{next_seq} created for {data.get('customer_name')}")
+    log_activity(user_id, 'CREATE_ORDER', f"Order #{next_seq} created for {new_order.customer_name}")
     db.session.commit()
-    send_notification(
+    dispatch_notification(
         'New Order Created',
-        f'Order #{next_seq} for {data.get("customer_name")} — deposit ETB {data.get("deposit_amount", 0):,.0f}',
+        f'Order #{next_seq} for {new_order.customer_name} — deposit ETB {deposit_amount:,.0f}',
         {'type': 'order', 'sequence_number': next_seq}
     )
     return jsonify({'message': 'Order created', 'sequence_number': next_seq}), 201
@@ -142,7 +146,8 @@ def get_orders():
 @jwt_required()
 @role_required('admin', 'manager', 'cashier')
 def get_available_vehicles():
-    branch_id = request.args.get('branch_id')
+    current_user = db.session.get(User, get_jwt_identity())
+    branch_id = effective_branch_id(current_user, request.args.get('branch_id'))
     query = Vehicle.query.filter(Vehicle.status == 'available')
     if branch_id:
         query = query.filter(Vehicle.branch_id == safe_int(branch_id))
@@ -161,6 +166,9 @@ def get_available_vehicles():
 @role_required('admin', 'manager', 'cashier')
 def add_deposit(id):
     order = db.get_or_404(Order, id)
+    current_user = db.session.get(User, get_jwt_identity())
+    if not user_can_access_branch(current_user, order.branch_id):
+        return jsonify({'message': 'Order not found'}), 404
     if request.content_type and 'multipart' in request.content_type:
         amount = safe_float(request.form.get('amount', 0), default=0, min_val=0)
         method = request.form.get('method', 'cash')
@@ -180,11 +188,11 @@ def add_deposit(id):
     if amount <= 0:
         return jsonify({'message': 'Deposit amount must be greater than zero'}), 400
     order.deposit_amount = (order.deposit_amount or 0) + amount
-    order.deposit_method = method
-    if method == 'bank':
-        order.deposit_bank = bank.upper()
-        order.deposit_account_holder = account_holder.upper()
-        order.deposit_transaction_reference = reference.upper()
+    order.deposit_method = truncate(method, 20, 'cash') or 'cash'
+    if order.deposit_method == 'bank':
+        order.deposit_bank = (truncate(bank, 50) or '').upper()
+        order.deposit_account_holder = (truncate(account_holder, 50) or '').upper()
+        order.deposit_transaction_reference = (truncate(reference, 100) or '').upper()
     if receipt_file and receipt_file.filename:
         receipt_data = compress_to_base64(receipt_file)
         if receipt_data:
@@ -208,6 +216,9 @@ def fulfill_order(id):
 
 def _fulfill_order(id):
     order = db.get_or_404(Order, id)
+    current_user = db.session.get(User, get_jwt_identity())
+    if not user_can_access_branch(current_user, order.branch_id):
+        return jsonify({'message': 'Order not found'}), 404
     if order.status != 'waiting':
         return jsonify({'message': 'Order is not in waiting status'}), 400
 
@@ -218,7 +229,7 @@ def _fulfill_order(id):
         f"Fulfilled order #{order.sequence_number} for {order.customer_name}")
 
     db.session.commit()
-    send_notification(
+    dispatch_notification(
         'Order Fulfilled',
         f'Order #{order.sequence_number} fulfilled for {order.customer_name}',
         {'type': 'order_fulfilled'}
@@ -230,6 +241,9 @@ def _fulfill_order(id):
 @role_required('admin', 'manager')
 def cancel_order(id):
     order = db.get_or_404(Order, id)
+    current_user = db.session.get(User, get_jwt_identity())
+    if not user_can_access_branch(current_user, order.branch_id):
+        return jsonify({'message': 'Order not found'}), 404
     if order.status == 'cancelled':
         return jsonify({'message': 'Order is already cancelled'}), 400
     if order.status == 'fulfilled':
@@ -241,15 +255,17 @@ def cancel_order(id):
     order.status = 'cancelled'
     order.cancelled_at = datetime.now(timezone.utc)
     order.cancelled_by = current_user_id
-    order.cancellation_reason = data.get('reason', '').strip()[:200]
-    order.refund_amount = float(data.get('refund_amount', order.deposit_amount or 0))
+    order.cancellation_reason = truncate(data.get('reason'), 200) or ''
+    order.refund_amount = safe_float(
+        data.get('refund_amount', order.deposit_amount or 0),
+        default=float(order.deposit_amount or 0), min_val=0)
     order.refund_date = datetime.now(timezone.utc)
 
-    refund_method = data.get('refund_method', 'cash')
+    refund_method = truncate(data.get('refund_method'), 20, 'cash') or 'cash'
     order.refund_method = refund_method
     if refund_method == 'bank':
-        order.refund_bank = data.get('refund_bank', '').upper()
-        order.refund_transaction_reference = data.get('refund_transaction_reference', '').upper()
+        order.refund_bank = (truncate(data.get('refund_bank'), 50) or '').upper()
+        order.refund_transaction_reference = (truncate(data.get('refund_transaction_reference'), 100) or '').upper()
     else:
         order.refund_bank = None
         order.refund_transaction_reference = None
@@ -278,13 +294,16 @@ def cancel_order(id):
 @jwt_required()
 @role_required('admin', 'manager')
 def reorder_orders():
-    data = request.get_json()
+    data = request.get_json() or {}
     order_id = data.get('id')
     direction = data.get('direction')  # 'up' or 'down'
     if not order_id or direction not in ('up', 'down'):
         return jsonify({'message': 'id and direction (up/down) are required'}), 400
 
     order = db.get_or_404(Order, order_id)
+    current_user = db.session.get(User, get_jwt_identity())
+    if not user_can_access_branch(current_user, order.branch_id):
+        return jsonify({'message': 'Order not found'}), 404
     branch_id = order.branch_id
 
     adjacent = Order.query.filter(
@@ -309,37 +328,45 @@ def reorder_orders():
 @role_required('admin', 'manager', 'cashier')
 def update_order(id):
     order = db.get_or_404(Order, id)
-    data = request.get_json()
+    data = request.get_json() or {}
     current_user = db.session.get(User, get_jwt_identity())
-    
+    if not user_can_access_branch(current_user, order.branch_id):
+        return jsonify({'message': 'Order not found'}), 404
+
     if 'customer_name' in data:
-        order.customer_name = (data['customer_name'] or '').strip().title()
+        order.customer_name = (truncate(data['customer_name'], 100) or '').title()
     if 'customer_phone' in data:
-        order.customer_phone = data['customer_phone']
+        order.customer_phone = truncate(data['customer_phone'], 20)
     if 'vehicle_specs' in data:
         order.vehicle_specs = data['vehicle_specs']
     if 'deposit_amount' in data:
-        order.deposit_amount = data['deposit_amount']
+        order.deposit_amount = safe_float(data['deposit_amount'], default=order.deposit_amount, min_val=0)
     if 'deposit_method' in data:
-        order.deposit_method = data['deposit_method']
+        order.deposit_method = truncate(data['deposit_method'], 20, order.deposit_method) or 'cash'
     if 'remark' in data:
         order.remark = data['remark']
     # Admin can change the branch of an existing order
     if 'branch_id' in data and current_user.role == 'admin':
-        order.branch_id = data['branch_id']
-        
+        new_branch = safe_int(data['branch_id'])
+        if new_branch and db.session.get(Branch, new_branch):
+            order.branch_id = new_branch
+
     if data.get('deposit_method') == 'bank':
-        order.deposit_bank = data.get('deposit_bank', order.deposit_bank or '').upper()
-        order.deposit_account_holder = data.get('deposit_account_holder', order.deposit_account_holder or '').upper()
-        order.deposit_transaction_reference = data.get('deposit_transaction_reference', order.deposit_transaction_reference or '').upper()
+        order.deposit_bank = (truncate(data.get('deposit_bank'), 50, order.deposit_bank) or '').upper()
+        order.deposit_account_holder = (truncate(data.get('deposit_account_holder'), 50, order.deposit_account_holder) or '').upper()
+        order.deposit_transaction_reference = (truncate(data.get('deposit_transaction_reference'), 100, order.deposit_transaction_reference) or '').upper()
     db.session.commit()
     return jsonify({'message': 'Order updated'}), 200
+
 
 @orders_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required()
 @role_required('admin', 'manager')
 def delete_order(id):
     order = db.get_or_404(Order, id)
+    current_user = db.session.get(User, get_jwt_identity())
+    if not user_can_access_branch(current_user, order.branch_id):
+        return jsonify({'message': 'Order not found'}), 404
     db.session.delete(order)
     db.session.commit()
     return jsonify({'message': 'Order deleted'}), 200

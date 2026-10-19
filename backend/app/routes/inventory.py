@@ -1,11 +1,11 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Vehicle, SparePart, User, db
-from app.utils.auth import role_required, effective_branch_id
+from app.models import Vehicle, SparePart, Sale, User, db
+from app.utils.auth import role_required, effective_branch_id, user_can_access_branch
 from app.utils.image_utils import compress_to_base64
 from app.utils.logging import log_activity
-from app.utils.notifications import send_notification
-from app.utils.validation import safe_int, safe_float
+from app.utils.notifications import dispatch_notification, send_notification
+from app.utils.validation import safe_int, safe_float, truncate
 from app.utils.sanitization import sanitize_search
 from sqlalchemy import or_
 import time
@@ -21,7 +21,7 @@ def get_vehicles():
     current_user_id = get_jwt_identity()
     current_user = db.session.get(User, current_user_id)
     page = safe_int(request.args.get('page', 1), default=1, min_val=1)
-    per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=10000)
+    per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=200)
     query = Vehicle.query
     branch_id = effective_branch_id(current_user, branch_id)
     if branch_id:
@@ -69,26 +69,29 @@ def get_vehicles():
 @jwt_required()
 @role_required('admin', 'manager', 'storekeeper')
 def add_vehicle():
-    vin = (request.form.get('vin') or '').strip().upper()
+    vin = (request.form.get('vin') or '').strip().upper()[:17]
     if not vin:
         return jsonify({'message': 'VIN is required'}), 400
     if Vehicle.query.filter_by(vin=vin).first():
         return jsonify({'message': 'VIN already exists'}), 409
+    current_user = db.session.get(User, get_jwt_identity())
+    branch_id = effective_branch_id(current_user, request.form.get('branch_id'))
     image_data = compress_to_base64(request.files.get('image'))
     v = Vehicle(
-        vin=vin, type=request.form.get('type'), power_type=request.form.get('power_type'),
-        model=request.form.get('model'), color=request.form.get('color'),
-        chassis_number=vin, engine_number=request.form.get('engine_number'),
+        vin=vin, type=truncate(request.form.get('type'), 20),
+        power_type=truncate(request.form.get('power_type'), 20),
+        model=truncate(request.form.get('model'), 100), color=truncate(request.form.get('color'), 50),
+        chassis_number=vin, engine_number=truncate(request.form.get('engine_number'), 50),
         cost_price=safe_float(request.form.get('cost_price', 0) or 0, default=0),
         selling_price=safe_float(request.form.get('selling_price', 0) or 0, default=0),
-        branch_id=safe_int(request.form.get('branch_id')), status='available', image=image_data
+        branch_id=safe_int(branch_id), status='available', image=image_data
     )
     db.session.add(v)
     db.session.flush()
     user_id = get_jwt_identity()
     log_activity(user_id, 'ADD_VEHICLE', f"Added vehicle {vin} - {v.model}")
     db.session.commit()
-    send_notification(
+    dispatch_notification(
         'New Vehicle Added',
         f'Vehicle {v.model} ({vin}) has been added to inventory',
         {'type': 'inventory', 'item': 'vehicle', 'id': v.id}
@@ -100,6 +103,9 @@ def add_vehicle():
 @role_required('admin', 'manager', 'storekeeper')
 def update_vehicle(id):
     v = db.get_or_404(Vehicle, id)
+    current_user = db.session.get(User, get_jwt_identity())
+    if not user_can_access_branch(current_user, v.branch_id):
+        return jsonify({'message': 'Vehicle not found'}), 404
     if request.content_type and 'multipart' in request.content_type:
         data = request.form
         image_file = request.files.get('image')
@@ -107,30 +113,40 @@ def update_vehicle(id):
             v.image = compress_to_base64(image_file)
     else:
         data = request.get_json() or {}
-    v.model = data.get('model', v.model)
-    v.type = data.get('type', v.type)
-    v.power_type = data.get('power_type', v.power_type)
-    v.color = data.get('color', v.color)
+    v.model = truncate(data.get('model'), 100, v.model)
+    v.type = truncate(data.get('type'), 20, v.type)
+    v.power_type = truncate(data.get('power_type'), 20, v.power_type)
+    v.color = truncate(data.get('color'), 50, v.color)
     v.cost_price = safe_float(data.get('cost_price'), default=v.cost_price) if data.get('cost_price') not in (None, '') else v.cost_price
     v.selling_price = safe_float(data.get('selling_price'), default=v.selling_price) if data.get('selling_price') not in (None, '') else v.selling_price
-    v.status = data.get('status', v.status)
-    v.branch_id = data.get('branch_id', v.branch_id)
+    v.status = truncate(data.get('status'), 20, v.status)
+    # Only an admin may move a vehicle to a different branch
+    if current_user.role == 'admin' and data.get('branch_id') not in (None, ''):
+        new_branch = safe_int(data.get('branch_id'))
+        if new_branch:
+            v.branch_id = new_branch
     if data.get('vin'):
-        new_vin = data.get('vin').strip().upper()
+        new_vin = str(data.get('vin')).strip().upper()[:17]
         if new_vin != v.vin:
             if Vehicle.query.filter(Vehicle.vin == new_vin, Vehicle.id != v.id).first():
                 return jsonify({'message': 'VIN already exists'}), 409
         v.vin = new_vin
     v.chassis_number = v.vin
-    v.engine_number = data.get('engine_number', v.engine_number)
+    v.engine_number = truncate(data.get('engine_number'), 50, v.engine_number)
     db.session.commit()
     return jsonify({'message': 'Vehicle updated'}), 200
+
 
 @inventory_bp.route('/vehicles/<int:id>', methods=['DELETE'])
 @jwt_required()
 @role_required('admin', 'manager')
 def delete_vehicle(id):
     v = db.get_or_404(Vehicle, id)
+    current_user = db.session.get(User, get_jwt_identity())
+    if not user_can_access_branch(current_user, v.branch_id):
+        return jsonify({'message': 'Vehicle not found'}), 404
+    if Sale.query.filter_by(item_id=v.id, sale_type='vehicle').first():
+        return jsonify({'message': 'Cannot delete a vehicle that has recorded sales'}), 400
     db.session.delete(v)
     db.session.commit()
     return jsonify({'message': 'Vehicle deleted'}), 200
@@ -143,7 +159,7 @@ def get_spare_parts():
     current_user_id = get_jwt_identity()
     current_user = db.session.get(User, current_user_id)
     page = safe_int(request.args.get('page', 1), default=1, min_val=1)
-    per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=10000)
+    per_page = safe_int(request.args.get('per_page', 50), default=50, min_val=1, max_val=200)
     query = SparePart.query
     branch_id = effective_branch_id(current_user, branch_id)
     if branch_id:
@@ -185,23 +201,28 @@ def get_spare_parts():
 @jwt_required()
 @role_required('admin', 'manager', 'storekeeper')
 def add_spare_part():
+    name = truncate(request.form.get('name'), 100)
+    if not name:
+        return jsonify({'message': 'Name is required'}), 400
+    current_user = db.session.get(User, get_jwt_identity())
+    branch_id = effective_branch_id(current_user, request.form.get('branch_id'))
     image_data = compress_to_base64(request.files.get('image'))
     part_number = f"SP-{int(time.time() * 1000) % 1000000:06d}"
     p = SparePart(
-        part_number=part_number, name=request.form.get('name'),
-        name_tigrinya=request.form.get('name_tigrinya'),
-        category=request.form.get('category'),
+        part_number=part_number, name=name,
+        name_tigrinya=truncate(request.form.get('name_tigrinya'), 100),
+        category=truncate(request.form.get('category'), 50),
         unit_price=safe_float(request.form.get('unit_price', 0) or 0, default=0),
         cost_price=safe_float(request.form.get('cost_price', 0) or 0, default=0),
         quantity=safe_int(request.form.get('quantity', 0) or 0, default=0),
-        branch_id=safe_int(request.form.get('branch_id')), image=image_data
+        branch_id=safe_int(branch_id), image=image_data
     )
     db.session.add(p)
     db.session.flush()
     user_id = get_jwt_identity()
     log_activity(user_id, 'ADD_SPARE_PART', f"Added spare part {p.name} ({p.part_number})")
     db.session.commit()
-    send_notification(
+    dispatch_notification(
         'New Spare Part Added',
         f'Spare part {p.name} ({p.part_number}) has been added to inventory',
         {'type': 'inventory', 'item': 'spare_part', 'id': p.id}
@@ -213,6 +234,9 @@ def add_spare_part():
 @role_required('admin', 'manager', 'storekeeper')
 def update_spare_part(id):
     p = db.get_or_404(SparePart, id)
+    current_user = db.session.get(User, get_jwt_identity())
+    if not user_can_access_branch(current_user, p.branch_id):
+        return jsonify({'message': 'Spare part not found'}), 404
     if request.content_type and 'multipart' in request.content_type:
         data = request.form
         image_file = request.files.get('image')
@@ -220,10 +244,10 @@ def update_spare_part(id):
             p.image = compress_to_base64(image_file)
     else:
         data = request.get_json() or {}
-    p.name = data.get('name', p.name)
-    p.name_tigrinya = data.get('name_tigrinya', p.name_tigrinya)
-    p.part_number = data.get('part_number', p.part_number)
-    p.category = data.get('category', p.category)
+    p.name = truncate(data.get('name'), 100, p.name)
+    p.name_tigrinya = truncate(data.get('name_tigrinya'), 100, p.name_tigrinya)
+    p.part_number = truncate(data.get('part_number'), 50, p.part_number)
+    p.category = truncate(data.get('category'), 50, p.category)
     p.unit_price = safe_float(data.get('unit_price'), default=p.unit_price) if data.get('unit_price') not in (None, '') else p.unit_price
     p.cost_price = safe_float(data.get('cost_price'), default=p.cost_price) if data.get('cost_price') not in (None, '') else p.cost_price
     p.quantity = safe_int(data.get('quantity'), default=p.quantity) if data.get('quantity') not in (None, '') else p.quantity
@@ -254,6 +278,11 @@ def get_vehicle_stats():
 @role_required('admin', 'manager')
 def delete_spare_part(id):
     p = db.get_or_404(SparePart, id)
+    current_user = db.session.get(User, get_jwt_identity())
+    if not user_can_access_branch(current_user, p.branch_id):
+        return jsonify({'message': 'Spare part not found'}), 404
+    if Sale.query.filter_by(item_id=p.id, sale_type='spare_part').first():
+        return jsonify({'message': 'Cannot delete a spare part that has recorded sales'}), 400
     db.session.delete(p)
     db.session.commit()
     return jsonify({'message': 'Spare part deleted'}), 200

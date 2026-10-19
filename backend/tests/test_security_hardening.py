@@ -1,0 +1,216 @@
+"""Regression tests for the security-hardening batch.
+
+Covers:
+  * deactivated users immediately losing API access (token revocation)
+  * login refusing accounts with no password hash
+  * cancelled sales excluded from reports
+  * branch isolation on by-id endpoints and list endpoints
+  * the expense ?user_id= read bypass
+  * branch-comparison filtering for non-admins
+"""
+import pytest
+
+from app import db as _db
+from app.models import (
+    User, Branch, Expense, Order, Sale, SparePart, Transfer,
+)
+
+
+def _make_user(app, username, password, role='cashier', branch_id=None, status='active'):
+    with app.app_context():
+        user = User(username=username, role=role, branch_id=branch_id, status=status)
+        user.set_password(password)
+        _db.session.add(user)
+        _db.session.commit()
+        return user.id
+
+
+def _token(client, username, password):
+    resp = client.post('/api/auth/login', json={'username': username, 'password': password})
+    assert resp.status_code == 200, resp.get_json()
+    return {'Authorization': f"Bearer {resp.get_json()['token']}"}
+
+
+def _branch(app, name='Shire'):
+    with app.app_context():
+        b = Branch(name=name, location=name)
+        _db.session.add(b)
+        _db.session.commit()
+        return b.id
+
+
+# ── Token revocation / deactivation ─────────────────────────────────────
+
+def test_deactivated_user_token_is_rejected(client, app, db):
+    bid = _branch(app)
+    _make_user(app, 'active_user', 'pass1234', branch_id=bid)
+    _make_user(app, 'temp_user', 'pass1234', branch_id=bid)
+
+    headers = _token(client, 'temp_user', 'pass1234')
+    assert client.get('/api/orders', headers=headers).status_code == 200
+
+    with app.app_context():
+        user = User.query.filter_by(username='temp_user').first()
+        user.status = 'inactive'
+        _db.session.commit()
+
+    # The already-issued token must stop working immediately.
+    assert client.get('/api/orders', headers=headers).status_code == 401
+
+
+def test_token_for_deleted_user_is_rejected(client, app, db):
+    bid = _branch(app)
+    _make_user(app, 'doomed', 'pass1234', branch_id=bid)
+    headers = _token(client, 'doomed', 'pass1234')
+
+    with app.app_context():
+        User.query.filter_by(username='doomed').delete()
+        _db.session.commit()
+
+    assert client.get('/api/branches', headers=headers).status_code == 401
+
+
+def test_login_refused_when_password_hash_missing(client, app, db):
+    _branch(app)
+    with app.app_context():
+        user = User(username='restored_user', role='admin', status='active')
+        user.password_hash = None
+        _db.session.add(user)
+        _db.session.commit()
+
+    # Must not self-heal to a default password.
+    resp = client.post('/api/auth/login',
+                       json={'username': 'restored_user', 'password': 'admin123'})
+    assert resp.status_code == 401
+
+    with app.app_context():
+        assert User.query.filter_by(username='restored_user').first().password_hash is None
+
+
+# ── Reports exclude cancelled sales ─────────────────────────────────────
+
+def test_cancelled_sales_excluded_from_dashboard(client, auth_headers, app, db):
+    from datetime import datetime, timezone
+    bid = _branch(app)
+    with app.app_context():
+        now = datetime.now(timezone.utc)
+        _db.session.add_all([
+            Sale(sale_number='S-OK', sale_type='vehicle', total_amount=1000,
+                 cost_at_sale=400, status='completed', branch_id=bid, sale_date=now),
+            Sale(sale_number='S-CAN', sale_type='vehicle', total_amount=9000,
+                 cost_at_sale=9000, status='cancelled', branch_id=bid, sale_date=now),
+        ])
+        _db.session.commit()
+
+    resp = client.get('/api/reports/profit-analysis', headers=auth_headers)
+    assert resp.status_code == 200
+    assert resp.get_json()['revenue'] == 1000
+
+
+def test_branch_comparison_scopes_non_admin(client, app, db):
+    bid_a = _branch(app, 'Alpha')
+    bid_b = _branch(app, 'Beta')
+    _make_user(app, 'mgr_a', 'pass1234', role='manager', branch_id=bid_a)
+    headers = _token(client, 'mgr_a', 'pass1234')
+
+    resp = client.get('/api/reports/branch-comparison', headers=headers)
+    assert resp.status_code == 200
+    names = [row['name'] for row in resp.get_json()]
+    assert 'Alpha' in names
+    assert 'Beta' not in names
+
+
+# ── Branch isolation on by-id writes ────────────────────────────────────
+
+def test_non_admin_cannot_touch_other_branch_order(client, app, db):
+    bid_a = _branch(app, 'Alpha')
+    bid_b = _branch(app, 'Beta')
+    _make_user(app, 'mgr_a', 'pass1234', role='manager', branch_id=bid_a)
+    with app.app_context():
+        order = Order(customer_name='Other', sequence_number=1, branch_id=bid_b)
+        _db.session.add(order)
+        _db.session.commit()
+        other_id = order.id
+
+    headers = _token(client, 'mgr_a', 'pass1234')
+    assert client.post(f'/api/orders/{other_id}/cancel', headers=headers,
+                       json={'reason': 'x'}).status_code == 404
+    assert client.put(f'/api/orders/{other_id}', headers=headers,
+                      json={'customer_name': 'Hacked'}).status_code == 404
+    assert client.delete(f'/api/orders/{other_id}', headers=headers).status_code == 404
+
+    with app.app_context():
+        assert Order.query.get(other_id).customer_name == 'Other'
+
+
+def test_non_admin_cannot_delete_other_branch_part(client, app, db):
+    bid_a = _branch(app, 'Alpha')
+    bid_b = _branch(app, 'Beta')
+    _make_user(app, 'mgr_a', 'pass1234', role='manager', branch_id=bid_a)
+    with app.app_context():
+        part = SparePart(part_number='X-1', name='Widget', branch_id=bid_b, quantity=5)
+        _db.session.add(part)
+        _db.session.commit()
+        part_id = part.id
+
+    headers = _token(client, 'mgr_a', 'pass1234')
+    assert client.delete(f'/api/inventory/spare-parts/{part_id}', headers=headers).status_code == 404
+    with app.app_context():
+        assert SparePart.query.get(part_id) is not None
+
+
+def test_transfers_list_scoped_to_branch(client, app, db):
+    bid_a = _branch(app, 'Alpha')
+    bid_b = _branch(app, 'Beta')
+    _make_user(app, 'mgr_a', 'pass1234', role='manager', branch_id=bid_a)
+    with app.app_context():
+        _db.session.add_all([
+            Transfer(from_branch_id=bid_a, to_branch_id=bid_b, item_type='spare_part',
+                     item_id=1, quantity=1, approval_status='pending'),
+            Transfer(from_branch_id=bid_b, to_branch_id=bid_b, item_type='spare_part',
+                     item_id=2, quantity=1, approval_status='pending'),
+        ])
+        _db.session.commit()
+
+    headers = _token(client, 'mgr_a', 'pass1234')
+    items = client.get('/api/transfers', headers=headers).get_json()['items']
+    assert len(items) == 1
+    assert items[0]['from_branch'] == bid_a
+
+
+# ── Expense read bypass ─────────────────────────────────────────────────
+
+def test_expense_user_id_filter_ignored_for_non_admin(client, app, db):
+    bid = _branch(app)
+    other_id = _make_user(app, 'other_user', 'pass1234', branch_id=bid)
+    _make_user(app, 'acc_user', 'pass1234', role='accountant', branch_id=bid)
+    with app.app_context():
+        _db.session.add_all([
+            Expense(category='Fuel', amount=100, branch_id=bid, user_id=other_id),
+        ])
+        _db.session.commit()
+
+    headers = _token(client, 'acc_user', 'pass1234')
+    # ?user_id= must not surface someone else's expenses.
+    resp = client.get(f'/api/expenses?user_id={other_id}', headers=headers)
+    assert resp.status_code == 200
+    assert resp.get_json() == []
+
+
+# ── Profile password change ─────────────────────────────────────────────
+
+def test_users_me_requires_current_password(client, app, db):
+    _branch(app)
+    _make_user(app, 'prof_user', 'pass1234', role='manager')
+    headers = _token(client, 'prof_user', 'pass1234')
+
+    bad = client.put('/api/users/me', headers=headers,
+                     json={'username': 'prof_user', 'password': 'newpass123',
+                           'current_password': 'wrong'})
+    assert bad.status_code == 403
+
+    ok = client.put('/api/users/me', headers=headers,
+                    json={'username': 'prof_user', 'password': 'newpass123',
+                          'current_password': 'pass1234'})
+    assert ok.status_code == 200
+    assert _token(client, 'prof_user', 'newpass123')

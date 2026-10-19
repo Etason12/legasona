@@ -25,7 +25,7 @@ def get_dashboard_stats():
     current_user = db.session.get(User, current_user_id)
     branch_id = effective_branch_id(current_user, branch_id)
 
-    sales_q   = db.session.query(func.sum(Sale.total_amount))
+    sales_q   = db.session.query(func.sum(Sale.total_amount)).filter(Sale.status != 'cancelled')
     orders_q  = Order.query.filter(Order.status == 'waiting')
     vehicle_q = db.session.query(func.sum(Vehicle.selling_price)).filter(Vehicle.status == 'available')
 
@@ -40,8 +40,8 @@ def get_dashboard_stats():
     active_orders_count = orders_q.count()
     vehicle_value       = vehicle_q.scalar() or 0
 
-    # Revenue for selected period
-    monthly_rev_q   = db.session.query(func.sum(Sale.total_amount))
+    # Revenue for selected period (cancelled sales excluded)
+    monthly_rev_q   = db.session.query(func.sum(Sale.total_amount)).filter(Sale.status != 'cancelled')
     if branch_id:
         monthly_rev_q = monthly_rev_q.filter(Sale.branch_id == branch_id)
     monthly_rev_q = _date_filter(monthly_rev_q, Sale.sale_date, start_date, end_date)
@@ -52,7 +52,7 @@ def get_dashboard_stats():
         sd = datetime.fromisoformat(start_date)
         prev_end = sd - timedelta(days=1)
         prev_start = prev_end - timedelta(days=30)
-        prev_rev_q = db.session.query(func.sum(Sale.total_amount))
+        prev_rev_q = db.session.query(func.sum(Sale.total_amount)).filter(Sale.status != 'cancelled')
         if branch_id:
             prev_rev_q = prev_rev_q.filter(Sale.branch_id == branch_id)
         prev_rev_q = _date_filter(prev_rev_q, Sale.sale_date, prev_start.date().isoformat(), prev_end.date().isoformat())
@@ -61,6 +61,7 @@ def get_dashboard_stats():
         thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
         sixty_days_ago  = datetime.now(timezone.utc) - timedelta(days=60)
         prev_rev_q     = db.session.query(func.sum(Sale.total_amount)).filter(
+            Sale.status != 'cancelled',
             Sale.sale_date >= sixty_days_ago, Sale.sale_date < thirty_days_ago)
         if branch_id:
             prev_rev_q = prev_rev_q.filter(Sale.branch_id == branch_id)
@@ -87,6 +88,7 @@ def get_dashboard_stats():
             intervals = [(sd.replace(day=1) + timedelta(days=i * 30), (sd.replace(day=1) + timedelta(days=(i + 1) * 30 - 1)).replace(hour=23, minute=59, second=59)) for i in range(max(1, delta // 30 + 1))]
         for start_of_month, end_of_month in intervals:
             sales_month_q = db.session.query(func.sum(Sale.total_amount)).filter(
+                Sale.status != 'cancelled',
                 Sale.sale_date >= start_of_month, Sale.sale_date <= end_of_month)
             if branch_id:
                 sales_month_q = sales_month_q.filter(Sale.branch_id == branch_id)
@@ -105,6 +107,7 @@ def get_dashboard_stats():
                 next_month = start_of_month.replace(month=start_of_month.month + 1)
 
             sales_month_q = db.session.query(func.sum(Sale.total_amount)).filter(
+                Sale.status != 'cancelled',
                 Sale.sale_date >= start_of_month, Sale.sale_date < next_month)
             if branch_id:
                 sales_month_q = sales_month_q.filter(Sale.branch_id == branch_id)
@@ -143,7 +146,7 @@ def get_profit_analysis():
     sales_q    = db.session.query(
         func.sum(Sale.total_amount).label('revenue'),
         func.sum(Sale.cost_at_sale).label('cogs')
-    )
+    ).filter(Sale.status != 'cancelled')
     expenses_q = db.session.query(func.sum(Expense.amount))
 
     if branch_id:
@@ -232,14 +235,15 @@ def get_branch_comparison():
     end_date = request.args.get('end_date')
     current_user_id = get_jwt_identity()
     current_user = db.session.get(User, current_user_id)
-    branch_id = effective_branch_id(current_user, branch_id)
+    branch_id = safe_int(effective_branch_id(current_user, branch_id), default=None)
     branches = Branch.query.all()
     result = []
     for b in branches:
-        rev_q = db.session.query(func.sum(Sale.total_amount)).filter(Sale.branch_id == b.id)
-        count_q = Sale.query.filter(Sale.branch_id == b.id)
-        if branch_id and str(b.id) != branch_id:
+        if branch_id and b.id != branch_id:
             continue
+        rev_q = db.session.query(func.sum(Sale.total_amount)).filter(
+            Sale.branch_id == b.id, Sale.status != 'cancelled')
+        count_q = Sale.query.filter(Sale.branch_id == b.id, Sale.status != 'cancelled')
         rev_q = _date_filter(rev_q, Sale.sale_date, start_date, end_date)
         count_q = _date_filter(count_q, Sale.sale_date, start_date, end_date)
         rev = rev_q.scalar() or 0

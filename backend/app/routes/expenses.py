@@ -1,8 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Expense, Branch, User, db
-from app.utils.auth import role_required, effective_branch_id
+from app.utils.auth import role_required, effective_branch_id, user_can_access_branch
 from app.utils.image_utils import compress_to_base64
+from app.utils.validation import safe_float, safe_int, truncate
 from datetime import datetime, timezone
 
 expenses_bp = Blueprint('expenses', __name__)
@@ -18,7 +19,7 @@ def create_expense():
         branch_id   = request.form.get('branch_id')
         file        = request.files.get('receipt')
     else:
-        data        = request.get_json()
+        data        = request.get_json() or {}
         category    = data.get('category')
         description = data.get('description')
         amount      = data.get('amount')
@@ -27,10 +28,20 @@ def create_expense():
 
     receipt_data = compress_to_base64(file)
     current_user_id = int(get_jwt_identity())
+    current_user = db.session.get(User, current_user_id)
+
+    # Non-admins may only record expenses against their own branch.
+    branch_id = effective_branch_id(current_user, branch_id)
+    if not branch_id:
+        return jsonify({'message': 'Branch ID is required'}), 400
+
+    parsed_amount = safe_float(amount, default=None, min_val=0)
+    if parsed_amount is None or parsed_amount <= 0:
+        return jsonify({'message': 'A valid amount is required'}), 400
 
     new_expense = Expense(
-        category=category, description=description, amount=amount,
-        branch_id=branch_id, user_id=current_user_id, receipt_attachment=receipt_data
+        category=truncate(category, 50), description=description, amount=parsed_amount,
+        branch_id=safe_int(branch_id), user_id=current_user_id, receipt_attachment=receipt_data
     )
     db.session.add(new_expense)
     db.session.commit()
@@ -58,9 +69,12 @@ def get_expenses():
         query = query.filter(Expense.expense_date <= datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59))
     if category:
         query = query.filter(Expense.category == category)
-    if user_id:
-        query = query.filter(Expense.user_id == user_id)
-    elif current_user.role != 'admin':
+    # Only admins may look at another user's expenses; everyone else is
+    # limited to records they created (prevents ?user_id= bypass).
+    if current_user.role == 'admin':
+        if user_id:
+            query = query.filter(Expense.user_id == safe_int(user_id))
+    else:
         query = query.filter(Expense.user_id == current_user_id)
 
     rows = query.order_by(Expense.expense_date.desc()).all()
@@ -86,21 +100,29 @@ def get_expense_users():
 @jwt_required()
 @role_required('admin', 'manager')
 def update_budget():
-    data = request.get_json()
+    data = request.get_json() or {}
     branch_id = data.get('branch_id')
     monthly_budget = data.get('monthly_budget')
     if monthly_budget is None:
         return jsonify({'message': 'monthly_budget is required'}), 400
+    budget_value = safe_float(monthly_budget, default=None, min_val=0)
+    if budget_value is None:
+        return jsonify({'message': 'monthly_budget must be a number'}), 400
+
+    current_user = db.session.get(User, get_jwt_identity())
+    branch_id = effective_branch_id(current_user, branch_id)
+    if current_user.role != 'admin' and not branch_id:
+        return jsonify({'message': 'No branch assigned to your account'}), 403
 
     if branch_id:
-        branch = db.session.get(Branch, branch_id)
+        branch = db.session.get(Branch, safe_int(branch_id))
         if not branch:
             return jsonify({'message': 'Branch not found'}), 404
-        branch.monthly_budget = float(monthly_budget)
+        branch.monthly_budget = budget_value
     else:
         branches = Branch.query.all()
         for b in branches:
-            b.monthly_budget = float(monthly_budget)
+            b.monthly_budget = budget_value
 
     db.session.commit()
     return jsonify({'message': 'Budget updated'}), 200
@@ -111,8 +133,9 @@ def update_budget():
 def get_budget():
     user_id = get_jwt_identity()
     user = db.session.get(User, user_id)
-    # Use explicit branch_id from args if provided, otherwise default to user's assigned branch
-    branch_id = request.args.get('branch_id') or user.branch_id
+    # Non-admins are always limited to their own branch; admins may pass
+    # branch_id explicitly or omit it to aggregate every branch.
+    branch_id = effective_branch_id(user, request.args.get('branch_id'))
 
     from datetime import date
     today = date.today()
@@ -151,6 +174,9 @@ def get_budget():
 @role_required('admin', 'manager')
 def delete_expense(id):
     expense = db.get_or_404(Expense, id)
+    current_user = db.session.get(User, get_jwt_identity())
+    if not user_can_access_branch(current_user, expense.branch_id):
+        return jsonify({'message': 'Expense not found'}), 404
     db.session.delete(expense)
     db.session.commit()
     return jsonify({'message': 'Expense deleted'}), 200

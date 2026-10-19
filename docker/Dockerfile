@@ -15,7 +15,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Build tooling for any dependency without a pre-built wheel (psycopg2, Pillow)
+# Build tooling: libpq for psycopg (and any dependency without a wheel)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends gcc libpq-dev \
  && rm -rf /var/lib/apt/lists/*

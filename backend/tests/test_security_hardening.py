@@ -12,7 +12,7 @@ import pytest
 
 from app import db as _db
 from app.models import (
-    User, Branch, Expense, Order, Sale, SparePart, Transfer,
+    User, Branch, Expense, Order, Sale, Payment, SparePart, Transfer, ActivityLog,
 )
 
 
@@ -197,8 +197,81 @@ def test_expense_user_id_filter_ignored_for_non_admin(client, app, db):
     assert resp.get_json() == []
 
 
-# ── Profile password change ─────────────────────────────────────────────
+def test_activity_log_non_admin_identity_is_int(client, app, db):
+    """The JWT identity is a string but ActivityLog.user_id is an Integer.
 
+    On Postgres a raw `user_id = '<str>'` raises `integer = varchar`, so this
+    guards the cast. Each user must only see their own entries.
+    """
+    bid = _branch(app)
+    uid_a = _make_user(app, 'log_a', 'pass1234', role='manager', branch_id=bid)
+    uid_b = _make_user(app, 'log_b', 'pass1234', role='manager', branch_id=bid)
+    with app.app_context():
+        _db.session.add_all([
+            ActivityLog(user_id=uid_a, action='CREATE_SALE', description='mine'),
+            ActivityLog(user_id=uid_b, action='CREATE_SALE', description='theirs'),
+        ])
+        _db.session.commit()
+
+    headers = _token(client, 'log_a', 'pass1234')
+    resp = client.get('/api/reports/activity?limit=6', headers=headers)
+    assert resp.status_code == 200
+    items = resp.get_json()
+    assert [i['description'] for i in items] == ['mine']
+
+
+def test_expense_users_self_only(client, app, db):
+    """Non-admins listing expense users must not hit integer = varchar either."""
+    bid = _branch(app)
+    _make_user(app, 'other_acc', 'pass1234', role='accountant', branch_id=bid)
+    _make_user(app, 'self_acc', 'pass1234', role='accountant', branch_id=bid)
+
+    headers = _token(client, 'self_acc', 'pass1234')
+    resp = client.get('/api/expenses/users', headers=headers)
+    assert resp.status_code == 200
+    assert [u['username'] for u in resp.get_json()] == ['self_acc']
+
+
+def test_cashier_can_read_payment_history(client, app, db):
+    """Cashiers record sales and view their payment history on the Sales page.
+
+    The endpoint used to be admin/manager/accountant only, so a cashier got a
+    403 that the UI surfaced as "Failed to fetch payment history".
+    """
+    bid = _branch(app)
+    _make_user(app, 'cash_user', 'pass1234', role='cashier', branch_id=bid)
+    with app.app_context():
+        sale = Sale(sale_number='S-1', total_amount=100,
+                    status='completed', branch_id=bid)
+        _db.session.add(sale)
+        _db.session.commit()
+        sale_id = sale.id
+        _db.session.add(Payment(sale_id=sale_id, amount=100, payment_method='cash'))
+        _db.session.commit()
+
+    headers = _token(client, 'cash_user', 'pass1234')
+    resp = client.get(f'/api/sales/{sale_id}/payments', headers=headers)
+    assert resp.status_code == 200
+    assert len(resp.get_json()) == 1
+
+
+def test_payment_history_scoped_to_branch(client, app, db):
+    """Non-admins must not read payments for another branch's sale."""
+    bid_a = _branch(app, 'Shire')
+    bid_b = _branch(app, 'Mekelle')
+    _make_user(app, 'cash_a', 'pass1234', role='cashier', branch_id=bid_a)
+    with app.app_context():
+        sale = Sale(sale_number='S-2', total_amount=100,
+                    status='completed', branch_id=bid_b)
+        _db.session.add(sale)
+        _db.session.commit()
+        sale_id = sale.id
+
+    headers = _token(client, 'cash_a', 'pass1234')
+    assert client.get(f'/api/sales/{sale_id}/payments', headers=headers).status_code == 404
+
+
+# ── Profile password change ─────────────────────────────────────────────
 def test_users_me_requires_current_password(client, app, db):
     _branch(app)
     _make_user(app, 'prof_user', 'pass1234', role='manager')

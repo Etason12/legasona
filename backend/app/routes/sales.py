@@ -2,7 +2,7 @@ import json
 import logging
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.utils.auth import admin_required, role_required, effective_branch_id
+from app.utils.auth import admin_required, role_required, effective_branch_id, user_can_access_branch
 from app.utils.image_utils import compress_to_base64
 from app.utils.validation import safe_int, safe_float
 from app.utils.sanitization import sanitize_search
@@ -305,10 +305,14 @@ def _record_spare_part_sale():
 # ── Get Payment History for a Sale ──────────────────────────────────
 @sales_bp.route('/<int:id>/payments', methods=['GET'])
 @jwt_required()
-@role_required('admin', 'manager', 'accountant')
+@role_required('admin', 'manager', 'cashier', 'accountant')
 def get_sale_payments(id):
+    current_user = db.session.get(User, get_jwt_identity())
+    if not current_user:
+        return jsonify({'message': 'User not found'}), 401
+
     sale = db.session.get(Sale, id)
-    if not sale:
+    if not sale or not user_can_access_branch(current_user, sale.branch_id):
         return jsonify({'message': 'Sale not found'}), 404
 
     start_date = request.args.get('start_date')

@@ -75,7 +75,7 @@ def get_expenses():
         if user_id:
             query = query.filter(Expense.user_id == safe_int(user_id))
     else:
-        query = query.filter(Expense.user_id == current_user_id)
+        query = query.filter(Expense.user_id == safe_int(current_user_id))
 
     rows = query.order_by(Expense.expense_date.desc()).all()
     return jsonify([{
@@ -92,7 +92,7 @@ def get_expense_users():
     current_user = db.session.get(User, current_user_id)
     query = User.query
     if current_user.role != 'admin':
-        query = query.filter(User.id == current_user_id)
+        query = query.filter(User.id == safe_int(current_user_id))
     users = query.order_by(User.username).all()
     return jsonify([{'id': u.id, 'username': u.username, 'role': u.role} for u in users]), 200
 

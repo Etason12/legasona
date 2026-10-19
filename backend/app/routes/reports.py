@@ -300,9 +300,11 @@ def get_activity_log():
 
     query = ActivityLog.query.order_by(ActivityLog.timestamp.desc())
 
-    # Non-admin users only see their own activities
+    # Non-admin users only see their own activities. ActivityLog.user_id is an
+    # Integer column while the JWT identity is a string, so it must be cast or
+    # Postgres rejects `integer = varchar`.
     if current_user.role != 'admin':
-        query = query.filter(ActivityLog.user_id == current_user_id)
+        query = query.filter(ActivityLog.user_id == safe_int(current_user_id))
 
     has_page = request.args.get('page')
     if has_page:

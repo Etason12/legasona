@@ -25,3 +25,7 @@ htmlcov/
 .DS_Store
 Thumbs.db
 backend/uploads/
+
+# Stray local data/working files
+final_list.pdf
+safi_to_be_168_imported_cleaned.xlsx

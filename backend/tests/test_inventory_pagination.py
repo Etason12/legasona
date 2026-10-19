@@ -59,8 +59,9 @@ def test_vehicles_no_image(client, auth_headers, db):
 
 
 def test_vehicles_multi_status(client, auth_headers, db):
-    """Comma-separated status filter returns vehicles in any listed status
-    (used by the sales dropdown to include sellable 'reserved' vehicles)."""
+    """Comma-separated status filter returns vehicles in any listed status.
+    (The sales dropdown now requests only 'available'; multi-status support
+    remains for other callers such as inventory views.)"""
     from app.models import Vehicle
     db.session.add(Vehicle(vin='MS-0001', model='M1', type='3-wheel', status='available', selling_price=100))
     db.session.add(Vehicle(vin='MS-0002', model='M2', type='3-wheel', status='reserved', selling_price=100))

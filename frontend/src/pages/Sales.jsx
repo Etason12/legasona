@@ -187,7 +187,7 @@ const Sales = ({ user }) => {
       const branchId = user?.role?.toLowerCase() === 'admin' ? selectedBranchId : (user?.branch_id || '')
       const [salesRes, vehRes, partsRes, custRes] = await Promise.all([
         api.get(`/sales?status=${statusFilter}&search=${searchQuery}&start_date=${startDate}&end_date=${endDate}&branch_id=${branchId}&page=${page}&per_page=${perPage}`),
-        api.get(`/inventory/vehicles?status=available,reserved&branch_id=${branchId}&per_page=10000&no_image=1`),
+        api.get(`/inventory/vehicles?status=available&branch_id=${branchId}&per_page=10000&no_image=1`),
         api.get(`/inventory/spare-parts?branch_id=${branchId}&per_page=10000&no_image=1`),
         api.get('/customers')
       ])
@@ -619,7 +619,7 @@ const NewSaleModal = ({ show, onClose, form, setForm, set, payments, setPayments
                         <select name="vehicle_id" required className="input-field" value={selectedVehicleId} onChange={e => onVehicleSelect(e.target.value)}>
                           <option value="">{t('selectItem')}</option>
                           {filteredVehicles.map(v => (
-                            <option key={v.id} value={v.id}>{(v.model || '').toUpperCase()} — {v.vin}{v.engine_number ? ` — Motor: ${v.engine_number}` : ''}{v.selling_price != null ? ` — ETB ${Number(v.selling_price).toLocaleString()}` : ''}{v.status === 'reserved' ? ' — (RESERVED)' : ''}</option>
+                            <option key={v.id} value={v.id}>{(v.model || '').toUpperCase()} — {v.vin}{v.engine_number ? ` — Motor: ${v.engine_number}` : ''}{v.selling_price != null ? ` — ETB ${Number(v.selling_price).toLocaleString()}` : ''}</option>
                           ))}
                         </select>
                         {vehicleSearch.trim() && filteredVehicles.length === 0 && (

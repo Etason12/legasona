@@ -621,7 +621,10 @@ def get_sales():
         safe_q = sanitize_search(search_query)
         query = query.filter(or_(
             Sale.customer_name.ilike(f"%{safe_q}%"),
-            Sale.sale_number.ilike(f"%{safe_q}%")
+            Sale.customer_phone.ilike(f"%{safe_q}%"),
+            Sale.sale_number.ilike(f"%{safe_q}%"),
+            Sale.chassis_number.ilike(f"%{safe_q}%"),
+            Sale.motor_number.ilike(f"%{safe_q}%"),
         ))
 
     paginated_sales = query.order_by(Sale.sale_date.desc()).paginate(page=page, per_page=per_page, error_out=False)

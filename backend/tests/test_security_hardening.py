@@ -399,3 +399,37 @@ def test_cannot_delete_own_account(client, app, db):
     resp = client.delete(f'/api/users/{admin_id}', headers=headers)
     assert resp.status_code == 400
     assert 'your own account' in resp.get_json()['message'].lower()
+
+
+# ── Sales search ────────────────────────────────────────────────────────
+
+def test_sales_search_matches_chassis_and_motor(client, app, db):
+    """The recorded-sales search box must match chassis (VIN) and motor no."""
+    bid = _branch(app)
+    _make_user(app, 'sales_mgr', 'pass1234', role='manager', branch_id=bid)
+    with app.app_context():
+        _db.session.add_all([
+            Sale(sale_number='S-100', customer_name='Almaz', total_amount=100,
+                 status='completed', branch_id=bid,
+                 chassis_number='CHASSIS-ABC123', motor_number='MOTOR-XYZ789'),
+            Sale(sale_number='S-101', customer_name='Bekele', total_amount=200,
+                 status='completed', branch_id=bid,
+                 chassis_number='CHASSIS-OTHER', motor_number='MOTOR-OTHER'),
+        ])
+        _db.session.commit()
+
+    headers = _token(client, 'sales_mgr', 'pass1234')
+
+    by_chassis = client.get('/api/sales?search=ABC123', headers=headers)
+    assert by_chassis.status_code == 200
+    assert [s['sale_number'] for s in by_chassis.get_json()['items']] == ['S-100']
+
+    by_motor = client.get('/api/sales?search=XYZ789', headers=headers)
+    assert by_motor.status_code == 200
+    assert [s['sale_number'] for s in by_motor.get_json()['items']] == ['S-100']
+
+    # Customer and receipt searches still work.
+    assert [s['sale_number'] for s in
+            client.get('/api/sales?search=Almaz', headers=headers).get_json()['items']] == ['S-100']
+    assert [s['sale_number'] for s in
+            client.get('/api/sales?search=S-101', headers=headers).get_json()['items']] == ['S-101']

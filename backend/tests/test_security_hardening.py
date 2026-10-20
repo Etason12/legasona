@@ -351,3 +351,51 @@ def test_users_me_requires_current_password(client, app, db):
                           'current_password': 'pass1234'})
     assert ok.status_code == 200
     assert _token(client, 'prof_user', 'newpass123')
+
+
+# ── User deletion ───────────────────────────────────────────────────────
+
+def test_cannot_delete_user_with_referenced_records(client, app, db):
+    """A user who owns records cannot be deleted; the API must say why.
+
+    ActivityLog.user_id (among others) references users.id, so deleting an
+    account that has ever acted raises an IntegrityError. The endpoint must
+    return a 400 with an actionable message rather than a bare failure.
+    """
+    bid = _branch(app)
+    _make_user(app, 'root_admin2', 'pass1234', role='admin')
+    victim_id = _make_user(app, 'busy_user', 'pass1234', branch_id=bid)
+    with app.app_context():
+        _db.session.add(ActivityLog(user_id=victim_id, action='CREATE_SALE',
+                                    description='did something'))
+        _db.session.commit()
+
+    headers = _token(client, 'root_admin2', 'pass1234')
+    resp = client.delete(f'/api/users/{victim_id}', headers=headers)
+    assert resp.status_code == 400
+    assert 'deactivate' in resp.get_json()['message'].lower()
+    # The account must still exist.
+    with app.app_context():
+        assert _db.session.get(User, victim_id) is not None
+
+
+def test_admin_can_delete_unreferenced_user(client, app, db):
+    """A user with no records is deletable."""
+    bid = _branch(app)
+    _make_user(app, 'root_admin3', 'pass1234', role='admin')
+    victim_id = _make_user(app, 'clean_user', 'pass1234', branch_id=bid)
+
+    headers = _token(client, 'root_admin3', 'pass1234')
+    resp = client.delete(f'/api/users/{victim_id}', headers=headers)
+    assert resp.status_code == 200
+    with app.app_context():
+        assert _db.session.get(User, victim_id) is None
+
+
+def test_cannot_delete_own_account(client, app, db):
+    bid = _branch(app)
+    admin_id = _make_user(app, 'self_admin', 'pass1234', role='admin', branch_id=bid)
+    headers = _token(client, 'self_admin', 'pass1234')
+    resp = client.delete(f'/api/users/{admin_id}', headers=headers)
+    assert resp.status_code == 400
+    assert 'your own account' in resp.get_json()['message'].lower()

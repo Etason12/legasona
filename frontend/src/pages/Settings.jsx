@@ -127,8 +127,8 @@ const Settings = ({ user }) => {
    toast.success(t('userUpdated'))
    setEditingUser(null)
    fetchUsers()
-  } catch {
-   toast.error('Failed to update user')
+  } catch (err) {
+   toast.error(err.response?.data?.message || 'Failed to update user')
   }
  }
 
@@ -138,8 +138,10 @@ const Settings = ({ user }) => {
    await api.delete(`/users/${id}`)
    toast.success(t('userDeleted'))
    fetchUsers()
-  } catch {
-   toast.error('Failed to delete user')
+  } catch (err) {
+   // Surface the server reason (e.g. the account still owns records and must
+   // be deactivated rather than deleted) instead of a generic failure.
+   toast.error(err.response?.data?.message || 'Failed to delete user')
   }
  }
 
@@ -154,8 +156,8 @@ const Settings = ({ user }) => {
    toast.success(t('passwordReset'))
    setResetPwUser(null)
    setResetPwValue('')
-  } catch {
-   toast.error('Failed to reset password')
+  } catch (err) {
+   toast.error(err.response?.data?.message || 'Failed to reset password')
   } finally {
    setResettingPw(false)
   }

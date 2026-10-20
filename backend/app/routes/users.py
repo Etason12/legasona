@@ -1,13 +1,39 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import User, Branch, db
+from app.models import (
+    User, Branch, Sale, Order, Expense, Purchase, Transfer, ActivityLog, db,
+)
 from app.utils.auth import admin_required
 from app.utils.validation import safe_int, truncate
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import or_, func
 
 users_bp = Blueprint('users', __name__)
 
 _VALID_ROLES = {'admin', 'manager', 'cashier', 'storekeeper', 'accountant'}
+
+
+def _user_reference_count(user_id):
+    """How many records reference this user, and where.
+
+    Presence of a reference is checked explicitly rather than relying on the
+    DELETE raising IntegrityError: SQLite does not enforce foreign keys by
+    default, so the constraint only fires on Postgres. Counting first behaves
+    identically on both and lets the message name what is blocking.
+    """
+    checks = {
+        'sales': db.session.query(func.count(Sale.id)).filter(Sale.user_id == user_id),
+        'orders': db.session.query(func.count(Order.id)).filter(
+            Order.cancelled_by == user_id),
+        'expenses': db.session.query(func.count(Expense.id)).filter(
+            or_(Expense.user_id == user_id, Expense.approved_by == user_id)),
+        'purchases': db.session.query(func.count(Purchase.id)).filter(Purchase.user_id == user_id),
+        'transfers': db.session.query(func.count(Transfer.id)).filter(
+            or_(Transfer.requested_by == user_id, Transfer.approved_by == user_id)),
+        'activity_logs': db.session.query(func.count(ActivityLog.id)).filter(
+            ActivityLog.user_id == user_id),
+    }
+    return [name for name, q in checks.items() if q.scalar()]
 
 @users_bp.route('/me', methods=['PUT'])
 @jwt_required()
@@ -117,6 +143,16 @@ def delete_user(id):
         return jsonify({'message': 'You cannot delete your own account'}), 400
     if user.role == 'admin' and User.query.filter_by(role='admin').count() <= 1:
         return jsonify({'message': 'Cannot delete the last admin account'}), 400
+
+    referenced_by = _user_reference_count(user.id)
+    if referenced_by:
+        return jsonify({
+            'message': (
+                'Cannot delete this user because they are referenced by '
+                f'{", ".join(sorted(referenced_by))}; deactivate the account instead'
+            )
+        }), 400
+
     try:
         db.session.delete(user)
         db.session.commit()

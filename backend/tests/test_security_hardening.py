@@ -108,11 +108,16 @@ def test_cancelled_sales_excluded_from_dashboard(client, auth_headers, app, db):
     assert resp.get_json()['revenue'] == 1000
 
 
-def test_branch_comparison_scopes_non_admin(client, app, db):
+def test_branch_comparison_scopes_confined_role(client, app, db):
+    """Roles without cross-branch access only see their own branch here.
+
+    (Managers/admins now get every branch — see
+    test_manager_sees_all_branches_in_branch_comparison.)
+    """
     bid_a = _branch(app, 'Alpha')
     bid_b = _branch(app, 'Beta')
-    _make_user(app, 'mgr_a', 'pass1234', role='manager', branch_id=bid_a)
-    headers = _token(client, 'mgr_a', 'pass1234')
+    _make_user(app, 'cash_a', 'pass1234', role='cashier', branch_id=bid_a)
+    headers = _token(client, 'cash_a', 'pass1234')
 
     resp = client.get('/api/reports/branch-comparison', headers=headers)
     assert resp.status_code == 200
@@ -121,9 +126,41 @@ def test_branch_comparison_scopes_non_admin(client, app, db):
     assert 'Beta' not in names
 
 
+def test_manager_sees_all_branches_in_branch_comparison(client, app, db):
+    """Managers have full cross-branch access, so All Branches works."""
+    bid_a = _branch(app, 'Alpha')
+    _branch(app, 'Beta')
+    _make_user(app, 'mgr_x', 'pass1234', role='manager', branch_id=bid_a)
+    headers = _token(client, 'mgr_x', 'pass1234')
+
+    resp = client.get('/api/reports/branch-comparison', headers=headers)
+    assert resp.status_code == 200
+    names = [row['name'] for row in resp.get_json()]
+    assert {'Alpha', 'Beta'} <= set(names)
+
+
 # ── Branch isolation on by-id writes ────────────────────────────────────
 
-def test_non_admin_cannot_touch_other_branch_order(client, app, db):
+def test_confined_role_cannot_touch_other_branch_order(client, app, db):
+    bid_a = _branch(app, 'Alpha')
+    bid_b = _branch(app, 'Beta')
+    _make_user(app, 'cash_a', 'pass1234', role='cashier', branch_id=bid_a)
+    with app.app_context():
+        order = Order(customer_name='Other', sequence_number=1, branch_id=bid_b)
+        _db.session.add(order)
+        _db.session.commit()
+        other_id = order.id
+
+    headers = _token(client, 'cash_a', 'pass1234')
+    assert client.put(f'/api/orders/{other_id}', headers=headers,
+                      json={'customer_name': 'Hacked'}).status_code == 404
+
+    with app.app_context():
+        assert _db.session.get(Order, other_id).customer_name == 'Other'
+
+
+def test_manager_can_touch_other_branch_order(client, app, db):
+    """Managers have full cross-branch access (by-id writes included)."""
     bid_a = _branch(app, 'Alpha')
     bid_b = _branch(app, 'Beta')
     _make_user(app, 'mgr_a', 'pass1234', role='manager', branch_id=bid_a)
@@ -134,17 +171,14 @@ def test_non_admin_cannot_touch_other_branch_order(client, app, db):
         other_id = order.id
 
     headers = _token(client, 'mgr_a', 'pass1234')
-    assert client.post(f'/api/orders/{other_id}/cancel', headers=headers,
-                       json={'reason': 'x'}).status_code == 404
     assert client.put(f'/api/orders/{other_id}', headers=headers,
-                      json={'customer_name': 'Hacked'}).status_code == 404
-    assert client.delete(f'/api/orders/{other_id}', headers=headers).status_code == 404
-
+                      json={'customer_name': 'Renamed'}).status_code == 200
     with app.app_context():
-        assert Order.query.get(other_id).customer_name == 'Other'
+        assert _db.session.get(Order, other_id).customer_name == 'Renamed'
 
 
-def test_non_admin_cannot_delete_other_branch_part(client, app, db):
+def test_manager_can_delete_other_branch_part(client, app, db):
+    """Managers may delete a spare part in any branch (full cross-branch)."""
     bid_a = _branch(app, 'Alpha')
     bid_b = _branch(app, 'Beta')
     _make_user(app, 'mgr_a', 'pass1234', role='manager', branch_id=bid_a)
@@ -155,15 +189,29 @@ def test_non_admin_cannot_delete_other_branch_part(client, app, db):
         part_id = part.id
 
     headers = _token(client, 'mgr_a', 'pass1234')
-    assert client.delete(f'/api/inventory/spare-parts/{part_id}', headers=headers).status_code == 404
+    assert client.delete(f'/api/inventory/spare-parts/{part_id}', headers=headers).status_code == 200
     with app.app_context():
-        assert SparePart.query.get(part_id) is not None
+        assert _db.session.get(SparePart, part_id) is None
 
 
-def test_transfers_list_scoped_to_branch(client, app, db):
+def test_roles_without_delete_permission_still_blocked(client, app, db):
+    """Cross-branch access does not widen role permissions."""
+    bid_b = _branch(app, 'Beta')
+    _make_user(app, 'keep_a', 'pass1234', role='storekeeper')
+    with app.app_context():
+        part = SparePart(part_number='X-2', name='Widget', branch_id=bid_b, quantity=5)
+        _db.session.add(part)
+        _db.session.commit()
+        part_id = part.id
+
+    headers = _token(client, 'keep_a', 'pass1234')
+    assert client.delete(f'/api/inventory/spare-parts/{part_id}', headers=headers).status_code == 403
+
+
+def test_transfers_list_scoped_to_confined_role(client, app, db):
     bid_a = _branch(app, 'Alpha')
     bid_b = _branch(app, 'Beta')
-    _make_user(app, 'mgr_a', 'pass1234', role='manager', branch_id=bid_a)
+    _make_user(app, 'cash_a', 'pass1234', role='cashier', branch_id=bid_a)
     with app.app_context():
         _db.session.add_all([
             Transfer(from_branch_id=bid_a, to_branch_id=bid_b, item_type='spare_part',
@@ -173,10 +221,65 @@ def test_transfers_list_scoped_to_branch(client, app, db):
         ])
         _db.session.commit()
 
-    headers = _token(client, 'mgr_a', 'pass1234')
+    headers = _token(client, 'cash_a', 'pass1234')
     items = client.get('/api/transfers', headers=headers).get_json()['items']
     assert len(items) == 1
     assert items[0]['from_branch'] == bid_a
+
+
+def test_manager_sales_list_all_branches_selector(client, app, db):
+    """The Sales page 'All Branches' option must work for a manager.
+
+    The frontend used to clamp non-admins to their own branch, and the backend
+    did the same, so the selector was a no-op for managers.
+    """
+    bid_a = _branch(app, 'Alpha')
+    bid_b = _branch(app, 'Beta')
+    _make_user(app, 'mgr_a', 'pass1234', role='manager', branch_id=bid_a)
+    with app.app_context():
+        _db.session.add_all([
+            Sale(sale_number='SALE-A', customer_name='A', total_amount=10,
+                 status='completed', branch_id=bid_a),
+            Sale(sale_number='SALE-B', customer_name='B', total_amount=20,
+                 status='completed', branch_id=bid_b),
+        ])
+        _db.session.commit()
+
+    headers = _token(client, 'mgr_a', 'pass1234')
+
+    # Default (own branch): only Alpha's sales.
+    own = client.get(f'/api/sales?branch_id={bid_a}', headers=headers).get_json()['items']
+    assert [s['sale_number'] for s in own] == ['SALE-A']
+
+    # Explicitly picking another branch works for a manager.
+    other = client.get(f'/api/sales?branch_id={bid_b}', headers=headers).get_json()['items']
+    assert [s['sale_number'] for s in other] == ['SALE-B']
+
+    # "All Branches" (empty branch_id) shows every branch.
+    all_branches = client.get('/api/sales?branch_id=', headers=headers).get_json()['items']
+    assert {'SALE-A', 'SALE-B'} <= {s['sale_number'] for s in all_branches}
+
+
+def test_cashier_sales_list_stays_confined(client, app, db):
+    """Confined roles still get their own branch even for All Branches."""
+    bid_a = _branch(app, 'Alpha')
+    bid_b = _branch(app, 'Beta')
+    _make_user(app, 'cash_a', 'pass1234', role='cashier', branch_id=bid_a)
+    with app.app_context():
+        _db.session.add_all([
+            Sale(sale_number='SALE-A', customer_name='A', total_amount=10,
+                 status='completed', branch_id=bid_a),
+            Sale(sale_number='SALE-B', customer_name='B', total_amount=20,
+                 status='completed', branch_id=bid_b),
+        ])
+        _db.session.commit()
+
+    headers = _token(client, 'cash_a', 'pass1234')
+    got = {s['sale_number'] for s in client.get('/api/sales?branch_id=', headers=headers).get_json()['items']}
+    assert got == {'SALE-A'}
+    # Requesting another branch explicitly does not widen access either.
+    got_other = client.get(f'/api/sales?branch_id={bid_b}', headers=headers).get_json()['items']
+    assert {s['sale_number'] for s in got_other} == {'SALE-A'}
 
 
 # ── Expense read bypass ─────────────────────────────────────────────────
@@ -280,6 +383,10 @@ def test_effective_branch_id_coerces_string_branch():
     Comparing an Integer column to a string renders `branch_id = '2'`, which
     Postgres rejects with `operator does not exist: integer = character
     varying`. SQLite silently coerces, so the coercion is asserted directly.
+
+    Also locks in the role policy: admins and managers honour the requested
+    branch (manager = full cross-branch access, including no branch = all),
+    everyone else is clamped to their assigned branch.
     """
     from app.utils.auth import effective_branch_id
 
@@ -288,12 +395,23 @@ def test_effective_branch_id_coerces_string_branch():
             self.role, self.branch_id = role, branch_id
 
     admin, manager = _U('admin', None), _U('manager', 2)
+    cashier = _U('cashier', 2)
+
     assert effective_branch_id(admin, '2') == 2
     assert isinstance(effective_branch_id(admin, '2'), int)
     assert effective_branch_id(admin, '') is None
     assert effective_branch_id(admin, None) is None
     assert effective_branch_id(admin, 'abc') is None
+
+    # Managers may pick any branch, or none for all branches.
     assert effective_branch_id(manager, '2') == 2
+    assert effective_branch_id(manager, '3') == 3
+    assert effective_branch_id(manager, '') is None
+    assert effective_branch_id(manager, None) is None
+
+    # Cashiers stay on their assigned branch whatever they request.
+    assert effective_branch_id(cashier, '3') == 2
+    assert effective_branch_id(cashier, '') == 2
 
 
 def test_user_can_access_branch_compares_across_types():
@@ -304,10 +422,19 @@ def test_user_can_access_branch_compares_across_types():
             self.role, self.branch_id = role, branch_id
 
     manager = _U('manager', 2)
+    cashier = _U('cashier', 2)
+
+    # Managers have full cross-branch access.
     assert user_can_access_branch(manager, '2') is True
-    assert user_can_access_branch(manager, 2) is True
-    assert user_can_access_branch(manager, '3') is False
-    assert user_can_access_branch(manager, None) is False
+    assert user_can_access_branch(manager, 3) is True
+    assert user_can_access_branch(manager, 99) is True
+
+    # Cashiers are confined, and the comparison works across str/int.
+    assert user_can_access_branch(cashier, '2') is True
+    assert user_can_access_branch(cashier, 2) is True
+    assert user_can_access_branch(cashier, '3') is False
+    assert user_can_access_branch(cashier, None) is False
+
     assert user_can_access_branch(None, 2) is False
 
 

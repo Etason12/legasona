@@ -36,14 +36,26 @@ def _coerce_id(value):
         return None
 
 
-def effective_branch_id(user, requested_branch_id):
-    """Non-admin users are always confined to their assigned branch.
+# Roles that may view and modify records in any branch. Managers get full
+# cross-branch access (list, view and record against any branch); cashiers,
+# storekeepers and accountants stay confined to their assigned branch.
+UNRESTRICTED_ROLES = frozenset({'admin', 'manager'})
 
-    Admins may explicitly request any branch (or None for all branches).
-    The result is always an ``int`` (or ``None``) so it can be compared
-    against Integer columns on Postgres.
+
+def is_unrestricted(user):
+    """Whether ``user`` may act across every branch."""
+    return user is not None and user.role in UNRESTRICTED_ROLES
+
+
+def effective_branch_id(user, requested_branch_id):
+    """Resolve the branch scope for a request.
+
+    Admins and managers may explicitly request any branch (or None for all
+    branches). Everyone else is confined to their assigned branch. The result
+    is always an ``int`` (or ``None``) so it can be compared against Integer
+    columns on Postgres.
     """
-    if user.role == 'admin':
+    if is_unrestricted(user):
         return _coerce_id(requested_branch_id)
     return user.branch_id
 
@@ -51,12 +63,13 @@ def effective_branch_id(user, requested_branch_id):
 def user_can_access_branch(user, branch_id):
     """Whether ``user`` may read/write a record that belongs to ``branch_id``.
 
-    Admins can touch any branch. Everyone else is confined to the branch they
-    are assigned to; a non-admin with no branch assignment gets nothing.
+    Admins and managers can touch any branch. Everyone else is confined to the
+    branch they are assigned to; a non-admin with no branch assignment gets
+    nothing.
     """
     if user is None:
         return False
-    if user.role == 'admin':
+    if is_unrestricted(user):
         return True
     if user.branch_id is None:
         return False

@@ -135,6 +135,10 @@ const Sales = ({ user }) => {
   useEffect(() => { const t = setTimeout(() => setDebouncedSearch(searchQuery), 350); return () => clearTimeout(t) }, [searchQuery])
   useEffect(() => { fetchData() }, [statusFilter, debouncedSearch, startDate, endDate, page, selectedBranchId])
 
+  // Admins and managers may pick any branch (including "All Branches");
+  // other roles are locked to their assigned branch.
+  const canPickBranch = ['admin', 'manager'].includes(String(user?.role || '').toLowerCase())
+
   useEffect(() => {
     const isAdmin = user?.role?.toLowerCase() === 'admin'
     setSelectedBranchId(isAdmin ? '' : (user?.branch_id ? String(user.branch_id) : ''))
@@ -184,7 +188,7 @@ const Sales = ({ user }) => {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const branchId = user?.role?.toLowerCase() === 'admin' ? selectedBranchId : (user?.branch_id || '')
+      const branchId = canPickBranch ? selectedBranchId : (user?.branch_id || '')
       const [salesRes, vehRes, partsRes, custRes] = await Promise.all([
         api.get(`/sales?status=${statusFilter}&search=${searchQuery}&start_date=${startDate}&end_date=${endDate}&branch_id=${branchId}&page=${page}&per_page=${perPage}`),
         api.get(`/inventory/vehicles?status=available&branch_id=${branchId}&per_page=10000&no_image=1`),

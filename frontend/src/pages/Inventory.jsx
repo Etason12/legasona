@@ -355,7 +355,7 @@ const Inventory = ({ user }) => {
       {/* Filters */}
       <div className="flex flex-col lg:flex-row items-center gap-4 bg-neutral-50 dark:bg-neutral-900 p-4 rounded-2xl border border-neutral-200 dark:border-neutral-800">
         <div className="flex items-center gap-3 w-full lg:w-auto">
-          {user?.role?.toLowerCase() === 'admin' && (
+          {['admin', 'manager'].includes(String(user?.role || '').toLowerCase()) && (
           <div>
             <select className="input-field text-xs" value={branchFilter} onChange={e => setBranchFilter(e.target.value)}>
               <option value="">{t('allBranches')}</option>

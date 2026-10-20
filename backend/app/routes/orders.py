@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.exceptions import HTTPException
 from app.models import Order, Customer, User, Branch, Sale, Payment, Vehicle, db
-from app.utils.auth import role_required, effective_branch_id, user_can_access_branch
+from app.utils.auth import role_required, effective_branch_id, user_can_access_branch, is_unrestricted
 from app.utils.logging import log_activity
 from app.utils.notifications import dispatch_notification, send_notification
 from app.utils.validation import safe_int, safe_float, truncate
@@ -23,8 +23,9 @@ def create_order():
     current_user = db.session.get(User, current_user_id)
 
     # Determine branch_id
-    # Admins can always select a branch. Restricted users are forced to their assigned branch.
-    if current_user.role == 'admin':
+    # Admins and managers may select any branch; other roles are forced to
+    # their assigned branch.
+    if is_unrestricted(current_user):
         branch_id = data.get('branch_id')
     elif current_user.branch_id:
         branch_id = current_user.branch_id
@@ -84,7 +85,7 @@ def get_orders():
     
     query = Order.query
     
-    if current_user.role != 'admin' and current_user.branch_id:
+    if not is_unrestricted(current_user) and current_user.branch_id:
         query = query.filter(Order.branch_id == current_user.branch_id)
     elif branch_id:
         query = query.filter(Order.branch_id == branch_id)

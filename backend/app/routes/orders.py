@@ -77,7 +77,7 @@ def create_order():
 def get_orders():
     current_user_id = get_jwt_identity()
     current_user = db.session.get(User, current_user_id)
-    branch_id = request.args.get('branch_id')
+    branch_id = safe_int(request.args.get('branch_id'))
     
     page = safe_int(request.args.get('page', 1), default=1, min_val=1)
     per_page = safe_int(request.args.get('per_page', 20), default=20, min_val=1, max_val=200)

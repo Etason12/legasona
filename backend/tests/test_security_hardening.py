@@ -12,7 +12,8 @@ import pytest
 
 from app import db as _db
 from app.models import (
-    User, Branch, Expense, Order, Sale, Payment, SparePart, Transfer, ActivityLog,
+    User, Branch, Expense, Order, Sale, Payment, SparePart, Transfer,
+    ActivityLog, Vehicle,
 )
 
 
@@ -269,6 +270,69 @@ def test_payment_history_scoped_to_branch(client, app, db):
 
     headers = _token(client, 'cash_a', 'pass1234')
     assert client.get(f'/api/sales/{sale_id}/payments', headers=headers).status_code == 404
+
+
+# ── Branch id / JWT identity type coercion (Postgres strictness) ────────
+
+def test_effective_branch_id_coerces_string_branch():
+    """`request.args` yields strings; the branch columns are Integer.
+
+    Comparing an Integer column to a string renders `branch_id = '2'`, which
+    Postgres rejects with `operator does not exist: integer = character
+    varying`. SQLite silently coerces, so the coercion is asserted directly.
+    """
+    from app.utils.auth import effective_branch_id
+
+    class _U:
+        def __init__(self, role, branch_id):
+            self.role, self.branch_id = role, branch_id
+
+    admin, manager = _U('admin', None), _U('manager', 2)
+    assert effective_branch_id(admin, '2') == 2
+    assert isinstance(effective_branch_id(admin, '2'), int)
+    assert effective_branch_id(admin, '') is None
+    assert effective_branch_id(admin, None) is None
+    assert effective_branch_id(admin, 'abc') is None
+    assert effective_branch_id(manager, '2') == 2
+
+
+def test_user_can_access_branch_compares_across_types():
+    from app.utils.auth import user_can_access_branch
+
+    class _U:
+        def __init__(self, role, branch_id):
+            self.role, self.branch_id = role, branch_id
+
+    manager = _U('manager', 2)
+    assert user_can_access_branch(manager, '2') is True
+    assert user_can_access_branch(manager, 2) is True
+    assert user_can_access_branch(manager, '3') is False
+    assert user_can_access_branch(manager, None) is False
+    assert user_can_access_branch(None, 2) is False
+
+
+def test_admin_branch_filter_accepts_string_id(client, app, db):
+    """An admin filtering inventory by ?branch_id= must not error on the type.
+
+    This exercises the same code path as the Inventory page's branch dropdown.
+    """
+    bid = _branch(app)
+    _make_user(app, 'root_admin', 'pass1234', role='admin')
+    with app.app_context():
+        _db.session.add(Vehicle(vin='COERCE01', model='M', type='4-wheel',
+                                selling_price=100, status='available', branch_id=bid))
+        _db.session.commit()
+
+    headers = _token(client, 'root_admin', 'pass1234')
+    resp = client.get(f'/api/inventory/vehicles?branch_id={bid}&status=available',
+                      headers=headers)
+    assert resp.status_code == 200
+    assert [v['vin'] for v in resp.get_json()['items']] == ['COERCE01']
+    # vehicle-stats and spare-part-categories follow the same branch filter.
+    assert client.get(f'/api/inventory/vehicle-stats?branch_id={bid}',
+                      headers=headers).status_code == 200
+    assert client.get(f'/api/inventory/spare-part-categories?branch_id={bid}',
+                      headers=headers).status_code == 200
 
 
 # ── Profile password change ─────────────────────────────────────────────

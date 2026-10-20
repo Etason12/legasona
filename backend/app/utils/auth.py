@@ -18,13 +18,33 @@ def _current_user():
     return user
 
 
+def _coerce_id(value):
+    """Return ``value`` as an int, or None when it is missing/unparseable.
+
+    Branch and user ids arrive from ``request.args`` as strings while the
+    matching columns are Integer. Comparing an Integer column to a string
+    renders ``branch_id = '2'``, which Postgres rejects with
+    ``operator does not exist: integer = character varying`` (SQLite silently
+    coerces, which is why this only surfaced in production). Coercing once
+    here keeps every caller safe.
+    """
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return None
+
+
 def effective_branch_id(user, requested_branch_id):
     """Non-admin users are always confined to their assigned branch.
 
     Admins may explicitly request any branch (or None for all branches).
+    The result is always an ``int`` (or ``None``) so it can be compared
+    against Integer columns on Postgres.
     """
     if user.role == 'admin':
-        return requested_branch_id
+        return _coerce_id(requested_branch_id)
     return user.branch_id
 
 
@@ -38,7 +58,9 @@ def user_can_access_branch(user, branch_id):
         return False
     if user.role == 'admin':
         return True
-    return user.branch_id is not None and branch_id == user.branch_id
+    if user.branch_id is None:
+        return False
+    return _coerce_id(branch_id) == user.branch_id
 
 
 def admin_required(fn):

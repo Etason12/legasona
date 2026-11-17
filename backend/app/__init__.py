@@ -259,6 +259,96 @@ def create_app(config_class=Config):
         """Seed the database with initial branches, admin user, and sample data."""
         _seed_database()
 
+    @app.cli.command('import-vehicles')
+    def import_vehicles_command():
+        """Import vehicles from Legasona_27_S2_Vehicle_Import.xlsx into Mekelle branch.
+
+        Idempotent: rows whose VIN already exists are skipped, so this is safe to
+        run on every redeploy.
+        """
+        import openpyxl
+        from app.models import Vehicle, Branch
+        from app.utils.validation import safe_float, truncate
+
+        excel_path = os.path.abspath(os.path.join(
+            os.path.dirname(__file__), '..', '..', 'Legasona_27_S2_Vehicle_Import.xlsx'
+        ))
+        if not os.path.exists(excel_path):
+            logger.warning(f'import-vehicles: Excel file not found at {excel_path}')
+            return
+
+        def normalize_type(value):
+            s = str(value or '').strip()
+            mapping = {'3-WHEEL': '3-wheel', '2-WHEEL': '2-wheel', '4-WHEEL': '4-wheel'}
+            return mapping.get(s.upper(), s.lower() if s else None)
+
+        def normalize_power(value):
+            s = str(value or '').strip().lower()
+            if s in ('electric', 'e', 'ev'):
+                return 'electric'
+            if s in ('non-electric', 'nonelectric', 'non electric', 'petrol', 'diesel', 'ice'):
+                return 'non-electric'
+            return s or None
+
+        def normalize_status(value):
+            s = str(value or '').strip().lower()
+            mapping = {
+                'available': 'available', 'sold': 'sold', 'reserved': 'reserved',
+                'in-transit': 'in-transit', 'in transit': 'in-transit',
+            }
+            return mapping.get(s, s or 'available')
+
+        with app.app_context():
+            mekelle = Branch.query.filter_by(name='Mekelle').first()
+            if not mekelle:
+                logger.warning('import-vehicles: Mekelle branch not found; skipping.')
+                return
+
+            wb = openpyxl.load_workbook(excel_path, data_only=True)
+            sheet = wb.active
+            rows = list(sheet.iter_rows(min_row=2, values_only=True))
+
+            existing = {v.vin for v in Vehicle.query.all()}
+            added = 0
+            skipped = 0
+            now = datetime.now(timezone.utc)
+
+            for row in rows:
+                if not row or all(c is None for c in row):
+                    continue
+                s_n, model, vin, specification, color, op_status, body_class, propulsion, selling_price = row
+                if not vin:
+                    skipped += 1
+                    continue
+                vin = str(vin).strip().upper()[:17]
+                if vin in existing:
+                    skipped += 1
+                    continue
+                v = Vehicle(
+                    vin=vin,
+                    type=normalize_type(body_class),
+                    power_type=normalize_power(propulsion),
+                    model=truncate(model, 100),
+                    color=truncate(color, 50),
+                    chassis_number=truncate(specification, 50),
+                    engine_number=None,
+                    cost_price=None,
+                    selling_price=safe_float(selling_price, default=0) or 0,
+                    branch_id=mekelle.id,
+                    status=normalize_status(op_status),
+                    received_date=now,
+                    image=None,
+                )
+                db.session.add(v)
+                existing.add(vin)
+                added += 1
+
+            db.session.commit()
+            logger.info(
+                f'import-vehicles: imported {added} vehicles to Mekelle '
+                f'(branch id={mekelle.id}); {skipped} skipped.'
+            )
+
     # Ensure tables exist (safe, idempotent).
     #
     # This ad-hoc DDL is deliberately skipped inside the gunicorn workers
